@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config_provider.dart';
 import '../../../core/network/api_client.dart';
+import 'datasources/counsel_data_source.dart';
+import 'datasources/counsel_dummy_data_source.dart';
+import 'datasources/counsel_remote_data_source.dart';
 import 'datasources/diary_analysis_data_source.dart';
 import 'datasources/diary_analysis_dummy_data_source.dart';
 import 'datasources/diary_analysis_remote_data_source.dart';
@@ -11,6 +14,8 @@ import 'datasources/diary_remote_data_source.dart';
 import 'models/counsel_session.dart';
 import 'models/diary_entry.dart';
 import 'models/emotion_report.dart';
+import 'repositories/counsel_repository.dart';
+import 'repositories/counsel_repository_impl.dart';
 import 'repositories/diary_analysis_repository.dart';
 import 'repositories/diary_analysis_repository_impl.dart';
 import 'repositories/diary_repository.dart';
@@ -72,3 +77,16 @@ final counselSessionProvider = FutureProvider.family<CounselSession?, DateTime>(
     return ref.watch(diaryRepositoryProvider).fetchCounsel(date);
   },
 );
+
+/// Swap point for Step4 상담 대화 (AI 서버 `POST /counsel/turn`).
+final counselDataSourceProvider = Provider<CounselDataSource>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useDummyData) {
+    return CounselDummyDataSource();
+  }
+  return CounselRemoteDataSource(ref.watch(apiClientProvider));
+});
+
+final counselRepositoryProvider = Provider<CounselRepository>((ref) {
+  return CounselRepositoryImpl(ref.watch(counselDataSourceProvider));
+});
