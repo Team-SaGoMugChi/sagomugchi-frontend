@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/application/auth_controller.dart';
 import '../data/baseline_providers.dart';
 import '../data/models/baseline_measurement_exception.dart';
 import '../data/models/baseline_profile.dart';
@@ -14,7 +15,11 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
   int _submission = 0;
 
   @override
-  AsyncValue<BaselineProfile?> build() => const AsyncData(null);
+  AsyncValue<BaselineProfile?> build() {
+    ref.watch(authControllerProvider.select((value) => value.user?.id));
+    _submission++;
+    return const AsyncData(null);
+  }
 
   void startMeasurement() {
     _submission++;
