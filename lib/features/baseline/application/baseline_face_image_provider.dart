@@ -7,7 +7,10 @@ class BaselineFaceImage extends Notifier<String?> {
   String? build() => null;
 
   void set(String path) => state = path;
+
+  void clear() => state = null;
 }
 
-final baselineFaceImageProvider =
-    NotifierProvider<BaselineFaceImage, String?>(BaselineFaceImage.new);
+final baselineFaceImageProvider = NotifierProvider<BaselineFaceImage, String?>(
+  BaselineFaceImage.new,
+);

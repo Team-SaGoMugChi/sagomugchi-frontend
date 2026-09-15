@@ -7,7 +7,10 @@ class BaselineRecording extends Notifier<String?> {
   String? build() => null;
 
   void set(String path) => state = path;
+
+  void clear() => state = null;
 }
 
-final baselineRecordingProvider =
-    NotifierProvider<BaselineRecording, String?>(BaselineRecording.new);
+final baselineRecordingProvider = NotifierProvider<BaselineRecording, String?>(
+  BaselineRecording.new,
+);

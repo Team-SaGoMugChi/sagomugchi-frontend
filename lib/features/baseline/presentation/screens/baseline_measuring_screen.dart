@@ -20,11 +20,11 @@ import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/tip_card.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
+import '../../application/baseline_upload_controller.dart';
 import '../widgets/baseline_header.dart';
 
 /// Screen 19 — 얼굴·음성 Baseline 측정 중. Video-call style: live front camera
-/// + mic recording (path kept for the Phase-4 analysis upload). Auto-advances
-/// to the analysis screen after a dummy delay (tap the status bar to skip).
+/// + mic recording. Uploads only the files captured in this measurement.
 class BaselineMeasuringScreen extends ConsumerStatefulWidget {
   const BaselineMeasuringScreen({super.key});
 
@@ -54,15 +54,28 @@ class _BaselineMeasuringScreenState
   @override
   void initState() {
     super.initState();
-    _runGuideThenAdvance();
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(baselineUploadControllerProvider.notifier).startMeasurement();
+      _runGuideThenAdvance();
+    });
   }
 
   Future<void> _runGuideThenAdvance() async {
     final recorder = ref.read(audioRecorderProvider);
     // amplitudeStream()은 실제로 녹음 중일 때만 의미 있는 값을 준다 — 녹음이
     // 시작되기 전에 부르면 빈 스트림이라 매 질문이 대기 없이 그냥 넘어간다.
-    await recorder.start(fileName: 'baseline_voice');
-    if (!mounted || _advanced) return;
+    final started = await recorder.start(
+      fileName: 'baseline_voice_${DateTime.now().microsecondsSinceEpoch}',
+    );
+    if (!mounted || _advanced) {
+      await recorder.stop();
+      return;
+    }
+    if (!started) {
+      await _advance();
+      return;
+    }
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
@@ -94,12 +107,14 @@ class _BaselineMeasuringScreenState
     _conversation?.stop();
 
     // 정지 이미지 캡처는 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이 바뀌는 걸 방지.
+    final recorder = ref.read(audioRecorderProvider);
     final photo = await _cameraKey.currentState?.takePicture();
+    final path = await recorder.stop();
+    if (!mounted) return;
     if (photo != null) {
       ref.read(baselineFaceImageProvider.notifier).set(photo.path);
     }
 
-    final path = await ref.read(audioRecorderProvider).stop();
     if (path != null) {
       ref.read(baselineRecordingProvider.notifier).set(path);
     }
