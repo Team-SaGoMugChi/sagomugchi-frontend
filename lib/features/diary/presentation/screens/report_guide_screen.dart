@@ -41,12 +41,16 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
   /// Saves the completed run (diary + report + counsel log) under the focused
   /// date, then returns to the written-day home.
   ///
-  /// TODO(Phase 5): 요약/키워드/점수/리포트/상담 로그를 실제 AI 산출물로 대체 —
-  /// 지금은 Step2에서 수정한 원문만 실데이터, 나머지는 샘플 콘텐츠.
+  /// Step1 처리에서 받은 서버 분석 결과(`fusionResult`)가 있으면 감정 키워드·
+  /// 강도·분포는 그 실데이터로 저장하고, 없으면(분석 실패/더미 모드) 샘플로
+  /// 폴백한다 — Step2 확인 화면과 같은 규칙.
+  ///
+  /// TODO(Phase 5): 요약/상담 로그/행동 가이드는 아직 LLM 산출물이 없어 샘플.
   Future<void> _completeRecord() async {
     final writtenDate = ref.read(viewingDateProvider);
-    final transcript =
-        ref.read(diaryDraftProvider).transcript ?? DummySeed.diaryJan14.transcript;
+    final draft = ref.read(diaryDraftProvider);
+    final transcript = draft.transcript ?? DummySeed.diaryJan14.transcript;
+    final fusion = draft.fusionResult;
     final sampleEntry = DummySeed.diaryJan14;
     final sampleReport = DummySeed.reportJan14;
     final now = DateTime.now();
@@ -56,15 +60,19 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       date: writtenDate,
       transcript: transcript,
       summary: sampleEntry.summary,
-      emotionKeywords: sampleEntry.emotionKeywords,
-      emotionIntensity: sampleEntry.emotionIntensity,
+      emotionKeywords: fusion?.emotionKeywords ?? sampleEntry.emotionKeywords,
+      emotionIntensity:
+          fusion?.emotionIntensity ?? sampleEntry.emotionIntensity,
       emotionStability: sampleEntry.emotionStability,
       writtenAt: now,
     );
     final report = EmotionReport(
       date: writtenDate,
-      emotionDistribution: sampleReport.emotionDistribution,
-      emotionIntensity: sampleReport.emotionIntensity,
+      emotionDistribution: fusion != null
+          ? _toDistribution(fusion.emotionScores)
+          : sampleReport.emotionDistribution,
+      emotionIntensity:
+          fusion?.emotionIntensity ?? sampleReport.emotionIntensity,
       recoveryPossibility: sampleReport.recoveryPossibility,
       analysisComment: sampleReport.analysisComment,
       behaviorGuides: sampleReport.behaviorGuides,
@@ -97,6 +105,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// 서버 `emotion_scores`는 0–100, Firestore `emotionDistribution`은 감정 →
+  /// 비율(0–1)이라(FIRESTORE_SCHEMA.md §3) 스케일을 맞춰 저장한다.
+  static Map<String, double> _toDistribution(Map<String, double> scores) =>
+      scores.map((key, value) => MapEntry(key, value / 100));
 
   @override
   Widget build(BuildContext context) {
