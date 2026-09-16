@@ -138,6 +138,14 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
                           context.pushNamed(AppRoute.chatbotSettings),
                     ),
                     const Divider(color: AppColors.divider, height: 1),
+                    // 홈 팝업(Screen 8)의 "시작하기"와 같은 진입점 — 권한 안내부터
+                    // 페르소나 설정까지 첫 측정과 똑같은 순서로 다시 진행한다.
+                    _MenuRow(
+                      icon: Icons.face_retouching_natural_rounded,
+                      label: '베이스라인 다시 측정하기',
+                      onTap: () => context.pushNamed(AppRoute.permission),
+                    ),
+                    const Divider(color: AppColors.divider, height: 1),
                     _MenuRow(
                       icon: Icons.notifications_none_rounded,
                       label: '일기 리마인더 알림',
