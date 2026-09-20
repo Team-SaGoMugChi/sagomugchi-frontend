@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -11,27 +12,58 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/video_call_widgets.dart';
+import '../../application/counsel_controller.dart';
+import '../../data/models/counsel_session.dart';
 
-/// Screen 44 — Step 4. 영상통화 상담. Video-call style counseling. 상담 종료 →
-/// 리포트 생성.
-class DiaryStep4CounselCallScreen extends StatefulWidget {
+/// Screen 44 — Step 4. 영상통화 상담. 상담 종료 → 리포트 생성.
+class DiaryStep4CounselCallScreen extends ConsumerStatefulWidget {
   const DiaryStep4CounselCallScreen({super.key});
 
   @override
-  State<DiaryStep4CounselCallScreen> createState() =>
+  ConsumerState<DiaryStep4CounselCallScreen> createState() =>
       _DiaryStep4CounselCallScreenState();
 }
 
 class _DiaryStep4CounselCallScreenState
-    extends State<DiaryStep4CounselCallScreen> {
-  // 시각 상태 토글 — 실제 오디오 입출력은 Phase 5(상담봇 음성)에서 연결.
+    extends ConsumerState<DiaryStep4CounselCallScreen> {
+  // 시각 상태 토글 — 실제 오디오 입출력은 STT/TTS 연결 시 붙인다.
   bool _micMuted = false;
   bool _speakerOff = false;
 
+  // TODO(Phase 5): STT 연결 후 제거 — 지금은 키보드로 대화 왕복을 확인한다.
+  final TextEditingController _input = TextEditingController();
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _input.text;
+    if (text.trim().isEmpty) return;
+    _input.clear();
+    ref.read(counselControllerProvider.notifier).sendTurn(text);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final counsel = ref.watch(counselControllerProvider);
+
+    // 마지막 탄카츄 발화 — 아직 대화 전이면 기본 인사말.
+    final lastOddo = counsel.messages.lastWhere(
+      (m) => m.speaker == CounselSpeaker.oddo,
+      orElse: () => const CounselMessage(
+        speaker: CounselSpeaker.oddo,
+        text: DiaryFlowDummy.counselBubble,
+      ),
+    );
+    final bubbleText =
+        counsel.sending ? '잠시만요, 생각하고 있어요…' : lastOddo.text;
+
     return Scaffold(
       backgroundColor: AppColors.callBackground,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -74,27 +106,35 @@ class _DiaryStep4CounselCallScreenState
             Expanded(
               child: Stack(
                 children: [
-                  // TODO: 상담사처럼 차분하고 공감하는 큰 포즈로 교체 예정
                   const Center(
                       child: MascotImage(
                           pose: MascotPose.counselor, size: 200, onDark: true)),
-                  // Step1과 동일한 실시간 분석 인디케이터로 통일.
                   const Positioned(
                     top: 8,
                     right: AppSpacing.screenH,
                     child: CallAnalysisChip(),
                   ),
-                  // 우상단(실시간 감정 분석 칩 아래) — 자막 말풍선과 겹치지 않게.
                   const Positioned(
                       top: 76,
                       right: AppSpacing.screenH,
                       child: CallUserPreview(width: 80, height: 106)),
-                  // 컨트롤 버튼줄(아이콘 56 + 라벨 ≈ 92px) 위로 띄워 겹침 방지.
-                  const Positioned(
+                  // 말풍선 — 입력줄과 컨트롤 버튼 위로 띄운다.
+                  Positioned(
                     left: AppSpacing.screenH,
                     right: AppSpacing.screenH,
-                    bottom: 108,
-                    child: _OddoBubble(),
+                    bottom: 172,
+                    child: _OddoBubble(text: bubbleText),
+                  ),
+                  // TODO(Phase 5): STT 연결 후 이 입력줄 제거.
+                  Positioned(
+                    left: AppSpacing.screenH,
+                    right: AppSpacing.screenH,
+                    bottom: 104,
+                    child: _TempInputBar(
+                      controller: _input,
+                      sending: counsel.sending,
+                      onSend: _send,
+                    ),
                   ),
                   Positioned(
                     left: 0,
@@ -144,7 +184,9 @@ class _DiaryStep4CounselCallScreenState
 }
 
 class _OddoBubble extends StatelessWidget {
-  const _OddoBubble();
+  const _OddoBubble({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -154,9 +196,67 @@ class _OddoBubble extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Text(DiaryFlowDummy.counselBubble,
+      child: Text(text,
           style: AppTypography.bodySecondary
               .copyWith(color: AppColors.textPrimary)),
+    );
+  }
+}
+
+/// STT 연결 전 임시 입력줄. 대화 왕복 확인용.
+class _TempInputBar extends StatelessWidget {
+  const _TempInputBar({
+    required this.controller,
+    required this.sending,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool sending;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !sending,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onSend(),
+              style: AppTypography.bodySecondary
+                  .copyWith(color: AppColors.textPrimary),
+              decoration: const InputDecoration(
+                hintText: '하고 싶은 말을 적어보세요',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+          if (sending)
+            const Padding(
+              padding: EdgeInsets.all(10),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primary),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+              onPressed: onSend,
+            ),
+        ],
+      ),
     );
   }
 }
