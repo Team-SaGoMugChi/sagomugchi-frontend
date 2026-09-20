@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
@@ -9,9 +8,16 @@ import '../../../../theme/app_typography.dart';
 /// A single emotion-baseline summary metric tile (icon + label + value) on the
 /// completion screen.
 class MetricTile extends StatelessWidget {
-  const MetricTile({super.key, required this.metric});
+  const MetricTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
-  final BaselineMetric metric;
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +33,21 @@ class MetricTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(metric.icon, size: 16, color: metric.color),
-              const SizedBox(width: 6),
+              Icon(icon, size: 16, color: AppColors.primary),
+              Gap.w8,
               Expanded(
-                child: Text(metric.label,
-                    style: AppTypography.caption,
-                    overflow: TextOverflow.ellipsis),
+                child: Text(
+                  label,
+                  style: AppTypography.caption,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            metric.value,
-            style: AppTypography.subtitle.copyWith(color: metric.color),
+            value,
+            style: AppTypography.subtitle.copyWith(color: AppColors.primary),
           ),
         ],
       ),

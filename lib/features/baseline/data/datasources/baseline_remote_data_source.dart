@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/baseline_profile.dart';
+import 'baseline_api.dart';
 import 'baseline_data_source.dart';
 
 /// 실제 AI 서버(`POST /baseline`) 호출. 응답 필드는 FastAPI(Pydantic) 쪽 스네이크
@@ -39,16 +40,10 @@ class BaselineRemoteDataSource implements BaselineDataSource {
     required String voiceFilePath,
     required String faceImagePath,
   }) async {
-    final json = await _apiClient.postMultipart(
-      '/baseline',
-      fields: {'user_id': _uid},
-      filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
-    );
-
-    return BaselineProfile(
-      voice: _toDoubleMap(json['voice']),
-      face: _toDoubleMap(json['face']),
-      measuredAt: DateTime.parse(json['measured_at'] as String),
+    return BaselineApi(_apiClient).upload(
+      userId: _uid,
+      voiceFilePath: voiceFilePath,
+      faceImagePath: faceImagePath,
     );
   }
 
@@ -69,10 +64,5 @@ class BaselineRemoteDataSource implements BaselineDataSource {
       }
       throw ServerException('baseline 정보를 불러오지 못했어요.', e);
     }
-  }
-
-  Map<String, double> _toDoubleMap(Object? raw) {
-    final map = raw as Map<String, dynamic>? ?? {};
-    return map.map((k, v) => MapEntry(k, (v as num).toDouble()));
   }
 }

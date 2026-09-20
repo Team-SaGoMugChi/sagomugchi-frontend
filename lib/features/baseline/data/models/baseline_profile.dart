@@ -17,18 +17,32 @@ class BaselineProfile {
   final Map<String, double> face;
   final DateTime measuredAt;
 
+  /// Legacy profiles may contain empty maps even though a save succeeded.
+  bool get hasVoiceReference =>
+      (voice['pitchMean'] ?? 0) > 0 &&
+      (voice['energyMean'] ?? 0) > 0 &&
+      voice.values.every((value) => value.isFinite);
+
+  bool get hasFaceReference =>
+      face.isNotEmpty &&
+      face.values.every((value) => value.isFinite && value >= 0);
+
+  bool get isComplete => hasVoiceReference && hasFaceReference;
+
   factory BaselineProfile.fromJson(Map<String, dynamic> json) =>
       BaselineProfile(
-        voice: (json['voice'] as Map<String, dynamic>? ?? {})
-            .map((k, v) => MapEntry(k, (v as num).toDouble())),
-        face: (json['face'] as Map<String, dynamic>? ?? {})
-            .map((k, v) => MapEntry(k, (v as num).toDouble())),
+        voice: (json['voice'] as Map<String, dynamic>? ?? {}).map(
+          (k, v) => MapEntry(k, (v as num).toDouble()),
+        ),
+        face: (json['face'] as Map<String, dynamic>? ?? {}).map(
+          (k, v) => MapEntry(k, (v as num).toDouble()),
+        ),
         measuredAt: DateTime.parse(json['measuredAt'] as String),
       );
 
   Map<String, dynamic> toJson() => {
-        'voice': voice,
-        'face': face,
-        'measuredAt': measuredAt.toIso8601String(),
-      };
+    'voice': voice,
+    'face': face,
+    'measuredAt': measuredAt.toIso8601String(),
+  };
 }
