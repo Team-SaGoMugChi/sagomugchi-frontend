@@ -8,11 +8,11 @@
 
 팀원 요청으로 새 baseline에 `voice.f0Std`(Hz), `voice.voicedRatio`(0~1), `voice.durationSec`(초), `featureVersion: 1`을 추가했다. API 응답 버전 키는 `feature_version`이며 앱이 변환해 보존한다. 과거 버전 없는 데이터는 0으로 읽고 새 값은 재측정해야 생긴다. `pitchMean`은 평균 Hz로 유지하며 중앙값·세미톤 및 얼굴 다중 프레임은 후속 협의 대상이다. 추가 항목이 기존 fusion 점수에 자동 반영되지는 않는다. 상세 계약은 실제 백엔드의 `docs/BASELINE_HANDOFF.md`.
 
-전달 브랜치: 프론트 `17-baseline-handoff`(이슈 #17), 백엔드 `13-baseline-voice-handoff`(이슈 #13). 아래 커밋 목록은 작업 전 상태의 기록이며, 이 브랜치에는 기존 변경을 develop 위로 옮겨 새 커밋 ID가 생겼다. PR 병합 전 맥북에서 작업하려면 두 저장소에서 각각 해당 브랜치를 받아야 한다. develop만 pull하면 PR 병합 전 코드는 오지 않는다.
+전달 브랜치: 프론트 `17-baseline-delivery`(이슈 #17), 백엔드 `13-baseline-voice-delivery`(이슈 #13). 아래 커밋 목록은 작업 전 상태의 기록이며, 이 브랜치에는 기존 변경을 develop 위로 옮겨 새 커밋 ID가 생겼다. PR 병합 전 맥북에서 작업하려면 두 저장소에서 각각 해당 브랜치를 받아야 한다. develop만 pull하면 PR 병합 전 코드는 오지 않는다.
 
 이번 검증: 백엔드 pytest 79개, Flutter test 83개 통과. 실제 기기에서 새 측정 후 Firebase 저장 확인은 미실시이며 다음 작업이다. Firebase 쓰기는 테스트 대역으로 계약을 검증했다.
 
-게시 완료: [백엔드 PR #14](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/14), [프론트 PR #18](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/18). 두 PR의 base는 develop이며 이 기록 시점에는 아직 병합하지 않았다. `dart fix --apply`는 수정 없음, `flutter analyze`는 문제 없음으로 완료했다. 맥북에서 각 저장소의 해당 브랜치를 받거나 PR 병합 후 develop을 갱신한다.
+게시 완료: [백엔드 PR #15](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/15), [프론트 PR #19](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/19). 두 PR의 base는 develop이며 이 기록 시점에는 아직 병합하지 않았다. `dart fix --apply`는 수정 없음, `flutter analyze`는 문제 없음으로 완료했다. 맥북에서 각 저장소의 해당 브랜치를 받거나 PR 병합 후 develop을 갱신한다.
 
 맥북에 GitHub 최신 develop만 있다면 윈도우의 최근 작업 전부가 있는 상태가 아니다. 2026-09-22 GitHub 원격 조회로 아래 develop 커밋을 확인했다.
 
