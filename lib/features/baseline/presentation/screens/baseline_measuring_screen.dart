@@ -37,6 +37,7 @@ class _BaselineMeasuringScreenState
     extends ConsumerState<BaselineMeasuringScreen> {
   final _cameraKey = GlobalKey<CameraSelfViewState>();
   bool _advanced = false;
+  bool _recording = false;
   ConversationTurn? _turn;
 
   // 실제 baseline 음성 녹음이 화면 전체에서 계속 돌아가고 있어서, 여기서는
@@ -76,6 +77,7 @@ class _BaselineMeasuringScreenState
       await _advance();
       return;
     }
+    setState(() => _recording = true);
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
@@ -103,7 +105,10 @@ class _BaselineMeasuringScreenState
 
   Future<void> _advance() async {
     if (_advanced || !mounted) return;
-    _advanced = true;
+    setState(() {
+      _advanced = true;
+      _recording = false;
+    });
     _conversation?.stop();
 
     // 정지 이미지 캡처는 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이 바뀌는 걸 방지.
@@ -164,14 +169,14 @@ class _BaselineMeasuringScreenState
                     ),
                     Gap.h8,
                     const Text(
-                      '얼굴 표정과 음성 데이터를 수집하고 있어요.\n잠시만 편안한 상태로 기다려주세요.',
+                      '안내에 따라 편하게 이야기해주세요.\n얼굴 사진은 측정을 마칠 때 촬영해요.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.callTextSecondary,
                       ),
                     ),
                     Gap.h16,
-                    _PreviewCard(cameraKey: _cameraKey),
+                    _PreviewCard(cameraKey: _cameraKey, recording: _recording),
                     if (_turn != null) ...[
                       Gap.h12,
                       _GuideCaption(text: _turn!.caption),
@@ -186,10 +191,17 @@ class _BaselineMeasuringScreenState
                       ),
                     ),
                     Gap.h12,
-                    for (final p in BaselineDummy.measuringProgress) ...[
-                      _ProgressRow(progress: p),
-                      Gap.h16,
-                    ],
+                    Text(
+                      _advanced
+                          ? '녹음과 얼굴 사진을 준비하고 있어요.'
+                          : _recording
+                          ? '목소리를 녹음하고 있어요.'
+                          : '마이크를 준비하고 있어요.',
+                      style: AppTypography.bodySecondary.copyWith(
+                        color: AppColors.callTextSecondary,
+                      ),
+                    ),
+                    Gap.h16,
                     const TipCard(
                       tips: BaselineDummy.measuringTips,
                       dark: true,
@@ -205,7 +217,10 @@ class _BaselineMeasuringScreenState
                 AppSpacing.screenH,
                 AppSpacing.xs,
               ),
-              child: _StatusBar(onTap: _advance),
+              child: _StatusBar(
+                onTap: _recording && !_advanced ? _advance : null,
+                finishing: _advanced,
+              ),
             ),
           ],
         ),
@@ -256,7 +271,8 @@ class _GuideCaption extends StatelessWidget {
 }
 
 class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({required this.cameraKey});
+  const _PreviewCard({required this.cameraKey, required this.recording});
+  final bool recording;
 
   final GlobalKey<CameraSelfViewState> cameraKey;
 
@@ -285,9 +301,10 @@ class _PreviewCard extends StatelessWidget {
               ),
             ),
           ),
-          const Positioned(top: 12, left: 12, child: _LiveChip()),
-          const Positioned(top: 12, right: 12, child: _TimerChip()),
-          const Positioned(bottom: 14, right: 14, child: _Waveform()),
+          if (recording)
+            const Positioned(top: 12, left: 12, child: _LiveChip()),
+          if (recording)
+            const Positioned(top: 12, right: 12, child: _TimerChip()),
         ],
       ),
     );
@@ -318,7 +335,7 @@ class _LiveChip extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            'LIVE',
+            '녹음 중',
             style: AppTypography.caption.copyWith(
               color: AppColors.callTextPrimary,
               fontWeight: FontWeight.w700,
@@ -363,78 +380,10 @@ class _TimerChip extends StatelessWidget {
   }
 }
 
-class _Waveform extends StatelessWidget {
-  const _Waveform();
-
-  static const List<double> _bars = [10, 18, 8, 22, 14, 26, 12, 20];
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        for (final h in _bars)
-          Container(
-            width: 3,
-            height: h,
-            margin: const EdgeInsets.symmetric(horizontal: 1.5),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ProgressRow extends StatelessWidget {
-  const _ProgressRow({required this.progress});
-  final MeasureProgress progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              progress.label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.callTextPrimary,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${(progress.value * 100).round()}%',
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: LinearProgressIndicator(
-            value: progress.value,
-            minHeight: 8,
-            backgroundColor: AppColors.callSurface,
-            valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.onTap});
-  final VoidCallback onTap;
+  const _StatusBar({required this.onTap, required this.finishing});
+  final VoidCallback? onTap;
+  final bool finishing;
 
   @override
   Widget build(BuildContext context) {
@@ -450,17 +399,22 @@ class _StatusBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.callTextSecondary,
+              if (onTap == null)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.callTextSecondary,
+                  ),
                 ),
-              ),
               const SizedBox(width: 10),
               Text(
-                '측정 중... 잠시만 기다려주세요',
+                finishing
+                    ? '측정을 마무리하고 있어요'
+                    : onTap == null
+                    ? '측정을 준비하고 있어요'
+                    : '측정 마치고 분석하기',
                 style: AppTypography.button.copyWith(
                   color: AppColors.callTextSecondary,
                 ),
