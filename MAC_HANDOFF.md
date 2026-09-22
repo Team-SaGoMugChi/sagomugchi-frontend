@@ -12,6 +12,8 @@
 
 이번 검증: 백엔드 pytest 79개, Flutter test 83개 통과. 실제 기기에서 새 측정 후 Firebase 저장 확인은 미실시이며 다음 작업이다. Firebase 쓰기는 테스트 대역으로 계약을 검증했다.
 
+게시 완료: [백엔드 PR #14](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/14), [프론트 PR #18](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/18). 두 PR의 base는 develop이며 이 기록 시점에는 아직 병합하지 않았다. `dart fix --apply`는 수정 없음, `flutter analyze`는 문제 없음으로 완료했다. 맥북에서 각 저장소의 해당 브랜치를 받거나 PR 병합 후 develop을 갱신한다.
+
 맥북에 GitHub 최신 develop만 있다면 윈도우의 최근 작업 전부가 있는 상태가 아니다. 2026-09-22 GitHub 원격 조회로 아래 develop 커밋을 확인했다.
 
 | 대상 | 저장소 | 원격 develop | 윈도우 작업 HEAD |
