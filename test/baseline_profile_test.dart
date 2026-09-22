@@ -41,12 +41,66 @@ class _Repository implements BaselineRepository {
 }
 
 class _AuthController extends AuthController {
+  void leave() => state = const AuthState();
+
   void enter(String id) => state = AuthState(
     user: AppUser(id: id, email: '$id@example.test', nickname: id),
   );
 }
 
 void main() {
+  for (final signOut in [false, true]) {
+    test(
+      'account ${signOut ? "logout" : "switch"} prevents reusing captures',
+      () async {
+        final repository = _Repository();
+        var uploads = 0;
+        repository.upload = () async {
+          uploads++;
+          return _profile;
+        };
+        final container = ProviderContainer(
+          overrides: [
+            baselineRepositoryProvider.overrideWithValue(repository),
+            authControllerProvider.overrideWith(_AuthController.new),
+          ],
+        );
+        addTearDown(container.dispose);
+        final auth =
+            container.read(authControllerProvider.notifier) as _AuthController;
+        auth.enter('first');
+        container.read(baselineRecordingProvider.notifier).set('voice.wav');
+        container.read(baselineFaceImageProvider.notifier).set('face.jpg');
+        if (signOut) {
+          auth.leave();
+        } else {
+          auth.enter('second');
+        }
+        await container
+            .read(baselineUploadControllerProvider.notifier)
+            .submit();
+        expect(uploads, 0);
+        expect(container.read(baselineRecordingProvider), isNull);
+        expect(container.read(baselineFaceImageProvider), isNull);
+      },
+    );
+  }
+
+  test('same account refresh preserves captures for retry', () {
+    final container = ProviderContainer(
+      overrides: [authControllerProvider.overrideWith(_AuthController.new)],
+    );
+    addTearDown(container.dispose);
+    final auth =
+        container.read(authControllerProvider.notifier) as _AuthController;
+    auth.enter('first');
+    container.read(baselineRecordingProvider.notifier).set('voice.wav');
+    container.read(baselineFaceImageProvider.notifier).set('face.jpg');
+    auth.enter('first');
+    expect(container.read(baselineRecordingProvider), 'voice.wav');
+    expect(container.read(baselineFaceImageProvider), 'face.jpg');
+  });
+
   test('complete requires usable voice and face references', () {
     expect(_profile.isComplete, isTrue);
     for (final voice in [
