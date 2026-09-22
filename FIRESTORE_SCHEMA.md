@@ -91,7 +91,8 @@ users/{uid}                              ← AppUser        (계정 프로필)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `voice` | map<string,double> | 음성 기준값. 키는 AI 서버가 정의 (예: `pitchMean`, `speechRate`, `energyMean`) |
+| `voice` | map<string,double> | `pitchMean`(평균 F0, Hz), `f0Std`(F0 표준편차, Hz), `speechRate`(음절/초 근사), `voicedRatio`(유성 프레임 비율 0~1), `durationSec`(무음 포함 녹음 초), `energyMean`(평균 RMS) |
+| `featureVersion` | int | 신규 측정은 1. 필드 없는 과거 데이터는 버전 0으로 취급하며 재측정 전까지 신규 값이 있다고 가정하지 않음. API 이름은 `feature_version` |
 | `face` | map<string,double> | 표정 기준값. 키는 AI 서버가 정의 (예: AU/랜드마크 요약치) |
 | `measuredAt` | string(ISO) | 측정 시각 |
 
