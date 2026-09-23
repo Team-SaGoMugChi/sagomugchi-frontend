@@ -58,8 +58,7 @@ class _DiaryStep4CounselCallScreenState
         text: DiaryFlowDummy.counselBubble,
       ),
     );
-    final bubbleText =
-        counsel.sending ? '잠시만요, 생각하고 있어요…' : lastOddo.text;
+    final bubbleText = counsel.sending ? '잠시만요, 생각하고 있어요…' : lastOddo.text;
 
     return Scaffold(
       backgroundColor: AppColors.callBackground,
@@ -70,23 +69,30 @@ class _DiaryStep4CounselCallScreenState
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.callTextPrimary),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.callTextPrimary,
+                  ),
                   onPressed: () {
                     if (context.canPop()) context.pop();
                   },
                 ),
                 const Expanded(
-                  child: Text('Step 4. 상담하기',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.callTextPrimary)),
+                  child: Text(
+                    'Step 4. 상담하기',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.callTextPrimary,
+                    ),
+                  ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.help_outline_rounded,
-                      color: AppColors.callTextPrimary),
+                  icon: const Icon(
+                    Icons.help_outline_rounded,
+                    color: AppColors.callTextPrimary,
+                  ),
                   onPressed: () => showHelpSheet(
                     context,
                     title: '상담하기 도움말',
@@ -107,17 +113,30 @@ class _DiaryStep4CounselCallScreenState
               child: Stack(
                 children: [
                   const Center(
-                      child: MascotImage(
-                          pose: MascotPose.counselor, size: 200, onDark: true)),
+                    child: MascotImage(
+                      pose: MascotPose.counselor,
+                      size: 200,
+                      onDark: true,
+                    ),
+                  ),
                   const Positioned(
                     top: 8,
                     right: AppSpacing.screenH,
                     child: CallAnalysisChip(),
                   ),
                   const Positioned(
-                      top: 76,
+                    top: 76,
+                    right: AppSpacing.screenH,
+                    child: CallUserPreview(width: 80, height: 106),
+                  ),
+                  // 위기 발화가 감지되면 상담을 멈추고 전문 기관 안내를 띄운다.
+                  if (counsel.crisis)
+                    const Positioned(
+                      left: AppSpacing.screenH,
                       right: AppSpacing.screenH,
-                      child: CallUserPreview(width: 80, height: 106)),
+                      bottom: 244,
+                      child: _CrisisBanner(),
+                    ),
                   // 말풍선 — 입력줄과 컨트롤 버튼 위로 띄운다.
                   Positioned(
                     left: AppSpacing.screenH,
@@ -133,6 +152,7 @@ class _DiaryStep4CounselCallScreenState
                     child: _TempInputBar(
                       controller: _input,
                       sending: counsel.sending,
+                      enabled: !counsel.crisis,
                       onSend: _send,
                     ),
                   ),
@@ -149,16 +169,16 @@ class _DiaryStep4CounselCallScreenState
                                 ? Icons.mic_off_rounded
                                 : Icons.mic_rounded,
                             label: _micMuted ? '음소거 중' : '마이크',
-                            onTap: () =>
-                                setState(() => _micMuted = !_micMuted),
+                            onTap: () => setState(() => _micMuted = !_micMuted),
                           ),
                           const SizedBox(width: 20),
                           CallControlButton(
                             icon: Icons.call_end_rounded,
                             label: '상담 종료',
                             danger: true,
-                            onTap: () => context
-                                .pushReplacementNamed(AppRoute.reportGenerating),
+                            onTap: () => context.pushReplacementNamed(
+                              AppRoute.reportGenerating,
+                            ),
                           ),
                           const SizedBox(width: 20),
                           CallControlButton(
@@ -196,9 +216,44 @@ class _OddoBubble extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Text(text,
-          style: AppTypography.bodySecondary
-              .copyWith(color: AppColors.textPrimary)),
+      child: Text(
+        text,
+        style: AppTypography.bodySecondary.copyWith(
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
+/// 위기 발화 감지 시 안내 — 상담 응답 대신 전문 기관 연결을 먼저 보여준다.
+class _CrisisBanner extends StatelessWidget {
+  const _CrisisBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.error),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.favorite_rounded, size: 18, color: AppColors.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '지금은 전문가와 이야기하는 게 좋겠어요.\n'
+              '자살예방 상담전화 109 · 24시간 연결돼요.',
+              style: AppTypography.bodySecondary.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -209,11 +264,15 @@ class _TempInputBar extends StatelessWidget {
     required this.controller,
     required this.sending,
     required this.onSend,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
+
+  /// 위기 안내 중에는 입력을 막는다.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -228,15 +287,16 @@ class _TempInputBar extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              enabled: !sending,
+              enabled: enabled && !sending,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
-              style: AppTypography.bodySecondary
-                  .copyWith(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: '하고 싶은 말을 적어보세요',
+              style: AppTypography.bodySecondary.copyWith(
+                color: AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: enabled ? '하고 싶은 말을 적어보세요' : '상담을 잠시 멈췄어요',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
           ),
@@ -247,13 +307,15 @@ class _TempInputBar extends StatelessWidget {
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primary),
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
               ),
             )
           else
             IconButton(
               icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-              onPressed: onSend,
+              onPressed: enabled ? onSend : null,
             ),
         ],
       ),
