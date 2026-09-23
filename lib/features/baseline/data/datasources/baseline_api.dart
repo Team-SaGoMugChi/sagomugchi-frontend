@@ -27,6 +27,7 @@ class BaselineApi {
       return BaselineProfile.fromJson({
         ...json,
         'measuredAt': json['measured_at'],
+        'featureVersion': json['feature_version'],
       });
     } on FileSystemException {
       throw const BaselineMeasurementException(

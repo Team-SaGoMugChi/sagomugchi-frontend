@@ -42,6 +42,7 @@ class _Repository implements BaselineRepository {
 
 class _Client implements ApiClient {
   Object? error;
+  int? featureVersion;
 
   @override
   Future<Map<String, dynamic>> postMultipart(
@@ -57,6 +58,7 @@ class _Client implements ApiClient {
       'voice': _profile.voice,
       'face': _profile.face,
       'measured_at': _profile.measuredAt.toIso8601String(),
+      if (featureVersion != null) 'feature_version': featureVersion,
     };
   }
 
@@ -170,6 +172,14 @@ void main() {
       expect(result.voice, _profile.voice);
       expect(result.face, _profile.face);
       expect(result.measuredAt, _profile.measuredAt);
+      expect(result.featureVersion, 0);
+    });
+
+    test('preserves API feature version in Firestore form', () async {
+      client.featureVersion = 1;
+      final result = await upload();
+      expect(result.featureVersion, 1);
+      expect(result.toJson()['featureVersion'], 1);
     });
 
     for (final code in [

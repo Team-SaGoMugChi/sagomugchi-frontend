@@ -129,7 +129,7 @@ class _LoadingContent extends StatelessWidget {
                   child: Row(
                     children: [
                       const Icon(
-                        Icons.check_circle_rounded,
+                        Icons.hourglass_top_rounded,
                         size: 18,
                         color: AppColors.primary,
                       ),
