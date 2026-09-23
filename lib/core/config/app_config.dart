@@ -44,7 +44,7 @@ class AppConfig {
   static const AppConfig dev = AppConfig(
     environment: AppEnvironment.dev,
     appName: 'Oddo (dev)',
-    apiBaseUrl: 'http://192.168.0.3:8000',
+    apiBaseUrl: 'http://10.0.2.2:8001',
     useDummyData: false,
   );
 
