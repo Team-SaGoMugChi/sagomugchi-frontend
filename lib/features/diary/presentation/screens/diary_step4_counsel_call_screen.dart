@@ -12,7 +12,9 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/video_call_widgets.dart';
+import '../../../records/application/viewing_date_provider.dart';
 import '../../application/counsel_controller.dart';
+import '../../application/diary_draft_provider.dart';
 import '../../data/models/counsel_session.dart';
 
 /// Screen 44 — Step 4. 영상통화 상담. 상담 종료 → 리포트 생성.
@@ -34,9 +36,34 @@ class _DiaryStep4CounselCallScreenState
   final TextEditingController _input = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // 같은 날 저장된 상담이 있으면 불러와 이어서 대화한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(counselControllerProvider.notifier)
+          .restoreIfEmpty(ref.read(viewingDateProvider));
+    });
+  }
+
+  @override
   void dispose() {
     _input.dispose();
     super.dispose();
+  }
+
+  /// 상담 종료 — 대화를 draft에 넘기고 리포트 생성으로 넘어간다.
+  /// 실제 저장은 46번 화면의 "기록 완료하기"에서 한 번에 이뤄진다.
+  void _endCounsel() {
+    final counsel = ref.read(counselControllerProvider);
+    ref
+        .read(diaryDraftProvider.notifier)
+        .setCounsel(
+          messages: counsel.messages,
+          startedAt: counsel.startedAt,
+        );
+    context.pushReplacementNamed(AppRoute.reportGenerating);
   }
 
   void _send() {
@@ -176,9 +203,7 @@ class _DiaryStep4CounselCallScreenState
                             icon: Icons.call_end_rounded,
                             label: '상담 종료',
                             danger: true,
-                            onTap: () => context.pushReplacementNamed(
-                              AppRoute.reportGenerating,
-                            ),
+                            onTap: _endCounsel,
                           ),
                           const SizedBox(width: 20),
                           CallControlButton(

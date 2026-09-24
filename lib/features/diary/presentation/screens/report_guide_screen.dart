@@ -19,6 +19,7 @@ import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../application/counsel_controller.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/counsel_session.dart';
@@ -45,7 +46,9 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
   /// 강도·분포는 그 실데이터로 저장하고, 없으면(분석 실패/더미 모드) 샘플로
   /// 폴백한다 — Step2 확인 화면과 같은 규칙.
   ///
-  /// TODO(Phase 5): 요약/상담 로그/행동 가이드는 아직 LLM 산출물이 없어 샘플.
+  /// 상담 로그는 Step4에서 주고받은 실제 대화(draft.counselMessages)를 저장한다.
+  ///
+  /// TODO(Phase 5): 요약/행동 가이드는 아직 LLM 산출물이 없어 샘플.
   Future<void> _completeRecord() async {
     final writtenDate = ref.read(viewingDateProvider);
     final draft = ref.read(diaryDraftProvider);
@@ -80,9 +83,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     );
     final counsel = CounselSession(
       date: writtenDate,
-      startedAt: now.subtract(const Duration(minutes: 30)),
+      // Step4에서 실제로 주고받은 대화. 상담을 건너뛰었으면 빈 목록으로
+      // 저장된다(샘플로 채우지 않는다).
+      startedAt: draft.counselStartedAt ?? now,
       endedAt: now,
-      messages: DummySeed.counselJan14.messages,
+      messages: draft.counselMessages,
     );
 
     setState(() => _saving = true);
@@ -92,6 +97,8 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
           .saveRecord(entry: entry, report: report, counsel: counsel);
       ref.read(recordedDaysProvider.notifier).markRecorded(writtenDate);
       ref.read(diaryDraftProvider.notifier).clear();
+      // 다음 상담은 빈 대화에서 시작한다(저장된 기록은 이어하기로 불러온다).
+      ref.invalidate(counselControllerProvider);
       // 방금 저장한 날짜의 기록 화면들이 새 데이터를 읽도록 캐시 무효화.
       ref.invalidate(diaryEntryProvider(writtenDate));
       ref.invalidate(emotionReportProvider(writtenDate));
