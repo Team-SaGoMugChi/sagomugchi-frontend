@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -12,33 +11,45 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
+import '../../application/counsel_report_controller.dart';
 
-/// Screen 45 — 상담 후 리포트 생성. Loading page shown right after the counsel
-/// call ends; auto-advances to the finished report after a dummy delay
-/// (tap to skip).
-class ReportGeneratingScreen extends StatefulWidget {
+/// Screen 45 — 상담 후 리포트 생성. 상담이 끝나면 서버에 대화를 보내 리포트를
+/// 만들고, 완성되면 46번 화면으로 넘어간다.
+///
+/// 생성에 실패하거나 30초를 넘겨도 46번으로 넘어간다 — 그쪽이 실패 배너와
+/// 다시 시도를 띄우고, 카드는 샘플로 채워져 화면이 비지 않는다.
+class ReportGeneratingScreen extends ConsumerStatefulWidget {
   const ReportGeneratingScreen({super.key});
 
   @override
-  State<ReportGeneratingScreen> createState() => _ReportGeneratingScreenState();
+  ConsumerState<ReportGeneratingScreen> createState() =>
+      _ReportGeneratingScreenState();
 }
 
-class _ReportGeneratingScreenState extends State<ReportGeneratingScreen> {
-  Timer? _timer;
+class _ReportGeneratingScreenState
+    extends ConsumerState<ReportGeneratingScreen> {
   bool _advanced = false;
 
   static const List<String> _items = ['상담 내용 정리', '감정 분석', '맞춤 가이드 생성'];
 
+  /// 응답이 너무 빨리 오면 화면이 깜빡이므로 최소한 이만큼은 보여준다.
+  static const Duration _minimumVisible = Duration(milliseconds: 1500);
+
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 3), _advance);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  Future<void> _generate() async {
+    final startedAt = DateTime.now();
+    // 30초 타임아웃은 컨트롤러가 건다 — 여기서 무한정 기다리지 않는다.
+    await ref.read(counselReportControllerProvider.notifier).generate();
+    final elapsed = DateTime.now().difference(startedAt);
+    if (elapsed < _minimumVisible) {
+      await Future<void>.delayed(_minimumVisible - elapsed);
+    }
+    _advance();
   }
 
   void _advance() {
