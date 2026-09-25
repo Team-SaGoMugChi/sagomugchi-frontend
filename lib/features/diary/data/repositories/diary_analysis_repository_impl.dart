@@ -9,6 +9,11 @@ class DiaryAnalysisRepositoryImpl implements DiaryAnalysisRepository {
   final DiaryAnalysisDataSource _dataSource;
 
   @override
+  Future<String> transcribe({required String voiceFilePath}) {
+    return _dataSource.transcribe(voiceFilePath: voiceFilePath);
+  }
+
+  @override
   Future<FusionResult> analyzeStep2({
     required String text,
     required String voiceFilePath,

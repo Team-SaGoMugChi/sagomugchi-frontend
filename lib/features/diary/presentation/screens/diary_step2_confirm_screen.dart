@@ -29,8 +29,11 @@ class DiaryStep2ConfirmScreen extends ConsumerStatefulWidget {
 
 class _DiaryStep2ConfirmScreenState
     extends ConsumerState<DiaryStep2ConfirmScreen> {
+  // Step1 처리에서 받은 STT 원문. 없으면(더미 모드 등) 샘플로 폴백.
   late final TextEditingController _controller = TextEditingController(
-    text: DummySeed.diaryJan14.transcript,
+    text:
+        ref.read(diaryDraftProvider).transcript ??
+        DummySeed.diaryJan14.transcript,
   );
 
   @override
