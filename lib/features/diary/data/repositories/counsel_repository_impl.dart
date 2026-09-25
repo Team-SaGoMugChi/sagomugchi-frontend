@@ -1,4 +1,5 @@
 import '../datasources/counsel_data_source.dart';
+import '../models/counsel_report.dart';
 import '../models/counsel_session.dart';
 import '../models/counsel_turn_result.dart';
 import 'counsel_repository.dart';
@@ -20,6 +21,19 @@ class CounselRepositoryImpl implements CounselRepository {
       history: history,
       emotions: emotions,
       persona: persona,
+    );
+  }
+
+  @override
+  Future<CounselReport> fetchReport({
+    required List<CounselMessage> messages,
+    Map<String, double>? emotions,
+    String? diarySummary,
+  }) {
+    return _dataSource.fetchReport(
+      messages: messages,
+      emotions: emotions,
+      diarySummary: diarySummary,
     );
   }
 }

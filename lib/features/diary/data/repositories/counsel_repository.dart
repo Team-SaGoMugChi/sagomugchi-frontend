@@ -1,3 +1,4 @@
+import '../models/counsel_report.dart';
 import '../models/counsel_session.dart';
 import '../models/counsel_turn_result.dart';
 
@@ -8,5 +9,11 @@ abstract interface class CounselRepository {
     List<CounselMessage> history,
     Map<String, double>? emotions,
     Map<String, dynamic>? persona,
+  });
+
+  Future<CounselReport> fetchReport({
+    required List<CounselMessage> messages,
+    Map<String, double>? emotions,
+    String? diarySummary,
   });
 }

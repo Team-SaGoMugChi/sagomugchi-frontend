@@ -1,7 +1,8 @@
+import '../models/counsel_report.dart';
 import '../models/counsel_session.dart';
 import '../models/counsel_turn_result.dart';
 
-/// 상담 한 턴 — AI 서버 `POST /counsel/turn` 하나를 감싼다
+/// 상담 서버 호출 — `POST /counsel/turn`, `POST /counsel/report`.
 abstract interface class CounselDataSource {
   /// [userText]는 사용자가 방금 한 말.
   ///
@@ -13,5 +14,15 @@ abstract interface class CounselDataSource {
     List<CounselMessage> history,
     Map<String, double>? emotions,
     Map<String, dynamic>? persona,
+  });
+
+  /// 상담이 끝난 뒤 대화를 보내 리포트를 받는다.
+  ///
+  /// [messages]는 주고받은 대화 전체, [emotions]는 Step2 분석 점수,
+  /// [diarySummary]는 오늘 일기 내용이다. 대화만 있으면 동작한다.
+  Future<CounselReport> fetchReport({
+    required List<CounselMessage> messages,
+    Map<String, double>? emotions,
+    String? diarySummary,
   });
 }
