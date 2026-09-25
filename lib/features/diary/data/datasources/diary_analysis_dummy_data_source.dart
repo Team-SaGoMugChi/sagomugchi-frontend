@@ -1,10 +1,17 @@
 import '../../../../core/constants/app_durations.dart';
+import '../../../../data/dummy/dummy_seed.dart';
 import '../../../baseline/data/models/baseline_profile.dart';
 import '../models/fusion_result.dart';
 import 'diary_analysis_data_source.dart';
 
 /// 테스트/더미 모드용 — 실제 업로드 없이 그럴듯한 fusion 결과를 즉시 반환한다.
 class DiaryAnalysisDummyDataSource implements DiaryAnalysisDataSource {
+  @override
+  Future<String> transcribe({required String voiceFilePath}) async {
+    await Future<void>.delayed(AppDurations.dummyLatency);
+    return DummySeed.diaryJan14.transcript;
+  }
+
   @override
   Future<FusionResult> analyzeStep2({
     required String text,
