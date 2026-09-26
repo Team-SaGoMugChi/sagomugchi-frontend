@@ -91,9 +91,9 @@ users/{uid}                              ← AppUser        (계정 프로필)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `voice` | map<string,double> | `pitchMean`(평균 F0, Hz), `f0Std`(F0 표준편차, Hz), `speechRate`(음절/초 근사), `voicedRatio`(유성 프레임 비율 0~1), `durationSec`(무음 포함 녹음 초), `energyMean`(평균 RMS) |
-| `featureVersion` | int | 신규 측정은 1. 필드 없는 과거 데이터는 버전 0으로 취급하며 재측정 전까지 신규 값이 있다고 가정하지 않음. API 이름은 `feature_version` |
-| `face` | map<string,double> | 표정 기준값. 키는 AI 서버가 정의 (예: AU/랜드마크 요약치) |
+| `voice` | map<string,double> | 기존 6개 음성값과 3초 유성 구간의 `window*Mean`, `window*Std`, `windowCount`, `windowUsedCount`. v2 멀티모달 z-score 기준값 |
+| `featureVersion` | int | 신규 측정은 2. 필드 없는 과거 데이터는 버전 0, 이전 6개 음성·4개 얼굴 계약은 버전 1로 취급하며 Step2 전 재측정 필요. API 이름은 `feature_version` |
+| `face` | map<string,double> | 기존 얼굴 비율 4개와 AU 9종의 `au*LogMean`, `au*LogStd`, `auFrameCount`, `auTotalFrames` |
 | `measuredAt` | string(ISO) | 측정 시각 |
 
 > 키를 고정하지 않고 map으로 둔 이유: 음성/표정 특징 항목은 AI 서버(Phase 4)가 결정하며,

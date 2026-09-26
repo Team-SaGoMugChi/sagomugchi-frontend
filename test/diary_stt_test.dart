@@ -24,15 +24,43 @@ final _baseline = BaselineProfile(
     'voicedRatio': 0.61,
     'durationSec': 352,
     'energyMean': 0.031,
+    'windowPitchMean': 220,
+    'windowPitchStd': 10,
+    'windowEnergyMean': 0.031,
+    'windowEnergyStd': 0.005,
+    'windowSpeechRate': 4.2,
+    'windowSpeechRateStd': 0.4,
+    'windowCount': 100,
+    'windowUsedCount': 90,
   },
   face: const {
     'eyeAspectRatio': 0.28,
     'mouthAspectRatio': 0.11,
     'mouthWidthRatio': 1.42,
     'eyebrowRaiseRatio': 0.38,
+    'au1LogMean': -2,
+    'au1LogStd': 0,
+    'au2LogMean': -2,
+    'au2LogStd': 0,
+    'au4LogMean': -2,
+    'au4LogStd': 0,
+    'au5LogMean': -2,
+    'au5LogStd': 0,
+    'au6LogMean': -2,
+    'au6LogStd': 0,
+    'au7LogMean': -2,
+    'au7LogStd': 0,
+    'au12LogMean': -2,
+    'au12LogStd': 0,
+    'au15LogMean': -2,
+    'au15LogStd': 0,
+    'au17LogMean': -2,
+    'au17LogStd': 0,
+    'auFrameCount': 1,
+    'auTotalFrames': 1,
   },
   measuredAt: DateTime.utc(2026, 9, 15),
-  featureVersion: 1,
+  featureVersion: 2,
 );
 
 const _fusion = FusionResult(
@@ -255,7 +283,7 @@ void main() {
       );
 
       expect(client.path, '/diary/step2/analyze');
-      expect(client.fields?['baseline_feature_version'], '1');
+      expect(client.fields?['baseline_feature_version'], '2');
       expect(
         client.fields?['baseline_measured_at'],
         '2026-09-15T00:00:00.000Z',

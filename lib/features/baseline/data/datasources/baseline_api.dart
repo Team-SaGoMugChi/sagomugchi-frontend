@@ -45,6 +45,7 @@ class BaselineApi {
               'voice_not_detected',
               'invalid_face_image',
               'face_not_detected',
+              'face_analysis_unavailable',
             }.contains(detail['code']) &&
             detail['message'] is String) {
           throw BaselineMeasurementException(
