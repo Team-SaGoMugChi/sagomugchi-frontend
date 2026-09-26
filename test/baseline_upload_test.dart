@@ -45,16 +45,19 @@ class _Repository implements BaselineRepository {
 class _Client implements ApiClient {
   Object? error;
   int? featureVersion;
+  Duration? receiveTimeout;
 
   @override
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     Map<String, String> fields = const {},
     Map<String, String> filePaths = const {},
+    Duration? receiveTimeout,
   }) async {
     expect(path, '/baseline');
     expect(fields, {'user_id': 'user-1'});
     expect(filePaths, {'voice_file': 'voice.wav', 'face_image': 'face.jpg'});
+    this.receiveTimeout = receiveTimeout;
     if (error != null) throw error!;
     return {
       'voice': _profile.voice,
@@ -181,6 +184,7 @@ void main() {
       expect(result.face, _profile.face);
       expect(result.measuredAt, _profile.measuredAt);
       expect(result.featureVersion, 0);
+      expect(client.receiveTimeout, const Duration(minutes: 5));
     });
 
     test('preserves API feature version in Firestore form', () async {

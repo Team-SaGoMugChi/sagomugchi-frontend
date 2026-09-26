@@ -20,6 +20,7 @@ abstract interface class ApiClient {
     String path, {
     Map<String, String> fields,
     Map<String, String> filePaths,
+    Duration? receiveTimeout,
   });
 }
 
@@ -34,15 +35,16 @@ class DioApiClient implements ApiClient {
     required String baseUrl,
     AuthTokenProvider? tokenProvider,
     Dio? dio,
-  }) : _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: baseUrl,
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 60),
-                contentType: Headers.jsonContentType,
-              ),
-            ) {
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: baseUrl,
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(seconds: 60),
+               contentType: Headers.jsonContentType,
+             ),
+           ) {
     if (tokenProvider != null) {
       _dio.interceptors.add(
         InterceptorsWrapper(
@@ -64,11 +66,9 @@ class DioApiClient implements ApiClient {
   Future<Map<String, dynamic>> get(
     String path, {
     Map<String, dynamic>? query,
-  }) =>
-      _request(() => _dio.get<Map<String, dynamic>>(
-            path,
-            queryParameters: query,
-          ));
+  }) => _request(
+    () => _dio.get<Map<String, dynamic>>(path, queryParameters: query),
+  );
 
   @override
   Future<Map<String, dynamic>> post(String path, {Object? body}) =>
@@ -79,15 +79,19 @@ class DioApiClient implements ApiClient {
     String path, {
     Map<String, String> fields = const {},
     Map<String, String> filePaths = const {},
-  }) =>
-      _request(() async {
-        final formData = FormData.fromMap({
-          ...fields,
-          for (final entry in filePaths.entries)
-            entry.key: await MultipartFile.fromFile(entry.value),
-        });
-        return _dio.post<Map<String, dynamic>>(path, data: formData);
-      });
+    Duration? receiveTimeout,
+  }) => _request(() async {
+    final formData = FormData.fromMap({
+      ...fields,
+      for (final entry in filePaths.entries)
+        entry.key: await MultipartFile.fromFile(entry.value),
+    });
+    return _dio.post<Map<String, dynamic>>(
+      path,
+      data: formData,
+      options: Options(receiveTimeout: receiveTimeout),
+    );
+  });
 
   /// Runs [send] and normalizes every failure mode into an [AppException].
   Future<Map<String, dynamic>> _request(
@@ -101,10 +105,14 @@ class DioApiClient implements ApiClient {
         DioExceptionType.connectionTimeout ||
         DioExceptionType.sendTimeout ||
         DioExceptionType.receiveTimeout ||
-        DioExceptionType.connectionError =>
-          NetworkException('Network error: ${e.message}', e),
+        DioExceptionType.connectionError => NetworkException(
+          'Network error: ${e.message}',
+          e,
+        ),
         DioExceptionType.badResponse => ServerException(
-            'Server responded ${e.response?.statusCode}', e),
+          'Server responded ${e.response?.statusCode}',
+          e,
+        ),
         _ => ServerException('Request failed: ${e.message}', e),
       };
     }

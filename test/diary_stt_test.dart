@@ -128,6 +128,7 @@ class _Client implements ApiClient {
     String path, {
     Map<String, String> fields = const {},
     Map<String, String> filePaths = const {},
+    Duration? receiveTimeout,
   }) async {
     this.path = path;
     this.fields = fields;
