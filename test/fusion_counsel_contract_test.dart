@@ -92,6 +92,33 @@ void main() {
       expect(fusion.incongruent, isFalse);
     });
 
+    test('rejects out-of-range emotion scores', () {
+      final response = _fusionJson();
+      response['emotion_scores'] = {'불안': 120.0};
+
+      expect(
+        () => FusionResult.fromJson(response),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects non-finite feature deltas', () {
+      final response = _fusionJson();
+      response['voice_delta'] = {
+        'pitchMean': {
+          'baseline_value': 220.0,
+          'current_value': double.nan,
+          'delta': 10.0,
+          'relative_delta': 0.05,
+        },
+      };
+
+      expect(
+        () => FusionResult.fromJson(response),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
     test('serializes the complete context for the counseling API', () async {
       final client = _Client();
       final result = await CounselRemoteDataSource(client).sendTurn(

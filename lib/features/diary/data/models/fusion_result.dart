@@ -15,12 +15,17 @@ class FeatureDelta {
   /// baseline이 0에 가까워 상대 변화율을 못 낼 때 null.
   final double? relativeDelta;
 
-  factory FeatureDelta.fromJson(Map<String, dynamic> json) => FeatureDelta(
-    baselineValue: (json['baseline_value'] as num).toDouble(),
-    currentValue: (json['current_value'] as num).toDouble(),
-    delta: (json['delta'] as num).toDouble(),
-    relativeDelta: (json['relative_delta'] as num?)?.toDouble(),
-  );
+  factory FeatureDelta.fromJson(Map<String, dynamic> json) {
+    final relativeDelta = json['relative_delta'];
+    return FeatureDelta(
+      baselineValue: _finiteDouble(json['baseline_value'], 'baseline_value'),
+      currentValue: _finiteDouble(json['current_value'], 'current_value'),
+      delta: _finiteDouble(json['delta'], 'delta'),
+      relativeDelta: relativeDelta == null
+          ? null
+          : _finiteDouble(relativeDelta, 'relative_delta'),
+    );
+  }
 }
 
 /// `POST /diary/step2/analyze` 응답 — 일기 Step1 녹음/캡처를 baseline과
@@ -54,26 +59,92 @@ class FusionResult {
   /// 텍스트 감정과 음성·표정 신호가 서로 어긋난다고 서버가 판단한 경우.
   final bool incongruent;
 
-  factory FusionResult.fromJson(Map<String, dynamic> json) => FusionResult(
-    emotionKeywords: (json['emotion_keywords'] as List<dynamic>).cast<String>(),
-    emotionScores: _toDoubleMap(json['emotion_scores']),
-    emotionIntensity: json['emotion_intensity'] as int,
-    textEmotionScores: _toDoubleMap(json['text_emotion_scores']),
-    voiceDelta: _toDeltaMap(json['voice_delta']),
-    faceDelta: _toDeltaMap(json['face_delta']),
-    signals: (json['signals'] as List<dynamic>? ?? const []).cast<String>(),
-    incongruent: json['incongruent'] as bool? ?? false,
-  );
+  factory FusionResult.fromJson(Map<String, dynamic> json) {
+    final emotionKeywords = _stringList(
+      json['emotion_keywords'],
+      'emotion_keywords',
+    );
+    final emotionScores = _toDoubleMap(
+      json['emotion_scores'],
+      fieldName: 'emotion_scores',
+      min: 0,
+      max: 100,
+    );
+    final intensity = json['emotion_intensity'];
+    if (intensity is! int || intensity < 0 || intensity > 100) {
+      throw const FormatException('emotion_intensity must be an integer from 0 to 100');
+    }
+    if (emotionKeywords.any((keyword) => !emotionScores.containsKey(keyword))) {
+      throw const FormatException('emotion_keywords must exist in emotion_scores');
+    }
 
-  static Map<String, double> _toDoubleMap(Object? raw) {
-    final map = raw as Map<String, dynamic>? ?? {};
-    return map.map((k, v) => MapEntry(k, (v as num).toDouble()));
-  }
+    final rawIncongruent = json['incongruent'];
+    if (rawIncongruent != null && rawIncongruent is! bool) {
+      throw const FormatException('incongruent must be a boolean');
+    }
 
-  static Map<String, FeatureDelta> _toDeltaMap(Object? raw) {
-    final map = raw as Map<String, dynamic>? ?? {};
-    return map.map(
-      (k, v) => MapEntry(k, FeatureDelta.fromJson(v as Map<String, dynamic>)),
+    return FusionResult(
+      emotionKeywords: emotionKeywords,
+      emotionScores: emotionScores,
+      emotionIntensity: intensity,
+      textEmotionScores: _toDoubleMap(
+        json['text_emotion_scores'],
+        fieldName: 'text_emotion_scores',
+        min: 0,
+        max: 1,
+      ),
+      voiceDelta: _toDeltaMap(json['voice_delta'], 'voice_delta'),
+      faceDelta: _toDeltaMap(json['face_delta'], 'face_delta'),
+      signals: json['signals'] == null
+          ? const []
+          : _stringList(json['signals'], 'signals'),
+      incongruent: rawIncongruent as bool? ?? false,
     );
   }
+
+  static Map<String, double> _toDoubleMap(
+    Object? raw, {
+    required String fieldName,
+    required double min,
+    required double max,
+  }) {
+    if (raw is! Map) throw FormatException('$fieldName must be an object');
+    return raw.map((key, value) {
+      if (key is! String || key.trim().isEmpty) {
+        throw FormatException('$fieldName keys must be non-empty strings');
+      }
+      final parsed = _finiteDouble(value, '$fieldName.$key');
+      if (parsed < min || parsed > max) {
+        throw FormatException('$fieldName.$key must be between $min and $max');
+      }
+      return MapEntry(key, parsed);
+    });
+  }
+
+  static Map<String, FeatureDelta> _toDeltaMap(Object? raw, String fieldName) {
+    if (raw is! Map) throw FormatException('$fieldName must be an object');
+    return raw.map((key, value) {
+      if (key is! String || value is! Map) {
+        throw FormatException('$fieldName entries are invalid');
+      }
+      return MapEntry(
+        key,
+        FeatureDelta.fromJson(Map<String, dynamic>.from(value)),
+      );
+    });
+  }
+}
+
+double _finiteDouble(Object? raw, String fieldName) {
+  if (raw is! num) throw FormatException('$fieldName must be numeric');
+  final value = raw.toDouble();
+  if (!value.isFinite) throw FormatException('$fieldName must be finite');
+  return value;
+}
+
+List<String> _stringList(Object? raw, String fieldName) {
+  if (raw is! List || raw.any((value) => value is! String || value.trim().isEmpty)) {
+    throw FormatException('$fieldName must contain non-empty strings');
+  }
+  return List<String>.unmodifiable(raw.cast<String>());
 }
