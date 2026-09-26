@@ -69,6 +69,8 @@ abstract final class AppRoute {
   static const String diaryStep3VideoDone = 'diaryStep3VideoDone'; // 42
   static const String diaryStep4CounselIntro = 'diaryStep4CounselIntro'; // 43
   static const String diaryStep4CounselCall = 'diaryStep4CounselCall'; // 44
+  static const String diaryStep4CounselChat =
+      'diaryStep4CounselChat'; // 44-B 채팅 상담
   static const String reportGenerating = 'reportGenerating'; // 45
   static const String reportGuide = 'reportGuide'; // 46 감정 리포트·행동 가이드
 
@@ -140,6 +142,7 @@ abstract final class AppPath {
   static const String diaryStep3VideoDone = '/diary/write/step3/done';
   static const String diaryStep4CounselIntro = '/diary/write/step4/intro';
   static const String diaryStep4CounselCall = '/diary/write/step4/call';
+  static const String diaryStep4CounselChat = '/diary/write/step4/chat';
   static const String reportGenerating = '/diary/write/report-generating';
   static const String reportGuide = '/diary/write/report';
 

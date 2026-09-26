@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
@@ -11,9 +9,10 @@ import '../../../../widgets/icon_info_tile.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../widgets/counsel_mode_sheet.dart';
 import '../widgets/diary_step_header.dart';
 
-/// Screen 43 — Step 4. 상담 시작 안내. → 영상통화 상담.
+/// Screen 43 — Step 4. 상담 시작 안내. → 영상통화 또는 채팅 상담.
 class DiaryStep4CounselIntroScreen extends StatelessWidget {
   const DiaryStep4CounselIntroScreen({super.key});
 
@@ -27,26 +26,30 @@ class DiaryStep4CounselIntroScreen extends StatelessWidget {
               const DiaryStepHeader(currentStep: 3),
               const Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.md, AppSpacing.screenH, AppSpacing.md),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
                           // TODO: 상담사처럼 앉아 손 흔드는 포즈로 교체 예정
-                          MascotImage(
-                              pose: MascotPose.counselor, size: 110),
+                          MascotImage(pose: MascotPose.counselor, size: 110),
                           SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('영상 잘 보셨나요?',
-                                    style: AppTypography.title),
+                                Text('영상 잘 보셨나요?', style: AppTypography.title),
                                 Gap.h8,
-                                Text('이제 탄카츄와 함께\n이야기를 나눌 시간이에요.',
-                                    style: AppTypography.bodySecondary),
+                                Text(
+                                  '이제 탄카츄와 함께\n이야기를 나눌 시간이에요.',
+                                  style: AppTypography.bodySecondary,
+                                ),
                               ],
                             ),
                           ),
@@ -58,8 +61,8 @@ class DiaryStep4CounselIntroScreen extends StatelessWidget {
                           children: [
                             IconInfoTile(
                               icon: Icons.videocam_rounded,
-                              title: '영상통화로 상담을 시작할 거예요',
-                              description: '탄카츄가 네 이야기를 듣고 함께 정리해줄 거예요.',
+                              title: '영상통화나 채팅 중에 고를 수 있어요',
+                              description: '지금 편한 쪽으로 이야기하면 돼요.',
                             ),
                             Divider(color: AppColors.divider, height: 1),
                             IconInfoTile(
@@ -81,13 +84,16 @@ class DiaryStep4CounselIntroScreen extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '상담 시작하기',
-                  leadingIcon: Icons.videocam_rounded,
-                  onPressed: () =>
-                      context.pushNamed(AppRoute.diaryStep4CounselCall),
+                  leadingIcon: Icons.chat_rounded,
+                  onPressed: () => showCounselModeSheet(context),
                 ),
               ),
             ],
