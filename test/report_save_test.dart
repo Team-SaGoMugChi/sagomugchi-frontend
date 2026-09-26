@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:oddo/app/router/app_router.dart';
+import 'package:go_router/go_router.dart';
 import 'package:oddo/app/router/app_routes.dart';
 import 'package:oddo/core/config/app_config.dart';
 import 'package:oddo/core/config/app_config_provider.dart';
@@ -13,6 +13,7 @@ import 'package:oddo/features/diary/data/models/diary_entry.dart';
 import 'package:oddo/features/diary/data/models/emotion_report.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
 import 'package:oddo/features/diary/data/repositories/diary_repository.dart';
+import 'package:oddo/features/diary/presentation/screens/report_guide_screen.dart';
 import 'package:oddo/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,6 +23,13 @@ const _testConfig = AppConfig(
   appName: 'Oddo (test)',
   apiBaseUrl: '',
   useDummyData: true,
+);
+
+const _realDataConfig = AppConfig(
+  environment: AppEnvironment.prod,
+  appName: 'Oddo (test)',
+  apiBaseUrl: 'http://127.0.0.1:8001',
+  useDummyData: false,
 );
 
 /// Captures what "기록 완료하기" hands to the repository so the test can assert
@@ -69,13 +77,15 @@ const _fusion = FusionResult(
 Future<_CapturingDiaryRepository> _tapCompleteRecord(
   WidgetTester tester, {
   required bool withFusion,
+  AppConfig config = _testConfig,
+  String? transcript,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final repository = _CapturingDiaryRepository();
   final container = ProviderContainer(
     overrides: [
-      appConfigProvider.overrideWithValue(_testConfig),
+      appConfigProvider.overrideWithValue(config),
       localStoreProvider.overrideWithValue(LocalStore(prefs)),
       diaryRepositoryProvider.overrideWithValue(repository),
     ],
@@ -85,9 +95,26 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   if (withFusion) {
     container.read(diaryDraftProvider.notifier).setFusionResult(_fusion);
   }
+  if (transcript != null) {
+    container.read(diaryDraftProvider.notifier).setTranscript(transcript);
+  }
 
-  final router = container.read(goRouterProvider);
-  router.go(AppPath.reportGuide);
+  final router = GoRouter(
+    initialLocation: AppPath.reportGuide,
+    routes: [
+      GoRoute(
+        path: AppPath.reportGuide,
+        name: AppRoute.reportGuide,
+        builder: (_, _) => const ReportGuideScreen(),
+      ),
+      GoRoute(
+        path: AppPath.homeWritten,
+        name: AppRoute.homeWritten,
+        builder: (_, _) => const SizedBox(),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -130,6 +157,47 @@ void main() {
       '서운함': 0.6,
       '지침': 0.4,
     });
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('real mode stores only measured and user-confirmed content', (
+    tester,
+  ) async {
+    const transcript = '오늘 발표를 마치고 긴장이 조금 풀렸어요.';
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: true,
+      config: _realDataConfig,
+      transcript: transcript,
+    );
+
+    expect(repository.savedEntry, isNotNull, reason: '저장이 호출되지 않음');
+    expect(repository.savedEntry!.transcript, transcript);
+    expect(repository.savedEntry!.summary, transcript);
+    expect(repository.savedEntry!.emotionStability, 0);
+    expect(repository.savedReport!.recoveryPossibility, 0);
+    expect(repository.savedReport!.analysisComment, isEmpty);
+    expect(repository.savedReport!.behaviorGuides, isEmpty);
+    expect(repository.savedReport!.recommendedActivities, isEmpty);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('real mode blocks saving when analysis is missing', (
+    tester,
+  ) async {
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: false,
+      config: _realDataConfig,
+      transcript: '분석되지 않은 원문',
+    );
+
+    expect(repository.savedEntry, isNull);
+    expect(find.textContaining('분석 결과가 없어 저장할 수 없어요'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
