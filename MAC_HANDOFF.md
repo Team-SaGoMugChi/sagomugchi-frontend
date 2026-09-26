@@ -4,6 +4,23 @@
 
 ## 가장 먼저 알아야 할 점
 
+### 2026-09-26 최신화 및 연결 검증
+
+- **이슈 #34 베이스라인 분석 전달 계약 강화 진행:** 프론트 `34-baseline-contract` 브랜치에서 일기 분석 전 `featureVersion: 1`과 음성 6개·얼굴 4개 필드를 검사한다. 구형·불완전 baseline은 STT 과금 전에 재측정을 안내한다. `/diary/step2/analyze` 요청에 `baseline_feature_version`과 UTC `baseline_measured_at`을 추가했고 계약 테스트를 보강했다. 백엔드의 필드 검증과 실제 상담 신호 연결은 다음 커밋 범위다.
+- **재시작 후 재조회 확인 완료:** Android 앱을 force-stop 후 재실행하고 디버그 VM의 기존 GoRouter로 `baselineDone` 결과 화면을 열었다. 새 프로세스에 `_SavedProfile` 결과 위젯이 생성되고, 프로필의 측정 시각 `2026-09-26T10:09:43.476330Z`, voice 6개·face 4개 필드, `featureVersion: 1`을 확인했다. 이전 세션의 업로드 상태 없이 저장값이 다시 로드됐으므로 실제 측정 → 분석 → Firestore 저장 → 재시작 후 앱 재조회까지 검증 완료다. 아래 ‘재조회 미실시’ 표현은 이 확인 이전의 경과 기록이다. 사용자 원값은 출력하지 않았다.
+- **실측정 저장 확인 완료:** 사용자가 무선 연결 휴대폰에서 baseline 측정을 완료했다. Firestore의 측정 시각은 `2026-09-26T10:09:43.476330+00:00`, 서버 저장 시각은 한국시간 19:09:44이다. 실제 사용자 문서에 voice 필수 6개 필드, face 4개 필드, `featureVersion: 1`이 존재하며 수치가 유한함을 확인했다. 개인 측정 원값·사용자 ID는 기록하지 않는다. 최초 콘솔에서 선택한 사용자와 실제 앱 로그인 사용자가 달랐으며, 실제 저장 문서의 콘솔 링크를 열었다. 앱 재시작 후 다시 읽기 검증은 아직 하지 않았다.
+- GitHub fetch 후 기존 작업 브랜치를 fast-forward하여 프론트 `40603f4`, 실제 백엔드 `29838d3`까지 갱신했다. 각각 확인 시점의 팀 develop과 동일하다. 아래 9월 22일의 ‘미병합’ 기록은 과거 상태다.
+- 프론트 PR #19는 merge commit `e6c5c6a`, 백엔드 PR #15는 `304f963`으로 develop에 이미 병합돼 있다. 이번 작업에서 별도로 PR을 게시하거나 병합하지 않았다.
+- 현재 dev 서버 주소는 팀 최신 코드 기준 `http://10.0.2.2:8001`(Android 에뮬레이터용)이다. 실기기는 `main_prod.dart`와 `ODDO_API_BASE_URL`로 접속 주소를 지정한다.
+- Flutter 전체 테스트 90개 통과. 필수 `dart fix --apply`가 상담 화면 두 파일의 const만 자동 수정했고 해당 상태의 analyze는 문제 없었다. 베이스라인 범위 밖의 자동 수정은 원복했다.
+- 실제 백엔드에 `.venv`를 새로 준비했다. Windows에서 한글 주석이 있는 requirements를 읽으려면 `python -X utf8 -m pip install -r requirements-dev.txt`를 사용한다.
+- Firestore 초기화 실패 원인은 프로젝트 ID 누락이었다. 기존 ADC 인증을 사용하고 백엔드의 Git 제외 `.env`에 `GOOGLE_CLOUD_PROJECT=oddo-emotion-diary`를 지정했다. 기본 실행은 `.venv/Scripts/python.exe -X utf8 -m uvicorn app.main:app --env-file .env --host 127.0.0.1 --port 8001 --no-access-log`. `--env-file .env`가 있어야 프로젝트 ID가 프로세스 환경으로 전달된다.
+- 실제 `save_baseline_profile()`로 무작위 테스트 사용자 경로에 합성 baseline을 저장하고, voice/face/measuredAt/featureVersion 일치를 조회 검증했다. 임시 문서는 삭제 후 부재까지 확인했다. 실제 사용자 측정 성공과는 구분한다.
+- 백엔드 pytest 105개 통과, KOTE 관련 3개는 새 환경에 torch/transformers가 없어 건너뛰었다. 현재 환경에서 KOTE 실제 추론 검증은 미완료다. 서버는 8001 포트에서 실행했고 `/health`가 `status: ok`를 반환했다.
+- 남은 작업: USB 디버깅 기기 연결 → `adb reverse tcp:8001 tcp:8001` → `flutter run -t lib/main_prod.dart --dart-define=ODDO_API_BASE_URL=http://127.0.0.1:8001` → 새 baseline 측정 → 해당 로그인 사용자의 Firestore 문서 및 앱 재조회 확인. 현재 adb 기기 목록은 비어 있다. 실제 baseline 문서는 사용자당 하나이며 재측정 시 덮어쓴다(측정 이력 누적 구조가 아님).
+- 현재 코드 변경은 인수인계 문서뿐이다. 개인 로컬 설정과 인증값은 출력·커밋하지 않는다.
+- 후속 진행: Android 휴대폰(SM-S908N)을 같은 Wi-Fi에서 무선 디버깅으로 페어링·연결했고 `adb reverse tcp:8001 tcp:8001`을 설정했다. `flutter build apk --debug -t lib/main_prod.dart --dart-define=ODDO_API_BASE_URL=http://127.0.0.1:8001` 성공 후 기존 앱에 업데이트 설치하고 실행했다. 현재 Firebase 콘솔에서 선택된 사용자의 baseline 문서는 존재하지 않음을 확인했다. 앱 로그인 사용자가 같은 계정인지 확인 후 실제 측정을 진행해야 한다. 무선 주소·포트는 재연결 때 탐색하며 일회용 페어링 코드는 기록하지 않는다.
+
 ### 이번 전달 작업 업데이트
 
 팀원 요청으로 새 baseline에 `voice.f0Std`(Hz), `voice.voicedRatio`(0~1), `voice.durationSec`(초), `featureVersion: 1`을 추가했다. API 응답 버전 키는 `feature_version`이며 앱이 변환해 보존한다. 과거 버전 없는 데이터는 0으로 읽고 새 값은 재측정해야 생긴다. `pitchMean`은 평균 Hz로 유지하며 중앙값·세미톤 및 얼굴 다중 프레임은 후속 협의 대상이다. 추가 항목이 기존 fusion 점수에 자동 반영되지는 않는다. 상세 계약은 실제 백엔드의 `docs/BASELINE_HANDOFF.md`.
