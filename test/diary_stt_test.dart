@@ -292,6 +292,31 @@ void main() {
       },
     );
 
+    test('shows the server retake message for invalid diary media', () async {
+      client.error = _serverError(422, {
+        'detail': {
+          'code': 'face_not_detected',
+          'message': '얼굴을 확인하지 못했어요. 다시 촬영해주세요.',
+        },
+      });
+
+      await expectLater(
+        DiaryAnalysisRemoteDataSource(client, auth: _Auth()).analyzeStep2(
+          text: '오늘 발표가 끝났어요.',
+          voiceFilePath: 'voice.wav',
+          faceImagePath: 'face.jpg',
+          baseline: _baseline,
+        ),
+        throwsA(
+          isA<ServerException>().having(
+            (error) => error.message,
+            'message',
+            '얼굴을 확인하지 못했어요. 다시 촬영해주세요.',
+          ),
+        ),
+      );
+    });
+
     test('shows the server message when speech is not recognized', () async {
       client.error = _serverError(422, {
         'detail': {

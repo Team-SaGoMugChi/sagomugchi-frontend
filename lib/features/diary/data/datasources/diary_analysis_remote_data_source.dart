@@ -69,9 +69,7 @@ class DiaryAnalysisRemoteDataSource implements DiaryAnalysisDataSource {
       final cause = error.cause;
       final body = cause is DioException ? cause.response?.data : null;
       final detail = body is Map ? body['detail'] : null;
-      if (detail is Map &&
-          detail['code'] == 'baseline_remeasurement_required' &&
-          detail['message'] is String) {
+      if (detail is Map && detail['message'] is String) {
         throw ServerException(detail['message'] as String, cause);
       }
       rethrow;
