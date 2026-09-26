@@ -243,12 +243,16 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                               children: [
                                 Text(
                                   counsel?.headline ??
-                                      '오늘 상담을 통해\n나의 감정을 더 잘 이해했어요',
+                                      (useSampleContent
+                                          ? '오늘 상담을 통해\n나의 감정을 더 잘 이해했어요'
+                                          : '오늘의 감정 분석 결과예요'),
                                   style: AppTypography.subtitle,
                                 ),
                                 Gap.h8,
-                                const Text(
-                                  '상담 내용을 바탕으로 감정 상태와 행동 가이드를 정리했어요.',
+                                Text(
+                                  counsel != null || useSampleContent
+                                      ? '상담 내용을 바탕으로 감정 상태와 행동 가이드를 정리했어요.'
+                                      : '일기 분석에서 확인된 감정 상태를 정리했어요.',
                                   style: AppTypography.bodySecondary,
                                 ),
                               ],
@@ -262,6 +266,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                       ] else if (showFailure) ...[
                         Gap.h16,
                         _ReportStatusCard.failed(
+                          showingSample: useSampleContent,
                           onRetry: () => ref
                               .read(counselReportControllerProvider.notifier)
                               .retry(),
@@ -273,7 +278,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                           onChanged: (i) => setState(() => _tab = i)),
                       Gap.h16,
                       if (_tab == 0)
-                        _ReportTab(report: report, counsel: counsel)
+                        _ReportTab(
+                          report: report,
+                          counsel: counsel,
+                          showSampleMetrics: useSampleContent,
+                        )
                       else
                         _GuideTab(report: report),
                     ],
@@ -299,13 +308,18 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
 
 /// 리포트 생성 상태 안내. 생성 중이거나 실패했을 때만 뜬다.
 ///
-/// 실패해도 아래 카드들은 샘플로 채워져 있어 화면이 비지는 않는다 — 그래서
-/// 에러 화면으로 덮지 않고 배너로만 알린다.
+/// 실패해도 분석 결과는 볼 수 있어 에러 화면으로 덮지 않고 배너로 알린다.
 class _ReportStatusCard extends StatelessWidget {
-  const _ReportStatusCard.loading() : onRetry = null;
-  const _ReportStatusCard.failed({required this.onRetry});
+  const _ReportStatusCard.loading()
+      : onRetry = null,
+        showingSample = false;
+  const _ReportStatusCard.failed({
+    required this.onRetry,
+    required this.showingSample,
+  });
 
   final VoidCallback? onRetry;
+  final bool showingSample;
 
   @override
   Widget build(BuildContext context) {
@@ -333,7 +347,9 @@ class _ReportStatusCard extends StatelessWidget {
             child: Text(
               loading
                   ? '상담 내용을 정리하고 있어요.'
-                  : '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.',
+                  : showingSample
+                      ? '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.'
+                      : '상담 리포트를 만들지 못했어요. 일기 분석 결과만 표시해요.',
               style: AppTypography.caption,
             ),
           ),
@@ -402,8 +418,13 @@ class _TabToggle extends StatelessWidget {
 }
 
 class _ReportTab extends StatelessWidget {
-  const _ReportTab({required this.report, this.counsel});
+  const _ReportTab({
+    required this.report,
+    required this.showSampleMetrics,
+    this.counsel,
+  });
   final EmotionReport report;
+  final bool showSampleMetrics;
 
   /// 상담 리포트. 없으면(상담 건너뜀·생성 실패) 관련 카드를 숨긴다.
   final CounselReport? counsel;
@@ -434,29 +455,36 @@ class _ReportTab extends StatelessWidget {
                   Expanded(
                       child: _StatTile(
                           label: '감정 강도', value: report.emotionIntensity)),
-                  Gap.w12,
-                  Expanded(
-                      child: _StatTile(
-                          label: '회복 가능성', value: report.recoveryPossibility)),
+                  if (showSampleMetrics) ...[
+                    Gap.w12,
+                    Expanded(
+                        child: _StatTile(
+                            label: '회복 가능성',
+                            value: report.recoveryPossibility)),
+                  ],
                 ],
               ),
             ],
           ),
         ),
-        Gap.h12,
-        const OddoCard(child: _ChangeChart()),
-        Gap.h12,
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.auto_awesome_rounded, title: 'AI 분석 코멘트'),
-              Gap.h8,
-              Text(report.analysisComment, style: AppTypography.body),
-            ],
+        if (showSampleMetrics) ...[
+          Gap.h12,
+          const OddoCard(child: _ChangeChart()),
+        ],
+        if (report.analysisComment.isNotEmpty) ...[
+          Gap.h12,
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.auto_awesome_rounded, title: 'AI 분석 코멘트'),
+                Gap.h8,
+                Text(report.analysisComment, style: AppTypography.body),
+              ],
+            ),
           ),
-        ),
+        ],
         if (moments.isNotEmpty) ...[
           Gap.h12,
           OddoCard(
@@ -514,45 +542,56 @@ class _GuideTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.flag_outlined, title: '오늘의 행동 가이드'),
-              Gap.h12,
-              for (var i = 0; i < report.behaviorGuides.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _NumberedItem(
-                      number: i + 1, text: report.behaviorGuides[i]),
-                ),
-            ],
-          ),
-        ),
-        Gap.h12,
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.spa_outlined, title: '추천 활동'),
-              Gap.h12,
-              for (final activity in report.recommendedActivities)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle_outline_rounded,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(activity, style: AppTypography.body),
-                    ],
+        if (report.behaviorGuides.isNotEmpty)
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.flag_outlined, title: '오늘의 행동 가이드'),
+                Gap.h12,
+                for (var i = 0; i < report.behaviorGuides.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _NumberedItem(
+                        number: i + 1, text: report.behaviorGuides[i]),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
+        if (report.recommendedActivities.isNotEmpty) ...[
+          Gap.h12,
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.spa_outlined, title: '추천 활동'),
+                Gap.h12,
+                for (final activity in report.recommendedActivities)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded,
+                            size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(activity, style: AppTypography.body),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (report.behaviorGuides.isEmpty &&
+            report.recommendedActivities.isEmpty)
+          const OddoCard(
+            child: Text(
+              '상담 리포트가 아직 준비되지 않았어요. 다시 시도한 뒤 확인해주세요.',
+              style: AppTypography.bodySecondary,
+            ),
+          ),
       ],
     );
   }

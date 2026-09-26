@@ -124,6 +124,11 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   );
   await tester.pump();
 
+  if (!config.useDummyData) {
+    expect(find.text('회복 가능성'), findsNothing);
+    expect(find.text('상담을 지나며 속상함이 조금씩 가라앉았어요.'), findsNothing);
+  }
+
   await tester.tap(find.text('기록 완료하기'));
   await tester.pump();
   await tester.pump();
