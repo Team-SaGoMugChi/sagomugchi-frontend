@@ -29,9 +29,9 @@ Future<void> showCounselModeSheet(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('어떻게 이야기할까요?', style: AppTypography.subtitle),
+            const Text('어떻게 이야기할까요?', style: AppTypography.subtitle),
             Gap.h8,
-            Text(
+            const Text(
               '지금 편한 쪽으로 고르면 돼요. 중간에 바꿔도 대화는 이어져요.',
               style: AppTypography.bodySecondary,
             ),
