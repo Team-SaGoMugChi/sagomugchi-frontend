@@ -51,18 +51,31 @@ class DiaryAnalysisRemoteDataSource implements DiaryAnalysisDataSource {
     required String faceImagePath,
     required BaselineProfile baseline,
   }) async {
-    final json = await _apiClient.postMultipart(
-      '/diary/step2/analyze',
-      fields: {
-        'text': text,
-        'baseline_voice': jsonEncode(baseline.voice),
-        'baseline_face': jsonEncode(baseline.face),
-        'baseline_feature_version': '${baseline.featureVersion}',
-        'baseline_measured_at': baseline.measuredAt.toUtc().toIso8601String(),
-        'user_id': ?_auth.currentUser?.uid,
-      },
-      filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
-    );
+    final Map<String, dynamic> json;
+    try {
+      json = await _apiClient.postMultipart(
+        '/diary/step2/analyze',
+        fields: {
+          'text': text,
+          'baseline_voice': jsonEncode(baseline.voice),
+          'baseline_face': jsonEncode(baseline.face),
+          'baseline_feature_version': '${baseline.featureVersion}',
+          'baseline_measured_at': baseline.measuredAt.toUtc().toIso8601String(),
+          'user_id': ?_auth.currentUser?.uid,
+        },
+        filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
+      );
+    } on ServerException catch (error) {
+      final cause = error.cause;
+      final body = cause is DioException ? cause.response?.data : null;
+      final detail = body is Map ? body['detail'] : null;
+      if (detail is Map &&
+          detail['code'] == 'baseline_remeasurement_required' &&
+          detail['message'] is String) {
+        throw ServerException(detail['message'] as String, cause);
+      }
+      rethrow;
+    }
     try {
       return FusionResult.fromJson(json);
     } catch (e) {

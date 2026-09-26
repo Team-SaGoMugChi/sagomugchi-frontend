@@ -264,6 +264,34 @@ void main() {
       expect(jsonDecode(client.fields!['baseline_face']!), _baseline.face);
     });
 
+    test(
+      'shows the server remeasurement message for an invalid baseline',
+      () async {
+        client.error = _serverError(422, {
+          'detail': {
+            'code': 'baseline_remeasurement_required',
+            'message': '음성 기준값이 불완전해요. 다시 측정해주세요.',
+          },
+        });
+
+        await expectLater(
+          DiaryAnalysisRemoteDataSource(client, auth: _Auth()).analyzeStep2(
+            text: '오늘 발표가 끝났어요.',
+            voiceFilePath: 'voice.wav',
+            faceImagePath: 'face.jpg',
+            baseline: _baseline,
+          ),
+          throwsA(
+            isA<ServerException>().having(
+              (error) => error.message,
+              'message',
+              '음성 기준값이 불완전해요. 다시 측정해주세요.',
+            ),
+          ),
+        );
+      },
+    );
+
     test('shows the server message when speech is not recognized', () async {
       client.error = _serverError(422, {
         'detail': {
