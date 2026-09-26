@@ -12,12 +12,18 @@ void main() {
         'energyMean': 0.031,
         'speechRate': 4.2,
       },
-      'face': <String, dynamic>{'eyeAspectRatio': 0.28},
+      'face': <String, dynamic>{
+        'eyeAspectRatio': 0.28,
+        'mouthAspectRatio': 0.11,
+        'mouthWidthRatio': 1.42,
+        'eyebrowRaiseRatio': 0.38,
+      },
       'measuredAt': '2026-09-22T00:00:00.000Z',
       'featureVersion': 1,
     };
     final profile = BaselineProfile.fromJson(json);
     expect(profile.featureVersion, 1);
+    expect(profile.isAnalysisReady, isTrue);
     expect(profile.toJson(), json);
     expect(profile.isComplete, isTrue);
   });
@@ -31,5 +37,6 @@ void main() {
     expect(profile.featureVersion, 0);
     expect(profile.voice.containsKey('f0Std'), isFalse);
     expect(profile.isComplete, isTrue);
+    expect(profile.isAnalysisReady, isFalse);
   });
 }

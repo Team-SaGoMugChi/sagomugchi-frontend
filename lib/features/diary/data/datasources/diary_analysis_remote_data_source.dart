@@ -57,6 +57,8 @@ class DiaryAnalysisRemoteDataSource implements DiaryAnalysisDataSource {
         'text': text,
         'baseline_voice': jsonEncode(baseline.voice),
         'baseline_face': jsonEncode(baseline.face),
+        'baseline_feature_version': '${baseline.featureVersion}',
+        'baseline_measured_at': baseline.measuredAt.toUtc().toIso8601String(),
         'user_id': ?_auth.currentUser?.uid,
       },
       filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},

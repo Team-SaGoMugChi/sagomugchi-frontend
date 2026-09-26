@@ -7,6 +7,24 @@
 /// `pitchMean`, `speechRate`, `energyMean` — the app only stores and forwards
 /// them without interpreting.
 class BaselineProfile {
+  static const currentFeatureVersion = 1;
+
+  static const requiredAnalysisVoiceKeys = {
+    'pitchMean',
+    'f0Std',
+    'speechRate',
+    'voicedRatio',
+    'durationSec',
+    'energyMean',
+  };
+
+  static const requiredAnalysisFaceKeys = {
+    'eyeAspectRatio',
+    'mouthAspectRatio',
+    'mouthWidthRatio',
+    'eyebrowRaiseRatio',
+  };
+
   const BaselineProfile({
     required this.voice,
     required this.face,
@@ -32,6 +50,23 @@ class BaselineProfile {
       face.values.every((value) => value.isFinite && value >= 0);
 
   bool get isComplete => hasVoiceReference && hasFaceReference;
+
+  /// Whether this profile satisfies the contract used by diary analysis.
+  ///
+  /// [isComplete] remains lenient so a legacy profile can be displayed. It
+  /// must not be used for a new analysis because missing fields would silently
+  /// reduce the number of deltas and change the resulting score.
+  bool get isAnalysisReady =>
+      featureVersion == currentFeatureVersion &&
+      requiredAnalysisVoiceKeys.every(voice.containsKey) &&
+      requiredAnalysisFaceKeys.every(face.containsKey) &&
+      hasVoiceReference &&
+      hasFaceReference &&
+      voice['f0Std']! >= 0 &&
+      voice['speechRate']! >= 0 &&
+      voice['voicedRatio']! > 0 &&
+      voice['voicedRatio']! <= 1 &&
+      voice['durationSec']! > 0;
 
   factory BaselineProfile.fromJson(Map<String, dynamic> json) =>
       BaselineProfile(

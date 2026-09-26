@@ -35,6 +35,11 @@ class Step1AnalysisController extends Notifier<AsyncValue<FusionResult?>> {
       if (baseline == null) {
         throw const AppException('베이스라인 측정 정보를 찾을 수 없어요. 설정에서 다시 측정해주세요.');
       }
+      if (!baseline.isAnalysisReady) {
+        throw const AppException(
+          '저장된 베이스라인이 현재 분석 기준과 맞지 않아요. 설정에서 다시 측정해주세요.',
+        );
+      }
 
       final repository = ref.read(diaryAnalysisRepositoryProvider);
       // 원문은 녹음당 한 번만 받는다 — 분석 단계에서 실패해 재시도할 때
