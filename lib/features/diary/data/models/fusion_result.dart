@@ -34,6 +34,8 @@ class FusionResult {
     required this.textEmotionScores,
     required this.voiceDelta,
     required this.faceDelta,
+    this.signals = const [],
+    this.incongruent = false,
   });
 
   final List<String> emotionKeywords;
@@ -45,6 +47,13 @@ class FusionResult {
   final Map<String, FeatureDelta> voiceDelta;
   final Map<String, FeatureDelta> faceDelta;
 
+  /// 서버가 baseline 대비 변화를 해석한 상담용 문장.
+  /// 앱은 임계값이나 감정 의미를 다시 계산하지 않고 그대로 전달한다.
+  final List<String> signals;
+
+  /// 텍스트 감정과 음성·표정 신호가 서로 어긋난다고 서버가 판단한 경우.
+  final bool incongruent;
+
   factory FusionResult.fromJson(Map<String, dynamic> json) => FusionResult(
     emotionKeywords: (json['emotion_keywords'] as List<dynamic>).cast<String>(),
     emotionScores: _toDoubleMap(json['emotion_scores']),
@@ -52,6 +61,8 @@ class FusionResult {
     textEmotionScores: _toDoubleMap(json['text_emotion_scores']),
     voiceDelta: _toDeltaMap(json['voice_delta']),
     faceDelta: _toDeltaMap(json['face_delta']),
+    signals: (json['signals'] as List<dynamic>? ?? const []).cast<String>(),
+    incongruent: json['incongruent'] as bool? ?? false,
   );
 
   static Map<String, double> _toDoubleMap(Object? raw) {

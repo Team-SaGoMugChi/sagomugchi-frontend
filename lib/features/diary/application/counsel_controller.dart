@@ -73,12 +73,16 @@ class CounselController extends Notifier<CounselState> {
     );
 
     try {
+      final fusion = ref.read(diaryDraftProvider).fusionResult;
       final result = await ref
           .read(counselRepositoryProvider)
           .sendTurn(
             userText: userText,
             history: history,
-            emotions: ref.read(diaryDraftProvider).fusionResult?.emotionScores,
+            emotions: fusion?.emotionScores,
+            signals: fusion?.signals,
+            diarySummary: ref.read(diaryDraftProvider).transcript,
+            incongruent: fusion?.incongruent ?? false,
             persona: await _loadPersona(),
           );
       state = state.copyWith(

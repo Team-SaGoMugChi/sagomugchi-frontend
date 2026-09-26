@@ -8,6 +8,9 @@ abstract interface class CounselRepository {
     required String userText,
     List<CounselMessage> history,
     Map<String, double>? emotions,
+    List<String>? signals,
+    String? diarySummary,
+    bool incongruent,
     Map<String, dynamic>? persona,
   });
 

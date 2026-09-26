@@ -13,6 +13,9 @@ abstract interface class CounselDataSource {
     required String userText,
     List<CounselMessage> history,
     Map<String, double>? emotions,
+    List<String>? signals,
+    String? diarySummary,
+    bool incongruent,
     Map<String, dynamic>? persona,
   });
 

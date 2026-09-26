@@ -16,6 +16,9 @@ class CounselRemoteDataSource implements CounselDataSource {
     required String userText,
     List<CounselMessage> history = const [],
     Map<String, double>? emotions,
+    List<String>? signals,
+    String? diarySummary,
+    bool incongruent = false,
     Map<String, dynamic>? persona,
   }) async {
     // 서버(JSON)는 snake_case, 앱은 camelCase — 변환은 여기서만 한다.
@@ -25,6 +28,10 @@ class CounselRemoteDataSource implements CounselDataSource {
         'user_text': userText,
         'history': [for (final m in history) m.toJson()],
         if (emotions != null && emotions.isNotEmpty) 'emotions': emotions,
+        if (signals != null && signals.isNotEmpty) 'signals': signals,
+        if (diarySummary != null && diarySummary.isNotEmpty)
+          'diary_summary': diarySummary,
+        'incongruent': incongruent,
         if (persona != null && persona.isNotEmpty) 'persona': persona,
       },
     );
