@@ -28,6 +28,7 @@ Map<String, dynamic> _fusionJson({bool includeCounselContext = true}) => {
 class _Client implements ApiClient {
   String? path;
   Object? body;
+  bool usedDummyContext = false;
 
   @override
   Future<Map<String, dynamic>> post(String path, {Object? body}) async {
@@ -36,7 +37,7 @@ class _Client implements ApiClient {
     return {
       'reply': '조금 더 이야기해줄래요?',
       'crisis': false,
-      'used_dummy_context': false,
+      'used_dummy_context': usedDummyContext,
     };
   }
 
@@ -126,6 +127,26 @@ void main() {
         },
       });
       expect(result.usedDummyContext, isFalse);
+    });
+
+    test('rejects a counseling response built with dummy context', () async {
+      final client = _Client()..usedDummyContext = true;
+
+      await expectLater(
+        CounselRemoteDataSource(client).sendTurn(
+          userText: '발표가 걱정돼요.',
+          emotions: const {'불안': 72.0},
+          signals: const ['말 속도가 평소보다 빠름'],
+          diarySummary: '내일 발표가 있어서 긴장된다고 적음',
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (error) => error.toString(),
+            'message',
+            contains('테스트용 맥락'),
+          ),
+        ),
+      );
     });
 
     test(

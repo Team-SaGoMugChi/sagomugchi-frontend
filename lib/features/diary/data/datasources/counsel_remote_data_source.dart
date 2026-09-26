@@ -38,7 +38,11 @@ class CounselRemoteDataSource implements CounselDataSource {
     if (json['reply'] is! String) {
       throw const ServerException('상담 응답을 처리하지 못했어요.');
     }
-    return CounselTurnResult.fromJson(json);
+    final result = CounselTurnResult.fromJson(json);
+    if (result.usedDummyContext) {
+      throw const ServerException('상담 서버가 아직 테스트용 맥락을 사용 중이에요.');
+    }
+    return result;
   }
 
   @override
