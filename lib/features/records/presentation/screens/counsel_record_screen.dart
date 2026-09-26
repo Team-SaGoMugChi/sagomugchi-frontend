@@ -13,12 +13,16 @@ import '../../../../widgets/chat_bubble.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../diary/data/diary_providers.dart';
+import '../../../diary/presentation/widgets/counsel_mode_sheet.dart';
 import '../../application/viewing_date_provider.dart';
 import '../widgets/record_async_view.dart';
 import '../widgets/record_top_bar.dart';
 
 /// Screen 50 — 상담 기록 (상담 tab of the written-day context). Shows the
 /// viewed date's saved counsel log from Firestore.
+///
+/// "상담 이어하기"는 영상통화/채팅을 고르게 한다. 어느 쪽으로 들어가든 이
+/// 날짜의 대화를 불러와 이어서 말한다(`CounselController.restoreIfEmpty`).
 class CounselRecordScreen extends ConsumerWidget {
   const CounselRecordScreen({super.key});
 
@@ -39,30 +43,45 @@ class CounselRecordScreen extends ConsumerWidget {
               value: counselAsync,
               emptyMessage: '이 날짜에는 아직 상담 기록이 없어요',
               builder: (session) => ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.md,
+                ),
                 children: [
-                  Text(RecordsDummy.counselTitle(date),
-                      style: AppTypography.subtitle),
+                  Text(
+                    RecordsDummy.counselTitle(date),
+                    style: AppTypography.subtitle,
+                  ),
                   Gap.h12,
                   _SessionHeader(session: session),
                   Gap.h16,
                   for (final msg in session.messages)
                     ChatBubble(
-                        fromOddo: msg.speaker == CounselSpeaker.oddo,
-                        text: msg.text),
+                      fromOddo: msg.speaker == CounselSpeaker.oddo,
+                      text: msg.text,
+                    ),
+                  Gap.h8,
+                  // 이 날짜의 상담으로 만든 리포트를 다시 연다.
+                  _SummaryLink(
+                    onTap: () => context.pushNamed(AppRoute.reportGuide),
+                  ),
                 ],
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.xs,
+              AppSpacing.screenH,
+              AppSpacing.xs,
+            ),
             child: PrimaryButton(
               label: '상담 이어하기',
-              leadingIcon: Icons.videocam_rounded,
-              onPressed: () =>
-                  context.pushNamed(AppRoute.diaryStep4CounselCall),
+              leadingIcon: Icons.chat_rounded,
+              onPressed: () => showCounselModeSheet(context),
             ),
           ),
         ],
@@ -85,27 +104,67 @@ class _SessionHeader extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: const BoxDecoration(
-                color: AppColors.primarySoft, shape: BoxShape.circle),
-            child: const Icon(Icons.videocam_rounded,
-                size: 20, color: AppColors.primary),
+              color: AppColors.primarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.videocam_rounded,
+              size: 20,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(RecordsDummy.counselSessionLabel,
-                    style: AppTypography.body
-                        .copyWith(fontWeight: FontWeight.w600)),
                 Text(
-                    '${DateFormatter.hhmm(session.startedAt)} - ${DateFormatter.hhmm(session.endedAt)}',
-                    style: AppTypography.caption),
+                  RecordsDummy.counselSessionLabel,
+                  style: AppTypography.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${DateFormatter.hhmm(session.startedAt)} - ${DateFormatter.hhmm(session.endedAt)}',
+                  style: AppTypography.caption,
+                ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textTertiary),
         ],
+      ),
+    );
+  }
+}
+
+/// 상담 내용 요약 보기 — 이 날짜의 감정 리포트로 넘어간다.
+class _SummaryLink extends StatelessWidget {
+  const _SummaryLink({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OddoCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
+          children: [
+            const Icon(
+              Icons.edit_note_rounded,
+              size: 20,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('상담 내용 요약 보기', style: AppTypography.body),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiary,
+            ),
+          ],
+        ),
       ),
     );
   }
