@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
+import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/baseline/application/baseline_face_image_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_recording_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_upload_controller.dart';
@@ -14,6 +15,7 @@ import 'package:oddo/features/baseline/data/datasources/baseline_api.dart';
 import 'package:oddo/features/baseline/data/models/baseline_measurement_exception.dart';
 import 'package:oddo/features/baseline/data/models/baseline_profile.dart';
 import 'package:oddo/features/baseline/data/repositories/baseline_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _profile = BaselineProfile(
   voice: const {'pitchMean': 220, 'energyMean': 0.3},
@@ -72,10 +74,16 @@ void main() {
     late _Repository repository;
     late BaselineUploadController controller;
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
       repository = _Repository();
+      final prefs = await SharedPreferences.getInstance();
+      addTearDown(prefs.clear);
       container = ProviderContainer(
-        overrides: [baselineRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          baselineRepositoryProvider.overrideWithValue(repository),
+          localStoreProvider.overrideWithValue(LocalStore(prefs)),
+        ],
       );
       controller = container.read(baselineUploadControllerProvider.notifier);
     });
