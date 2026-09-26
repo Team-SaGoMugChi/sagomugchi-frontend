@@ -23,6 +23,7 @@ import '../../features/diary/presentation/screens/diary_step2_confirm_screen.dar
 import '../../features/diary/presentation/screens/diary_step3_video_done_screen.dart';
 import '../../features/diary/presentation/screens/diary_step3_video_loading_screen.dart';
 import '../../features/diary/presentation/screens/diary_step4_counsel_call_screen.dart';
+import '../../features/diary/presentation/screens/diary_step4_counsel_chat_screen.dart';
 import '../../features/diary/presentation/screens/diary_step4_counsel_intro_screen.dart';
 import '../../features/diary/presentation/screens/report_generating_screen.dart';
 import '../../features/diary/presentation/screens/report_guide_screen.dart';
@@ -302,6 +303,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppPath.diaryStep4CounselCall,
         name: AppRoute.diaryStep4CounselCall,
         builder: (_, _) => const DiaryStep4CounselCallScreen(),
+      ),
+      GoRoute(
+        path: AppPath.diaryStep4CounselChat,
+        name: AppRoute.diaryStep4CounselChat,
+        builder: (_, _) => const DiaryStep4CounselChatScreen(),
       ),
       GoRoute(
         path: AppPath.reportGenerating,
