@@ -12,6 +12,7 @@ abstract interface class CounselRepository {
     String? diarySummary,
     bool incongruent,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   });
 
   Future<CounselReport> fetchReport({

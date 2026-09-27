@@ -15,8 +15,8 @@ abstract interface class PersonaRepository {
 
 class PersonaFirestoreRepository implements PersonaRepository {
   PersonaFirestoreRepository({FirebaseAuth? auth, FirebaseFirestore? firestore})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -38,12 +38,20 @@ class PersonaFirestoreRepository implements PersonaRepository {
     return _guard(() async {
       final snapshot = await _doc.get();
       final data = snapshot.data();
-      return data != null ? PersonaConfig.fromJson(data) : null;
+      if (data == null) return null;
+      final config = PersonaConfig.fromJson(data);
+      if (!config.isValid) {
+        throw const ServerException('저장된 페르소나 설정이 올바르지 않아요. 다시 설정해주세요.');
+      }
+      return config;
     });
   }
 
   @override
   Future<void> savePersona(PersonaConfig config) {
+    if (!config.isValid) {
+      throw const ServerException('페르소나 설정을 확인해주세요.');
+    }
     return _guard(() => _doc.set(config.toJson()));
   }
 
@@ -67,5 +75,10 @@ class PersonaDummyRepository implements PersonaRepository {
   Future<PersonaConfig?> fetchPersona() async => _config;
 
   @override
-  Future<void> savePersona(PersonaConfig config) async => _config = config;
+  Future<void> savePersona(PersonaConfig config) async {
+    if (!config.isValid) {
+      throw const ServerException('페르소나 설정을 확인해주세요.');
+    }
+    _config = config;
+  }
 }

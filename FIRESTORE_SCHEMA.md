@@ -104,11 +104,15 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `big5` | map<string,int>? | O/C/E/A/N → 0–100 점수. 미응시면 없음 |
+| `big5Instrument` | string? | Big Five 산출 도구·버전. 현재 `IPIP-BFFM-50-ko` |
+| `big5CompletedAt` | string(ISO)? | Big Five 50문항 완료·계산 시각 |
 | `mbti` | string? | 예: `INFP`. 미응시면 없음 |
 | `tendencyTraits` | string[]? | 성향 검사 결과 태그. 미응시면 없음 |
 | `updatedAt` | string(ISO) | 마지막 저장 시각 |
 
-> "이어하기"(화면 27) 판단: 세 필드 중 일부만 존재하면 진행 중 상태.
+> Big Five 문항별 응답은 민감한 원문이므로 Firestore에 저장하지 않는다. 진행 중 답변은
+> 로그인 uid와 도구 버전을 함께 묶어 기기 로컬에만 임시 저장하며, 완료 후 삭제한다.
+> Firestore에는 계산된 O/C/E/A/N 점수와 산출 도구·완료 시각만 저장한다.
 
 ### `users/{uid}/meta/persona` — [PersonaConfig](lib/features/persona/data/models/persona_config.dart)
 
@@ -119,7 +123,9 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | `traits` | string[] | 성격 다중 선택 |
 | `updatedAt` | string(ISO) | |
 
-> 상담봇(Phase 5)은 이 문서를 읽어 시스템 프롬프트를 구성한다.
+> 이름은 한 줄 1~10자, 말투는 한 줄 1~30자, 성격은 중복 없이 최대 6개(각
+> 한 줄 1~20자)로 검증한다. 상담 API에는 `name`, `tone`, `traits`만 전달하고
+> `updatedAt`은 전달하지 않는다.
 
 ## 3. Firebase Storage 경로
 

@@ -20,6 +20,7 @@ class CounselRemoteDataSource implements CounselDataSource {
     String? diarySummary,
     bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) async {
     // 서버(JSON)는 snake_case, 앱은 camelCase — 변환은 여기서만 한다.
     final json = await _apiClient.post(
@@ -33,6 +34,8 @@ class CounselRemoteDataSource implements CounselDataSource {
           'diary_summary': diarySummary,
         'incongruent': incongruent,
         if (persona != null && persona.isNotEmpty) 'persona': persona,
+        if (psychProfile != null && psychProfile.isNotEmpty)
+          'psych_profile': psychProfile,
       },
     );
     if (json['reply'] is! String) {

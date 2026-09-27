@@ -57,6 +57,7 @@ class _CounselRepository implements CounselRepository {
     String? diarySummary,
     bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) async {
     sent = {
       'userText': userText,
@@ -66,6 +67,7 @@ class _CounselRepository implements CounselRepository {
       'diarySummary': diarySummary,
       'incongruent': incongruent,
       'persona': persona,
+      'psychProfile': psychProfile,
     };
     return const CounselTurnResult(reply: '응답');
   }
@@ -205,7 +207,11 @@ void main() {
         expect(repository.sent?['signals'], ['말 속도가 평소보다 빠름']);
         expect(repository.sent?['diarySummary'], '내일 발표가 있어서 긴장돼요.');
         expect(repository.sent?['incongruent'], isTrue);
-        expect(repository.sent?['persona'], persona.toJson());
+        expect(repository.sent?['persona'], {
+          'name': '오디',
+          'tone': '따뜻한',
+          'traits': ['공감'],
+        });
       },
     );
   });

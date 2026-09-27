@@ -22,6 +22,33 @@ class PersonaConfig {
 
   final DateTime updatedAt;
 
+  /// Rejects malformed Firestore values before they reach a screen or the
+  /// counseling prompt. UI choices currently stay well inside these limits.
+  bool get isValid {
+    final cleanName = name.trim();
+    final cleanTone = tone.trim();
+    return cleanName.isNotEmpty &&
+        cleanName.runes.length <= 10 &&
+        !cleanName.contains(RegExp(r'[\r\n]')) &&
+        cleanTone.isNotEmpty &&
+        cleanTone.runes.length <= 30 &&
+        !cleanTone.contains(RegExp(r'[\r\n]')) &&
+        traits.length <= 6 &&
+        traits.toSet().length == traits.length &&
+        traits.every(
+          (trait) =>
+              trait.trim().isNotEmpty &&
+              trait.runes.length <= 20 &&
+              !trait.contains(RegExp(r'[\r\n]')),
+        );
+  }
+
+  Map<String, dynamic> toCounselJson() => {
+    'name': name.trim(),
+    'tone': tone.trim(),
+    'traits': traits.map((trait) => trait.trim()).toList(),
+  };
+
   PersonaConfig copyWith({
     String? name,
     String? tone,
@@ -37,16 +64,16 @@ class PersonaConfig {
   }
 
   factory PersonaConfig.fromJson(Map<String, dynamic> json) => PersonaConfig(
-        name: json['name'] as String,
-        tone: json['tone'] as String,
-        traits: (json['traits'] as List<dynamic>).cast<String>(),
-        updatedAt: DateTime.parse(json['updatedAt'] as String),
-      );
+    name: json['name'] as String,
+    tone: json['tone'] as String,
+    traits: (json['traits'] as List<dynamic>).cast<String>(),
+    updatedAt: DateTime.parse(json['updatedAt'] as String),
+  );
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'tone': tone,
-        'traits': traits,
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'name': name,
+    'tone': tone,
+    'traits': traits,
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 }

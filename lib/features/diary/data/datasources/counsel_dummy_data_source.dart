@@ -15,6 +15,7 @@ class CounselDummyDataSource implements CounselDataSource {
     String? diarySummary,
     bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return const CounselTurnResult(reply: '그랬군요. 조금 더 이야기해줄래요?');

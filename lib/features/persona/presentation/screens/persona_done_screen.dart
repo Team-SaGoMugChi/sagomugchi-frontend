@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/persona_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
@@ -11,13 +11,18 @@ import '../../../../widgets/app_background.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../data/models/persona_config.dart';
+import '../../data/persona_providers.dart';
 
 /// Screen 31 — 페르소나 설정 완료. → 온보딩 완료.
-class PersonaDoneScreen extends StatelessWidget {
+class PersonaDoneScreen extends ConsumerWidget {
   const PersonaDoneScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final personaAsync = ref.watch(personaConfigProvider);
+    final persona = personaAsync.value;
+
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -26,15 +31,20 @@ class PersonaDoneScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                     onPressed: () {
                       if (context.canPop()) context.pop();
                     },
                   ),
                   const Expanded(
-                    child: Text('설정 완료',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
+                    child: Text(
+                      '설정 완료',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.subtitle,
+                    ),
                   ),
                   const SizedBox(width: 48),
                 ],
@@ -43,39 +53,32 @@ class PersonaDoneScreen extends StatelessWidget {
                 child: Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.screenH),
+                      horizontal: AppSpacing.screenH,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // TODO: 하트를 들고 있는 포즈로 교체 예정
                         const Center(
-                            child: MascotImage(pose: MascotPose.heart, size: 140)),
+                          child: MascotImage(pose: MascotPose.heart, size: 140),
+                        ),
                         Gap.h16,
-                        const Text('${PersonaDummy.defaultName}가 준비됐어요!',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.display),
-                        Gap.h8,
-                        const Text('앞으로 당신의 하루를 따뜻하게 들어줄게요.',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.bodySecondary),
-                        Gap.h24,
-                        OddoCard(
-                          child: Column(
-                            children: [
-                              const _SummaryRow(
-                                  label: '이름', value: PersonaDummy.defaultName),
-                              const Divider(
-                                  color: AppColors.divider, height: 20),
-                              const _SummaryRow(
-                                  label: '말투', value: PersonaDummy.defaultTone),
-                              const Divider(
-                                  color: AppColors.divider, height: 20),
-                              _SummaryRow(
-                                  label: '성격',
-                                  value:
-                                      PersonaDummy.defaultTraits.join(', ')),
-                            ],
+                        personaAsync.when(
+                          loading: () => const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
                           ),
+                          error: (_, _) => _LoadFailure(
+                            onRetry: () =>
+                                ref.invalidate(personaConfigProvider),
+                          ),
+                          data: (config) => config == null
+                              ? _LoadFailure(
+                                  onRetry: () =>
+                                      ref.invalidate(personaConfigProvider),
+                                )
+                              : _PersonaSummary(config: config),
                         ),
                       ],
                     ),
@@ -83,16 +86,82 @@ class PersonaDoneScreen extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '다음으로',
+                  enabled: persona != null,
                   onPressed: () => context.pushNamed(AppRoute.onboardingDone),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PersonaSummary extends StatelessWidget {
+  const _PersonaSummary({required this.config});
+
+  final PersonaConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${config.name}가 준비됐어요!',
+          textAlign: TextAlign.center,
+          style: AppTypography.display,
+        ),
+        Gap.h8,
+        const Text(
+          '앞으로 당신의 하루를 따뜻하게 들어줄게요.',
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySecondary,
+        ),
+        Gap.h24,
+        OddoCard(
+          child: Column(
+            children: [
+              _SummaryRow(label: '이름', value: config.name),
+              const Divider(color: AppColors.divider, height: 20),
+              _SummaryRow(label: '말투', value: config.tone),
+              const Divider(color: AppColors.divider, height: 20),
+              _SummaryRow(label: '성격', value: config.traits.join(', ')),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadFailure extends StatelessWidget {
+  const _LoadFailure({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return OddoCard(
+      child: Column(
+        children: [
+          const Text(
+            '저장한 페르소나를 불러오지 못했어요.',
+            textAlign: TextAlign.center,
+            style: AppTypography.body,
+          ),
+          Gap.h12,
+          TextButton(onPressed: onRetry, child: const Text('다시 불러오기')),
+        ],
       ),
     );
   }
@@ -113,8 +182,10 @@ class _SummaryRow extends StatelessWidget {
           child: Text(label, style: AppTypography.bodySecondary),
         ),
         Expanded(
-          child: Text(value,
-              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
+          child: Text(
+            value,
+            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );

@@ -1,8 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../auth/data/auth_providers.dart';
 
 /// Whether the user has finished first-run onboarding
 /// (튜토리얼 → Baseline 측정 → 심리테스트 → 페르소나 설정).
@@ -12,27 +8,16 @@ import '../../auth/data/auth_providers.dart';
 /// CTA goes straight to the diary-writing flow.
 ///
 /// The source of truth is `AppUser.onboardingDone` (users/{uid}) — the auth
-/// controller calls [set] with it on login/session restore, and [markComplete]
-/// writes it back to the profile.
+/// controller calls [set] with it on login/session restore and after a
+/// confirmed completion write.
 class OnboardingController extends Notifier<bool> {
   @override
   bool build() => false;
 
   /// Synced from the logged-in user's profile (login / session restore).
   void set(bool done) => state = done;
-
-  void markComplete() {
-    state = true;
-    // Best-effort persist on the profile; a failure only means the popup could
-    // reappear on a later fresh login.
-    unawaited(
-      ref
-          .read(authRepositoryProvider)
-          .updateOnboardingDone(done: true)
-          .catchError((_) {}),
-    );
-  }
 }
 
-final onboardingCompleteProvider =
-    NotifierProvider<OnboardingController, bool>(OnboardingController.new);
+final onboardingCompleteProvider = NotifierProvider<OnboardingController, bool>(
+  OnboardingController.new,
+);

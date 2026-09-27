@@ -82,7 +82,10 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true);
     try {
       final user = await _repo.signUp(
-          email: email, password: password, nickname: nickname);
+        email: email,
+        password: password,
+        nickname: nickname,
+      );
       // A fresh signup stays logged in on this device by default.
       await ref
           .read(localStoreProvider)
@@ -153,6 +156,19 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Persists first-run onboarding completion and updates both in-memory
+  /// sources only after Firestore confirms the write.
+  Future<void> completeOnboarding() async {
+    final user = state.user;
+    if (user == null) {
+      throw const AuthException('로그인이 필요해요. 다시 로그인해주세요.');
+    }
+
+    await _repo.updateOnboardingDone(done: true);
+    state = AuthState(user: user.copyWith(onboardingDone: true));
+    ref.read(onboardingCompleteProvider.notifier).set(true);
+  }
+
   Future<void> logout() async {
     await _repo.logout();
     _leaveSession();
@@ -175,5 +191,6 @@ class AuthController extends Notifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);

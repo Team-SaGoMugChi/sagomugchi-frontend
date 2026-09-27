@@ -39,6 +39,11 @@ class PsychQuestionScreen extends StatefulWidget {
     required this.onNext,
     required this.hint,
     this.mascotPose = MascotPose.front,
+    this.initialSelected,
+    this.onSelected,
+    this.onBack,
+    this.isSaving = false,
+    this.nextLabel = '다음',
   });
 
   final String testTitle;
@@ -50,6 +55,11 @@ class PsychQuestionScreen extends StatefulWidget {
   final VoidCallback onNext;
   final String hint;
   final MascotPose mascotPose;
+  final int? initialSelected;
+  final ValueChanged<int>? onSelected;
+  final VoidCallback? onBack;
+  final bool isSaving;
+  final String nextLabel;
 
   @override
   State<PsychQuestionScreen> createState() => _PsychQuestionScreenState();
@@ -59,13 +69,33 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
   int? _selected;
 
   @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialSelected;
+  }
+
+  @override
+  void didUpdateWidget(covariant PsychQuestionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.questionNumber != widget.questionNumber ||
+        oldWidget.initialSelected != widget.initialSelected) {
+      _selected = widget.initialSelected;
+    }
+  }
+
+  void _select(int index) {
+    setState(() => _selected = index);
+    widget.onSelected?.call(index);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: Column(
             children: [
-              _Header(title: widget.testTitle),
+              _Header(title: widget.testTitle, onBack: widget.onBack),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: StepProgressBar(
@@ -113,9 +143,11 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
                     AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
                 child: PrimaryButton(
-                  label: '다음',
+                  label: widget.nextLabel,
                   trailingIcon: Icons.chevron_right_rounded,
                   onPressed: widget.onNext,
+                  enabled: _selected != null,
+                  loading: widget.isSaving,
                 ),
               ),
             ],
@@ -136,7 +168,7 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
               child: _LikertOption(
                 text: options[i].text,
                 selected: _selected == i,
-                onTap: () => setState(() => _selected = i),
+                onTap: () => _select(i),
               ),
             ),
         ];
@@ -148,7 +180,7 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
               child: _DuoOption(
                 option: options[i],
                 selected: _selected == i,
-                onTap: () => setState(() => _selected = i),
+                onTap: () => _select(i),
               ),
             ),
         ];
@@ -160,7 +192,7 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
               child: _IllustratedOption(
                 option: options[i],
                 selected: _selected == i,
-                onTap: () => setState(() => _selected = i),
+                onTap: () => _select(i),
               ),
             ),
         ];
@@ -169,8 +201,9 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title});
+  const _Header({required this.title, this.onBack});
   final String title;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -178,9 +211,10 @@ class _Header extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () {
-            if (context.canPop()) context.pop();
-          },
+          onPressed: onBack ??
+              () {
+                if (context.canPop()) context.pop();
+              },
         ),
         Expanded(
           child: Text(title,

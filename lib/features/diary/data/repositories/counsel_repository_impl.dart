@@ -18,6 +18,7 @@ class CounselRepositoryImpl implements CounselRepository {
     String? diarySummary,
     bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) {
     return _dataSource.sendTurn(
       userText: userText,
@@ -27,6 +28,7 @@ class CounselRepositoryImpl implements CounselRepository {
       diarySummary: diarySummary,
       incongruent: incongruent,
       persona: persona,
+      psychProfile: psychProfile,
     );
   }
 
