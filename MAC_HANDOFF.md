@@ -56,8 +56,11 @@ MBTI·성향 화면은 실제 사용자 동선에서 제외했다.
 169개를 통과했고 두 저장소 모두 `git diff --check` 오류가 없다. 복구용 stash는
 보존했다. 통합 변경은 기존 이슈에 연결된 프론트 `34-baseline-contract`와 백엔드
 `31-baseline-multimodal-contract` 브랜치에 커밋해 팀 원격으로 push했다. 두 브랜치
-모두 최신 `develop`을 조상으로 하며, PR은 아직 게시하거나 병합하지 않았다. 상세
-근거와 계약은 `PSYCH_ASSESSMENT.md`에 있다.
+모두 최신 `develop`을 조상으로 한다. 프론트는
+[PR #35](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/35), 백엔드는
+[PR #32](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/32)로 게시했으며,
+두 PR 모두 `develop` 대상이고 팀원 승인 전이라 아직 병합하지 않았다. 상세 근거와
+계약은 `PSYCH_ASSESSMENT.md`에 있다.
 
 같은 통합 상태로 `main_prod.dart` 디버그 APK를 빌드해 기존 Android 앱 데이터 유지
 방식으로 업데이트 설치했고, 무선 ADB와 `reverse tcp:8001`을 다시 연결했다. 통합
