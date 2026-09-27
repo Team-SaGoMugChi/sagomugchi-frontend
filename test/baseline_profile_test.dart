@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
+import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/auth/application/auth_controller.dart';
 import 'package:oddo/features/auth/data/models/app_user.dart';
 import 'package:oddo/features/baseline/application/baseline_face_image_provider.dart';
@@ -15,6 +17,7 @@ import 'package:oddo/features/baseline/data/models/baseline_profile.dart';
 import 'package:oddo/features/baseline/data/repositories/baseline_repository.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_done_screen.dart';
 import 'package:oddo/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _profile = BaselineProfile(
   voice: const {'pitchMean': 217.3, 'energyMean': 0.25, 'speechRate': 3.2},
@@ -49,6 +52,13 @@ class _AuthController extends AuthController {
 }
 
 void main() {
+  late LocalStore localStore;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    localStore = LocalStore(await SharedPreferences.getInstance());
+  });
+
   for (final signOut in [false, true]) {
     test(
       'account ${signOut ? "logout" : "switch"} prevents reusing captures',
@@ -63,6 +73,7 @@ void main() {
           overrides: [
             baselineRepositoryProvider.overrideWithValue(repository),
             authControllerProvider.overrideWith(_AuthController.new),
+            localStoreProvider.overrideWithValue(localStore),
           ],
         );
         addTearDown(container.dispose);
@@ -88,7 +99,10 @@ void main() {
 
   test('same account refresh preserves captures for retry', () {
     final container = ProviderContainer(
-      overrides: [authControllerProvider.overrideWith(_AuthController.new)],
+      overrides: [
+        authControllerProvider.overrideWith(_AuthController.new),
+        localStoreProvider.overrideWithValue(localStore),
+      ],
     );
     addTearDown(container.dispose);
     final auth =
@@ -100,6 +114,45 @@ void main() {
     expect(container.read(baselineRecordingProvider), 'voice.wav');
     expect(container.read(baselineFaceImageProvider), 'face.jpg');
   });
+
+  test(
+    'same account restores pending captures after provider restart',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'oddo-baseline-retry-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final voice = File('${directory.path}/voice.m4a')..writeAsBytesSync([1]);
+      final face = File('${directory.path}/face.jpg')..writeAsBytesSync([1]);
+      await localStore.setString(LocalStore.kBaselinePendingOwner, 'first');
+      await localStore.setString(
+        LocalStore.kBaselinePendingVoicePath,
+        voice.path,
+      );
+      await localStore.setString(
+        LocalStore.kBaselinePendingFacePath,
+        face.path,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          authControllerProvider.overrideWith(_AuthController.new),
+          localStoreProvider.overrideWithValue(localStore),
+        ],
+      );
+      addTearDown(container.dispose);
+      final auth =
+          container.read(authControllerProvider.notifier) as _AuthController;
+      auth.enter('first');
+
+      expect(container.read(baselineRecordingProvider), voice.path);
+      expect(container.read(baselineFaceImageProvider), face.path);
+
+      auth.enter('second');
+      expect(container.read(baselineRecordingProvider), isNull);
+      expect(container.read(baselineFaceImageProvider), isNull);
+    },
+  );
 
   test('complete requires usable voice and face references', () {
     expect(_profile.isComplete, isTrue);
@@ -130,7 +183,10 @@ void main() {
   test('restores saved profile when no upload exists in memory', () async {
     final repository = _Repository();
     final container = ProviderContainer(
-      overrides: [baselineRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        baselineRepositoryProvider.overrideWithValue(repository),
+        localStoreProvider.overrideWithValue(localStore),
+      ],
     );
     addTearDown(container.dispose);
     expect(
@@ -143,7 +199,10 @@ void main() {
   test('uses confirmed upload without reading stale storage', () async {
     final repository = _Repository();
     final container = ProviderContainer(
-      overrides: [baselineRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        baselineRepositoryProvider.overrideWithValue(repository),
+        localStoreProvider.overrideWithValue(localStore),
+      ],
     );
     addTearDown(container.dispose);
     container.read(baselineRecordingProvider.notifier).set('voice.wav');
@@ -166,6 +225,7 @@ void main() {
         overrides: [
           baselineRepositoryProvider.overrideWithValue(repository),
           authControllerProvider.overrideWith(_AuthController.new),
+          localStoreProvider.overrideWithValue(localStore),
         ],
       );
       addTearDown(container.dispose);
@@ -205,7 +265,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [baselineRepositoryProvider.overrideWithValue(repository)],
+          overrides: [
+            baselineRepositoryProvider.overrideWithValue(repository),
+            localStoreProvider.overrideWithValue(localStore),
+          ],
           child: MaterialApp(
             theme: AppTheme.light,
             home: const BaselineDoneScreen(),

@@ -16,7 +16,11 @@ class CounselRemoteDataSource implements CounselDataSource {
     required String userText,
     List<CounselMessage> history = const [],
     Map<String, double>? emotions,
+    List<String>? signals,
+    String? diarySummary,
+    bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) async {
     // 서버(JSON)는 snake_case, 앱은 camelCase — 변환은 여기서만 한다.
     final json = await _apiClient.post(
@@ -25,13 +29,23 @@ class CounselRemoteDataSource implements CounselDataSource {
         'user_text': userText,
         'history': [for (final m in history) m.toJson()],
         if (emotions != null && emotions.isNotEmpty) 'emotions': emotions,
+        if (signals != null && signals.isNotEmpty) 'signals': signals,
+        if (diarySummary != null && diarySummary.isNotEmpty)
+          'diary_summary': diarySummary,
+        'incongruent': incongruent,
         if (persona != null && persona.isNotEmpty) 'persona': persona,
+        if (psychProfile != null && psychProfile.isNotEmpty)
+          'psych_profile': psychProfile,
       },
     );
     if (json['reply'] is! String) {
       throw const ServerException('상담 응답을 처리하지 못했어요.');
     }
-    return CounselTurnResult.fromJson(json);
+    final result = CounselTurnResult.fromJson(json);
+    if (result.usedDummyContext) {
+      throw const ServerException('상담 서버가 아직 테스트용 맥락을 사용 중이에요.');
+    }
+    return result;
   }
 
   @override

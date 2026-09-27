@@ -70,7 +70,7 @@ class PsychTestListScreen extends StatelessWidget {
                                   style: AppTypography.display,
                                 ),
                                 Gap.h8,
-                                Text('총 3가지 테스트를 진행해요.',
+                                Text('공개된 50문항 검사 한 가지를 진행해요. 결과는 진단이 아닌 자기이해를 위한 참고 자료예요.',
                                     style: AppTypography.bodySecondary),
                               ],
                             ),
@@ -87,8 +87,8 @@ class PsychTestListScreen extends StatelessWidget {
                       ],
                       Gap.h16,
                       const SecurityCard(
-                        title: '결과는 안전하게 보호돼요',
-                        description: '모든 결과는 안전하게 보호되며, 맞춤 서비스에만 사용돼요.',
+                        title: '문항별 답변은 기기에만 임시 저장해요',
+                        description: '완료 후 답변은 삭제하고 계산된 점수만 계정에 저장해요.',
                       ),
                       Gap.h8,
                       Center(

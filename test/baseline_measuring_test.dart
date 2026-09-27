@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/media/audio_recorder_service.dart';
 import 'package:oddo/core/media/tts_service.dart';
+import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_measuring_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _Recorder implements AudioRecorderService {
   final started = Completer<bool>();
@@ -44,6 +46,8 @@ void main() {
   testWidgets('capture status follows recorder and prevents repeated finish', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final recorder = _Recorder();
     final tts = _Tts();
     await tester.pumpWidget(
@@ -51,6 +55,7 @@ void main() {
         overrides: [
           audioRecorderProvider.overrideWithValue(recorder),
           ttsServiceProvider.overrideWithValue(tts),
+          localStoreProvider.overrideWithValue(LocalStore(prefs)),
         ],
         child: const MaterialApp(home: BaselineMeasuringScreen()),
       ),

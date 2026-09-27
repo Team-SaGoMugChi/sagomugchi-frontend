@@ -54,7 +54,13 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
           .read(baselineRepositoryProvider)
           .submitMeasurement(voiceFilePath: voicePath, faceImagePath: facePath);
     });
-    if (ref.mounted && submission == _submission) state = result;
+    if (ref.mounted && submission == _submission) {
+      state = result;
+      if (result.hasValue) {
+        ref.read(baselineRecordingProvider.notifier).clear();
+        ref.read(baselineFaceImageProvider.notifier).clear();
+      }
+    }
   }
 }
 

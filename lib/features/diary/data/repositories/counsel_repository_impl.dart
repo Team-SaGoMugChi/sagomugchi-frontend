@@ -14,13 +14,21 @@ class CounselRepositoryImpl implements CounselRepository {
     required String userText,
     List<CounselMessage> history = const [],
     Map<String, double>? emotions,
+    List<String>? signals,
+    String? diarySummary,
+    bool incongruent = false,
     Map<String, dynamic>? persona,
+    Map<String, dynamic>? psychProfile,
   }) {
     return _dataSource.sendTurn(
       userText: userText,
       history: history,
       emotions: emotions,
+      signals: signals,
+      diarySummary: diarySummary,
+      incongruent: incongruent,
       persona: persona,
+      psychProfile: psychProfile,
     );
   }
 

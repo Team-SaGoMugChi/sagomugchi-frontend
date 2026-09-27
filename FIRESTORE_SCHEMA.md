@@ -91,9 +91,9 @@ users/{uid}                              ← AppUser        (계정 프로필)
 
 | 필드 | 타입 | 설명 |
 |---|---|---|
-| `voice` | map<string,double> | `pitchMean`(평균 F0, Hz), `f0Std`(F0 표준편차, Hz), `speechRate`(음절/초 근사), `voicedRatio`(유성 프레임 비율 0~1), `durationSec`(무음 포함 녹음 초), `energyMean`(평균 RMS) |
-| `featureVersion` | int | 신규 측정은 1. 필드 없는 과거 데이터는 버전 0으로 취급하며 재측정 전까지 신규 값이 있다고 가정하지 않음. API 이름은 `feature_version` |
-| `face` | map<string,double> | 표정 기준값. 키는 AI 서버가 정의 (예: AU/랜드마크 요약치) |
+| `voice` | map<string,double> | 기존 6개 음성값과 3초 유성 구간의 `window*Mean`, `window*Std`, `windowCount`, `windowUsedCount`. v2 멀티모달 z-score 기준값 |
+| `featureVersion` | int | 신규 측정은 2. 필드 없는 과거 데이터는 버전 0, 이전 6개 음성·4개 얼굴 계약은 버전 1로 취급하며 Step2 전 재측정 필요. API 이름은 `feature_version` |
+| `face` | map<string,double> | 기존 얼굴 비율 4개와 AU 9종의 `au*LogMean`, `au*LogStd`, `auFrameCount`, `auTotalFrames` |
 | `measuredAt` | string(ISO) | 측정 시각 |
 
 > 키를 고정하지 않고 map으로 둔 이유: 음성/표정 특징 항목은 AI 서버(Phase 4)가 결정하며,
@@ -104,11 +104,15 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | 필드 | 타입 | 설명 |
 |---|---|---|
 | `big5` | map<string,int>? | O/C/E/A/N → 0–100 점수. 미응시면 없음 |
+| `big5Instrument` | string? | Big Five 산출 도구·버전. 현재 `IPIP-BFFM-50-ko` |
+| `big5CompletedAt` | string(ISO)? | Big Five 50문항 완료·계산 시각 |
 | `mbti` | string? | 예: `INFP`. 미응시면 없음 |
 | `tendencyTraits` | string[]? | 성향 검사 결과 태그. 미응시면 없음 |
 | `updatedAt` | string(ISO) | 마지막 저장 시각 |
 
-> "이어하기"(화면 27) 판단: 세 필드 중 일부만 존재하면 진행 중 상태.
+> Big Five 문항별 응답은 민감한 원문이므로 Firestore에 저장하지 않는다. 진행 중 답변은
+> 로그인 uid와 도구 버전을 함께 묶어 기기 로컬에만 임시 저장하며, 완료 후 삭제한다.
+> Firestore에는 계산된 O/C/E/A/N 점수와 산출 도구·완료 시각만 저장한다.
 
 ### `users/{uid}/meta/persona` — [PersonaConfig](lib/features/persona/data/models/persona_config.dart)
 
@@ -119,7 +123,9 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | `traits` | string[] | 성격 다중 선택 |
 | `updatedAt` | string(ISO) | |
 
-> 상담봇(Phase 5)은 이 문서를 읽어 시스템 프롬프트를 구성한다.
+> 이름은 한 줄 1~10자, 말투는 한 줄 1~30자, 성격은 중복 없이 최대 6개(각
+> 한 줄 1~20자)로 검증한다. 상담 API에는 `name`, `tone`, `traits`만 전달하고
+> `updatedAt`은 전달하지 않는다.
 
 ## 3. Firebase Storage 경로
 

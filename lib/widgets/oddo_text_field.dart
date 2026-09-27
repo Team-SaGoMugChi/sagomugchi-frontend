@@ -19,6 +19,7 @@ class OddoTextField extends StatefulWidget {
     this.readOnly = false,
     this.onTap,
     this.errorText,
+    this.maxLength,
   });
 
   final String? hint;
@@ -31,6 +32,7 @@ class OddoTextField extends StatefulWidget {
   final bool obscure;
   final TextInputType? keyboardType;
   final TextEditingController? controller;
+  final int? maxLength;
 
   /// Custom trailing widget (counter text, calendar icon, …). Ignored when
   /// [obscure] is true (the eye toggle takes the suffix slot).
@@ -66,6 +68,7 @@ class _OddoTextFieldState extends State<OddoTextField> {
 
     return TextField(
       controller: widget.controller,
+      maxLength: widget.maxLength,
       obscureText: _obscured,
       keyboardType: widget.keyboardType,
       readOnly: widget.readOnly,
@@ -74,6 +77,7 @@ class _OddoTextFieldState extends State<OddoTextField> {
       decoration: InputDecoration(
         hintText: widget.hint,
         errorText: widget.errorText,
+        counterText: '',
         filled: true,
         fillColor: AppColors.surface,
         prefixIcon: widget.prefixIcon != null
@@ -81,8 +85,10 @@ class _OddoTextFieldState extends State<OddoTextField> {
             : null,
         suffixIcon: suffixIcon,
         suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         enabledBorder: const OutlineInputBorder(
           borderRadius: AppRadius.button,
           borderSide: BorderSide(color: AppColors.border),

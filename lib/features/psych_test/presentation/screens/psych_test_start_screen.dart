@@ -66,7 +66,7 @@ class PsychTestStartScreen extends StatelessWidget {
                                     style: AppTypography.display),
                                 Gap.h8,
                                 Text(
-                                    'Big 5 성격검사, MBTI, 성향 분석을 통해\n당신의 성향과 감정을 파악해요.',
+                                    '공개 IPIP Big Five 50문항으로\n당신을 이해하는 참고 자료를 만들어요.',
                                     style: AppTypography.bodySecondary),
                               ],
                             ),
@@ -109,19 +109,19 @@ class _GuideList extends StatelessWidget {
         IconInfoTile(
           icon: Icons.schedule_rounded,
           title: '소요 시간',
-          description: '총 약 20~30분 정도 소요돼요. 중간에 나가도 이어서 진행할 수 있어요.',
+          description: '약 10분 정도 소요돼요. 중간에 나가도 이어서 진행할 수 있어요.',
         ),
         Divider(color: AppColors.divider, height: 1),
         IconInfoTile(
           icon: Icons.check_circle_outline_rounded,
           title: '정답은 없어요',
-          description: '좋고 나쁜 답은 없어요. 지금의 나와 가장 가까운 답을 선택해주세요.',
+          description: '좋고 나쁜 답은 없어요. 평소의 나와 가장 가까운 답을 선택해주세요.',
         ),
         Divider(color: AppColors.divider, height: 1),
         IconInfoTile(
           icon: Icons.lock_outline_rounded,
-          title: '안전하게 보호돼요',
-          description: '모든 응답은 안전하게 보호되며, 당신만의 맞춤 분석에 사용돼요.',
+          title: '문항별 답변은 임시 저장해요',
+          description: '진행 중에는 이 기기에만 보관하고, 완료하면 답변을 지운 뒤 계산된 점수만 저장해요.',
         ),
         Divider(color: AppColors.divider, height: 1),
         IconInfoTile(

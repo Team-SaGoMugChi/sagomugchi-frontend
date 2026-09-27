@@ -23,6 +23,7 @@ class BaselineApi {
         '/baseline',
         fields: {'user_id': userId},
         filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
+        receiveTimeout: const Duration(minutes: 5),
       );
       return BaselineProfile.fromJson({
         ...json,
@@ -45,6 +46,7 @@ class BaselineApi {
               'voice_not_detected',
               'invalid_face_image',
               'face_not_detected',
+              'face_analysis_unavailable',
             }.contains(detail['code']) &&
             detail['message'] is String) {
           throw BaselineMeasurementException(

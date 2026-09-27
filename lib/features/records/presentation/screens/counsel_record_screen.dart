@@ -148,18 +148,18 @@ class _SummaryLink extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: InkWell(
         onTap: onTap,
-        child: Row(
+        child: const Row(
           children: [
-            const Icon(
+            Icon(
               Icons.edit_note_rounded,
               size: 20,
               color: AppColors.primary,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Expanded(
               child: Text('상담 내용 요약 보기', style: AppTypography.body),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               color: AppColors.textTertiary,
             ),

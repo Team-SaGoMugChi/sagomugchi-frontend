@@ -41,33 +41,17 @@ abstract final class PsychTestDummy {
   PsychTestDummy._();
 
   /// Overall journey steps for the top progress bar.
-  static const List<String> journeySteps = ['안내', 'Big 5', 'MBTI', '성향', '완료'];
+  static const List<String> journeySteps = ['안내', 'Big Five', '완료'];
 
   // 22 — test list.
   static const List<PsychTestInfo> testList = [
     PsychTestInfo(
       icon: Icons.psychology_outlined,
-      title: 'Big 5 성격검사',
-      description: '성격의 5가지 주요 요인을 측정해요.',
+      title: 'IPIP Big Five 성격검사',
+      description: '공개된 50문항으로 성격의 5가지 주요 요인을 살펴봐요.',
       tags: ['개방성', '성실성', '외향성', '우호성', '신경성'],
       duration: '약 10분',
       questionCount: 50,
-    ),
-    PsychTestInfo(
-      icon: Icons.extension_outlined,
-      title: 'MBTI 성격유형 검사',
-      description: '선호 경향을 통해 성격 유형을 파악해요.',
-      tags: ['에너지 방향', '인식', '판단', '생활 양식'],
-      duration: '약 10분',
-      questionCount: 60,
-    ),
-    PsychTestInfo(
-      icon: Icons.favorite_outline_rounded,
-      title: '성향 분석',
-      description: '가치관, 상황 반응, 행동 성향을 분석해요.',
-      tags: ['가치관', '상황 반응', '행동 성향', '대인 관계'],
-      duration: '약 5~10분',
-      questionCount: 20,
     ),
   ];
 

@@ -7,6 +7,8 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/dummy/home_dummy.dart';
 import '../../../../data/dummy/records_dummy.dart';
+import '../../../../features/baseline/application/baseline_face_image_provider.dart';
+import '../../../../features/baseline/application/baseline_recording_provider.dart';
 import '../../../../features/onboarding/application/onboarding_controller.dart';
 import '../../../../features/records/application/recorded_days_provider.dart';
 import '../../../../features/records/application/viewing_date_provider.dart';
@@ -41,7 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Before onboarding, auto-open the first-measurement popup once on entry.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !ref.read(onboardingCompleteProvider)) {
-        showBaselineNeededDialog(context);
+        _showBaselineDialog();
       }
     });
   }
@@ -50,8 +52,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (onboarded) {
       showDiaryStartModal(context, ref, date: date);
     } else {
-      showBaselineNeededDialog(context);
+      _showBaselineDialog();
     }
+  }
+
+  void _showBaselineDialog() {
+    final hasPendingMeasurement =
+        ref.read(baselineRecordingProvider) != null &&
+        ref.read(baselineFaceImageProvider) != null;
+    showBaselineNeededDialog(
+      context,
+      hasPendingMeasurement: hasPendingMeasurement,
+    );
   }
 
   @override

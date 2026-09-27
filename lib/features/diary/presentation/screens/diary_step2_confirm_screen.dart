@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../core/config/app_config_provider.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../data/dummy/dummy_seed.dart';
 import '../../../../theme/app_colors.dart';
@@ -29,11 +30,12 @@ class DiaryStep2ConfirmScreen extends ConsumerStatefulWidget {
 
 class _DiaryStep2ConfirmScreenState
     extends ConsumerState<DiaryStep2ConfirmScreen> {
-  // Step1 처리에서 받은 STT 원문. 없으면(더미 모드 등) 샘플로 폴백.
+  // Step1 처리에서 받은 STT 원문. 화면 시연용 더미 모드에서만 샘플로 폴백.
   late final TextEditingController _controller = TextEditingController(
-    text:
-        ref.read(diaryDraftProvider).transcript ??
-        DummySeed.diaryJan14.transcript,
+    text: ref.read(diaryDraftProvider).transcript ??
+        (ref.read(appConfigProvider).useDummyData
+            ? DummySeed.diaryJan14.transcript
+            : ''),
   );
 
   @override
@@ -51,15 +53,16 @@ class _DiaryStep2ConfirmScreenState
   @override
   Widget build(BuildContext context) {
     final entry = DummySeed.diaryJan14;
-    // Step1 처리 중 baseline 대비 실제로 분석된 결과가 있으면 감정
-    // 키워드/강도는 그걸 쓰고, 없으면(더미 모드 등) 샘플로 폴백한다. 원문
-    // 요약(summary)·감정 안정도는 아직 실 데이터 소스가 없어(요약은 LLM,
-    // Phase 5) 계속 더미.
+    final useDummyData = ref.watch(appConfigProvider).useDummyData;
+    // 실제 모드에서는 서버가 계산한 값만 보여준다. AI 요약과 감정 안정도는
+    // 아직 서버 출력에 없으므로 더미 모드가 아니면 표시하지 않는다.
     final fusionResult = ref.watch(diaryDraftProvider).fusionResult;
-    final emotionKeywords =
-        fusionResult?.emotionKeywords ?? entry.emotionKeywords;
+    final emotionKeywords = fusionResult?.emotionKeywords ??
+        (useDummyData ? entry.emotionKeywords : const <String>[]);
     final emotionIntensity =
-        fusionResult?.emotionIntensity ?? entry.emotionIntensity;
+        fusionResult?.emotionIntensity ?? (useDummyData ? entry.emotionIntensity : 0);
+    final canContinue =
+        (useDummyData || fusionResult != null) && _controller.text.trim().isNotEmpty;
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -97,20 +100,22 @@ class _DiaryStep2ConfirmScreenState
                       Gap.h16,
                       _TranscriptCard(controller: _controller),
                       Gap.h12,
-                      OddoCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const CardSectionHeader(
-                              icon: Icons.auto_awesome_rounded,
-                              title: 'AI 요약',
-                            ),
-                            Gap.h8,
-                            Text(entry.summary, style: AppTypography.body),
-                          ],
+                      if (useDummyData) ...[
+                        OddoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const CardSectionHeader(
+                                icon: Icons.auto_awesome_rounded,
+                                title: 'AI 요약',
+                              ),
+                              Gap.h8,
+                              Text(entry.summary, style: AppTypography.body),
+                            ],
+                          ),
                         ),
-                      ),
-                      Gap.h12,
+                        Gap.h12,
+                      ],
                       OddoCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,11 +147,13 @@ class _DiaryStep2ConfirmScreenState
                             ),
                             Gap.h12,
                             _ScoreBar(label: '감정 강도', value: emotionIntensity),
-                            Gap.h12,
-                            _ScoreBar(
-                              label: '감정 안정도',
-                              value: entry.emotionStability,
-                            ),
+                            if (useDummyData) ...[
+                              Gap.h12,
+                              _ScoreBar(
+                                label: '감정 안정도',
+                                value: entry.emotionStability,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -173,6 +180,7 @@ class _DiaryStep2ConfirmScreenState
                       Gap.h8,
                       PrimaryButton(
                         label: '저장하고 다음 단계',
+                        enabled: canContinue,
                         onPressed: () {
                           // 수정한 원문을 완료 시 저장할 draft로 보관.
                           ref

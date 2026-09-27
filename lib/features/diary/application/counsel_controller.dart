@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../persona/data/persona_providers.dart';
+import '../../psych_test/data/psych_providers.dart';
 import '../data/diary_providers.dart';
 import '../data/models/counsel_session.dart';
 import 'diary_draft_provider.dart';
@@ -73,13 +74,18 @@ class CounselController extends Notifier<CounselState> {
     );
 
     try {
+      final fusion = ref.read(diaryDraftProvider).fusionResult;
       final result = await ref
           .read(counselRepositoryProvider)
           .sendTurn(
             userText: userText,
             history: history,
-            emotions: ref.read(diaryDraftProvider).fusionResult?.emotionScores,
+            emotions: fusion?.emotionScores,
+            signals: fusion?.signals,
+            diarySummary: ref.read(diaryDraftProvider).transcript,
+            incongruent: fusion?.incongruent ?? false,
             persona: await _loadPersona(),
+            psychProfile: await _loadPsychProfile(),
           );
       state = state.copyWith(
         messages: [
@@ -107,7 +113,20 @@ class CounselController extends Notifier<CounselState> {
   Future<Map<String, dynamic>?> _loadPersona() async {
     try {
       final config = await ref.read(personaConfigProvider.future);
-      return config?.toJson();
+      if (config == null || !config.isValid) return null;
+      return config.toCounselJson();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 완료된 검사 점수만 전달한다. 문항별 원응답은 로컬 진행 중 상태에만
+  /// 존재하며 상담 서버나 Firestore로 보내지 않는다.
+  Future<Map<String, dynamic>?> _loadPsychProfile() async {
+    try {
+      final result = await ref.read(psychResultProvider.future);
+      if (result == null || !result.isComplete) return null;
+      return {'big5': result.big5, 'big5_instrument': result.big5Instrument};
     } catch (_) {
       return null;
     }

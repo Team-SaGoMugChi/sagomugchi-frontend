@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../core/config/app_config_provider.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -45,29 +46,46 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
   /// Saves the completed run (diary + report + counsel log) under the focused
   /// date, then returns to the written-day home.
   ///
-  /// Step1 처리에서 받은 서버 분석 결과(`fusionResult`)가 있으면 감정 키워드·
-  /// 강도·분포는 그 실데이터로 저장하고, 없으면(분석 실패/더미 모드) 샘플로
-  /// 폴백한다 — Step2 확인 화면과 같은 규칙.
+  /// 실제 모드에서는 Step1 분석 결과와 확인된 원문이 모두 있어야 저장한다.
+  /// 더미 모드에서만 화면 확인용 샘플을 저장할 수 있다.
   ///
   /// 상담 로그는 Step4에서 주고받은 실제 대화(draft.counselMessages)를 저장하고,
   /// 리포트 코멘트·행동 가이드는 45번에서 만든 상담 리포트에서 가져온다.
   Future<void> _completeRecord() async {
     final writtenDate = ref.read(viewingDateProvider);
     final draft = ref.read(diaryDraftProvider);
-    final transcript = draft.transcript ?? DummySeed.diaryJan14.transcript;
+    final useDummyData = ref.read(appConfigProvider).useDummyData;
+    final transcript = draft.transcript?.trim();
     final fusion = draft.fusionResult;
     final sampleEntry = DummySeed.diaryJan14;
     final now = DateTime.now();
 
+    if (!useDummyData &&
+        (fusion == null || transcript == null || transcript.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('분석 결과가 없어 저장할 수 없어요. 일기 분석을 다시 진행해주세요.'),
+        ),
+      );
+      return;
+    }
+
+    final useSampleContent = useDummyData && fusion == null;
+    final savedTranscript = transcript == null || transcript.isEmpty
+        ? sampleEntry.transcript
+        : transcript;
+
     final entry = DiaryEntry(
       id: DateFormatter.dateKey(writtenDate),
       date: writtenDate,
-      transcript: transcript,
-      summary: sampleEntry.summary,
+      transcript: savedTranscript,
+      // 별도의 요약 API가 연결되기 전에는 사용자가 확인한 원문을 저장한다.
+      summary: useSampleContent ? sampleEntry.summary : savedTranscript,
       emotionKeywords: fusion?.emotionKeywords ?? sampleEntry.emotionKeywords,
       emotionIntensity:
           fusion?.emotionIntensity ?? sampleEntry.emotionIntensity,
-      emotionStability: sampleEntry.emotionStability,
+      // 아직 서버가 계산하지 않는 지표를 예시 숫자로 꾸미지 않는다.
+      emotionStability: useSampleContent ? sampleEntry.emotionStability : 0,
       writtenAt: now,
     );
     // 화면에 보여준 것과 같은 값으로 저장한다.
@@ -75,6 +93,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       counsel: ref.read(counselReportControllerProvider).report,
       fusion: fusion,
       date: writtenDate,
+      useSampleContent: useSampleContent,
     );
     final counsel = CounselSession(
       date: writtenDate,
@@ -112,8 +131,8 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
 
   /// 화면에 보여주고 저장할 리포트를 만든다.
   ///
-  /// 감정 분포·강도는 Step2 분석에서, 글은 상담 리포트에서 온다. 둘 중 없는
-  /// 쪽은 샘플로 폴백한다 — Step2 확인 화면과 같은 규칙.
+  /// 감정 분포·강도는 Step2 분석에서, 글은 상담 리포트에서 온다. 실제 모드에서
+  /// 서버가 만들지 않은 값은 빈 값이나 0으로 두고, 더미 모드에서만 샘플을 쓴다.
   ///
   /// TODO(고도화): moments·reframe은 아직 화면에만 쓰고 저장하지 않는다.
   /// EmotionReport에 자리를 만들면 같이 저장한다.
@@ -121,30 +140,34 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     required CounselReport? counsel,
     required FusionResult? fusion,
     required DateTime date,
+    required bool useSampleContent,
   }) {
     final sample = DummySeed.reportJan14;
 
     final comment = counsel == null
-        ? sample.analysisComment
+        ? (useSampleContent ? sample.analysisComment : '')
         : [
             counsel.summary,
             counsel.closing,
           ].where((s) => s.isNotEmpty).join('\n\n');
 
-    final guides = counsel == null || counsel.suggestion.isEmpty
-        ? sample.behaviorGuides
-        : [counsel.suggestion, ...sample.behaviorGuides];
+    final guides = counsel != null && counsel.suggestion.isNotEmpty
+        ? [counsel.suggestion]
+        : (useSampleContent ? sample.behaviorGuides : const <String>[]);
 
     return EmotionReport(
       date: date,
       emotionDistribution: fusion != null
           ? _toDistribution(fusion.emotionScores)
-          : sample.emotionDistribution,
-      emotionIntensity: fusion?.emotionIntensity ?? sample.emotionIntensity,
-      recoveryPossibility: sample.recoveryPossibility,
+          : (useSampleContent ? sample.emotionDistribution : const {}),
+      emotionIntensity: fusion?.emotionIntensity ??
+          (useSampleContent ? sample.emotionIntensity : 0),
+      recoveryPossibility:
+          useSampleContent ? sample.recoveryPossibility : 0,
       analysisComment: comment,
       behaviorGuides: guides,
-      recommendedActivities: sample.recommendedActivities,
+      recommendedActivities:
+          useSampleContent ? sample.recommendedActivities : const [],
     );
   }
 
@@ -158,10 +181,13 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     final reportState = ref.watch(counselReportControllerProvider);
     final counsel = reportState.report;
     final draft = ref.watch(diaryDraftProvider);
+    final useSampleContent =
+        ref.watch(appConfigProvider).useDummyData && draft.fusionResult == null;
     final report = _composeReport(
       counsel: counsel,
       fusion: draft.fusionResult,
       date: ref.watch(viewingDateProvider),
+      useSampleContent: useSampleContent,
     );
 
     // 상담을 아예 안 했으면 실패 배너를 띄우지 않는다 — 실패가 아니라 해당 없음.
@@ -217,12 +243,16 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                               children: [
                                 Text(
                                   counsel?.headline ??
-                                      '오늘 상담을 통해\n나의 감정을 더 잘 이해했어요',
+                                      (useSampleContent
+                                          ? '오늘 상담을 통해\n나의 감정을 더 잘 이해했어요'
+                                          : '오늘의 감정 분석 결과예요'),
                                   style: AppTypography.subtitle,
                                 ),
                                 Gap.h8,
-                                const Text(
-                                  '상담 내용을 바탕으로 감정 상태와 행동 가이드를 정리했어요.',
+                                Text(
+                                  counsel != null || useSampleContent
+                                      ? '상담 내용을 바탕으로 감정 상태와 행동 가이드를 정리했어요.'
+                                      : '일기 분석에서 확인된 감정 상태를 정리했어요.',
                                   style: AppTypography.bodySecondary,
                                 ),
                               ],
@@ -236,6 +266,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                       ] else if (showFailure) ...[
                         Gap.h16,
                         _ReportStatusCard.failed(
+                          showingSample: useSampleContent,
                           onRetry: () => ref
                               .read(counselReportControllerProvider.notifier)
                               .retry(),
@@ -247,7 +278,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                           onChanged: (i) => setState(() => _tab = i)),
                       Gap.h16,
                       if (_tab == 0)
-                        _ReportTab(report: report, counsel: counsel)
+                        _ReportTab(
+                          report: report,
+                          counsel: counsel,
+                          showSampleMetrics: useSampleContent,
+                        )
                       else
                         _GuideTab(report: report),
                     ],
@@ -273,13 +308,18 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
 
 /// 리포트 생성 상태 안내. 생성 중이거나 실패했을 때만 뜬다.
 ///
-/// 실패해도 아래 카드들은 샘플로 채워져 있어 화면이 비지는 않는다 — 그래서
-/// 에러 화면으로 덮지 않고 배너로만 알린다.
+/// 실패해도 분석 결과는 볼 수 있어 에러 화면으로 덮지 않고 배너로 알린다.
 class _ReportStatusCard extends StatelessWidget {
-  const _ReportStatusCard.loading() : onRetry = null;
-  const _ReportStatusCard.failed({required this.onRetry});
+  const _ReportStatusCard.loading()
+      : onRetry = null,
+        showingSample = false;
+  const _ReportStatusCard.failed({
+    required this.onRetry,
+    required this.showingSample,
+  });
 
   final VoidCallback? onRetry;
+  final bool showingSample;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +347,9 @@ class _ReportStatusCard extends StatelessWidget {
             child: Text(
               loading
                   ? '상담 내용을 정리하고 있어요.'
-                  : '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.',
+                  : showingSample
+                      ? '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.'
+                      : '상담 리포트를 만들지 못했어요. 일기 분석 결과만 표시해요.',
               style: AppTypography.caption,
             ),
           ),
@@ -376,8 +418,13 @@ class _TabToggle extends StatelessWidget {
 }
 
 class _ReportTab extends StatelessWidget {
-  const _ReportTab({required this.report, this.counsel});
+  const _ReportTab({
+    required this.report,
+    required this.showSampleMetrics,
+    this.counsel,
+  });
   final EmotionReport report;
+  final bool showSampleMetrics;
 
   /// 상담 리포트. 없으면(상담 건너뜀·생성 실패) 관련 카드를 숨긴다.
   final CounselReport? counsel;
@@ -408,29 +455,36 @@ class _ReportTab extends StatelessWidget {
                   Expanded(
                       child: _StatTile(
                           label: '감정 강도', value: report.emotionIntensity)),
-                  Gap.w12,
-                  Expanded(
-                      child: _StatTile(
-                          label: '회복 가능성', value: report.recoveryPossibility)),
+                  if (showSampleMetrics) ...[
+                    Gap.w12,
+                    Expanded(
+                        child: _StatTile(
+                            label: '회복 가능성',
+                            value: report.recoveryPossibility)),
+                  ],
                 ],
               ),
             ],
           ),
         ),
-        Gap.h12,
-        const OddoCard(child: _ChangeChart()),
-        Gap.h12,
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.auto_awesome_rounded, title: 'AI 분석 코멘트'),
-              Gap.h8,
-              Text(report.analysisComment, style: AppTypography.body),
-            ],
+        if (showSampleMetrics) ...[
+          Gap.h12,
+          const OddoCard(child: _ChangeChart()),
+        ],
+        if (report.analysisComment.isNotEmpty) ...[
+          Gap.h12,
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.auto_awesome_rounded, title: 'AI 분석 코멘트'),
+                Gap.h8,
+                Text(report.analysisComment, style: AppTypography.body),
+              ],
+            ),
           ),
-        ),
+        ],
         if (moments.isNotEmpty) ...[
           Gap.h12,
           OddoCard(
@@ -488,45 +542,56 @@ class _GuideTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.flag_outlined, title: '오늘의 행동 가이드'),
-              Gap.h12,
-              for (var i = 0; i < report.behaviorGuides.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _NumberedItem(
-                      number: i + 1, text: report.behaviorGuides[i]),
-                ),
-            ],
-          ),
-        ),
-        Gap.h12,
-        OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CardSectionHeader(
-                  icon: Icons.spa_outlined, title: '추천 활동'),
-              Gap.h12,
-              for (final activity in report.recommendedActivities)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle_outline_rounded,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(activity, style: AppTypography.body),
-                    ],
+        if (report.behaviorGuides.isNotEmpty)
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.flag_outlined, title: '오늘의 행동 가이드'),
+                Gap.h12,
+                for (var i = 0; i < report.behaviorGuides.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _NumberedItem(
+                        number: i + 1, text: report.behaviorGuides[i]),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
+        if (report.recommendedActivities.isNotEmpty) ...[
+          Gap.h12,
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                    icon: Icons.spa_outlined, title: '추천 활동'),
+                Gap.h12,
+                for (final activity in report.recommendedActivities)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded,
+                            size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(activity, style: AppTypography.body),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (report.behaviorGuides.isEmpty &&
+            report.recommendedActivities.isEmpty)
+          const OddoCard(
+            child: Text(
+              '상담 리포트가 아직 준비되지 않았어요. 다시 시도한 뒤 확인해주세요.',
+              style: AppTypography.bodySecondary,
+            ),
+          ),
       ],
     );
   }

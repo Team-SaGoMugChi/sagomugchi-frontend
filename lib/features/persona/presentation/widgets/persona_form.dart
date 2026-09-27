@@ -33,13 +33,15 @@ class PersonaForm extends StatefulWidget {
 
 class _PersonaFormState extends State<PersonaForm> {
   late int _toneIndex = widget.initialToneIndex;
-  late final Set<int> _traits = widget.initialTraits ??
+  late final Set<int> _traits =
+      widget.initialTraits ??
       {
         for (var i = 0; i < PersonaDummy.traits.length; i++)
           if (PersonaDummy.defaultTraits.contains(PersonaDummy.traits[i])) i,
       };
-  late final TextEditingController _nameController =
-      TextEditingController(text: widget.initialName);
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.initialName,
+  );
 
   @override
   void initState() {
@@ -110,10 +112,13 @@ class _PersonaFormState extends State<PersonaForm> {
         Gap.h12,
         OddoTextField(
           controller: _nameController,
+          maxLength: PersonaDummy.nameMaxLength,
           hint: PersonaDummy.nameHint,
           prefixIcon: Icons.smart_toy_outlined,
-          suffix: Text('$nameLength/${PersonaDummy.nameMaxLength}',
-              style: AppTypography.caption),
+          suffix: Text(
+            '$nameLength/${PersonaDummy.nameMaxLength}',
+            style: AppTypography.caption,
+          ),
         ),
       ],
     );
@@ -164,12 +169,15 @@ class _ToneCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(tone.title,
-                          style: AppTypography.body.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.textStrong)),
+                      Text(
+                        tone.title,
+                        style: AppTypography.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.textStrong,
+                        ),
+                      ),
                       if (recommended) ...[
                         const SizedBox(width: 6),
                         const _RecommendBadge(),
@@ -199,9 +207,13 @@ class _RecommendBadge extends StatelessWidget {
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
-      child: Text('추천',
-          style: AppTypography.caption.copyWith(
-              color: AppColors.textOnPrimary, fontWeight: FontWeight.w700)),
+      child: Text(
+        '추천',
+        style: AppTypography.caption.copyWith(
+          color: AppColors.textOnPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

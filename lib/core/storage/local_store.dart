@@ -18,6 +18,10 @@ class LocalStore {
   static const String kKeepLoggedIn = 'keep_logged_in';
   static const String kPersonaId = 'persona_id';
   static const String kRecordedDays = 'recorded_days'; // ISO date strings
+  static const String kBaselinePendingOwner = 'baseline_pending_owner';
+  static const String kBaselinePendingVoicePath = 'baseline_pending_voice_path';
+  static const String kBaselinePendingFacePath = 'baseline_pending_face_path';
+  static const String kBig5Progress = 'psych_big5_progress_v1';
 
   /// 일기 리마인더 알림 on/off (Phase 7 로컬 푸시의 스위치).
   static const String kReminderEnabled = 'reminder_enabled';
