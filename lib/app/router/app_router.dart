@@ -324,7 +324,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.shortformPlayer,
         name: AppRoute.shortformPlayer,
-        builder: (_, _) => const ShortformPlayerScreen(),
+        // extra로 영상 URL 전달(Step3 완료 화면); 없으면(홈 등) 플레이스홀더.
+        builder: (_, state) => ShortformPlayerScreen(
+          videoUrl: state.extra is String ? state.extra as String : null,
+        ),
       ),
       GoRoute(
         path: AppPath.settings,
