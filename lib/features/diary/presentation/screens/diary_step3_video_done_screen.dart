@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -13,9 +14,11 @@ import '../../../../widgets/card_section_header.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../application/video_job_controller.dart';
 import '../widgets/diary_step_header.dart';
 
-/// Screen 42 — Step 3. 영상 제작 완료·영상 확인. Player is a dummy placeholder.
+/// Screen 42 — Step 3. 영상 제작 완료·영상 확인. 플레이어를 누르면 방금 만든
+/// 영상을 전체화면으로 재생한다.
 class DiaryStep3VideoDoneScreen extends StatefulWidget {
   const DiaryStep3VideoDoneScreen({super.key});
 
@@ -163,15 +166,18 @@ class _CompleteBanner extends StatelessWidget {
   }
 }
 
-class _VideoPlayerPlaceholder extends StatelessWidget {
+class _VideoPlayerPlaceholder extends ConsumerWidget {
   const _VideoPlayerPlaceholder();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // The player itself is the replay affordance — tap to open the full-screen
     // shortform player (replaces the former bottom "다시 보기" button).
+    // 더미 모드에서는 영상 URL이 없어 플레이어가 플레이스홀더를 보여준다.
+    final videoUrl = ref.watch(videoJobControllerProvider).videoUrl;
     return GestureDetector(
-      onTap: () => context.pushNamed(AppRoute.shortformPlayer),
+      onTap: () =>
+          context.pushNamed(AppRoute.shortformPlayer, extra: videoUrl),
       child: ClipRRect(
         borderRadius: AppRadius.card,
         child: AspectRatio(

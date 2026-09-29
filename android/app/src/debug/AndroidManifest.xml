@@ -5,7 +5,10 @@
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <application>
+    <!-- usesCleartextTraffic: 숏폼 플레이어(ExoPlayer)는 안드로이드 네트워크 정책을
+         따르므로 로컬 AI 서버(http://10.0.2.2)의 mp4를 재생하려면 http를 허용해야 한다.
+         dio(Dart HttpClient)는 이 정책과 무관하다. 디버그 빌드에서만 허용한다. -->
+    <application android:usesCleartextTraffic="true">
         <!-- 에뮬레이터에서 구글 로그인 등 외부 액티비티를 다녀오면 Impeller(GLES)
              렌더러가 화면을 다시 그리지 못해 검은 화면이 되는 문제 회피.
              디버그 빌드에서만 Impeller를 끈다 (릴리즈/실기기는 기본값 유지). -->

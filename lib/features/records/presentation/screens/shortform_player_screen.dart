@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../data/dummy/diary_flow_dummy.dart';
@@ -10,19 +11,127 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/mascot_image.dart';
 
 /// Auxiliary — 숏폼 전체화면 플레이어. Full-screen player for the generated
-/// short-form clip. The frame + controls mimic a real video player; play/pause
-/// is a local toggle (no real playback yet).
+/// short-form clip.
+///
+/// [videoUrl]이 있으면(Step3 완료 화면에서 방금 만든 영상) 실제로 재생한다.
+/// 없으면(홈 등 — 지난 영상은 아직 저장되지 않음) 기존 플레이스홀더 프레임과
+/// 더미 시간을 보여준다.
 class ShortformPlayerScreen extends StatefulWidget {
-  const ShortformPlayerScreen({super.key});
+  const ShortformPlayerScreen({super.key, this.videoUrl});
+
+  final String? videoUrl;
 
   @override
   State<ShortformPlayerScreen> createState() => _ShortformPlayerScreenState();
 }
 
 class _ShortformPlayerScreenState extends State<ShortformPlayerScreen> {
-  // Dummy playback position (00:03 of 01:32 ≈ 0.03).
-  static const double _progress = 0.03;
-  bool _playing = true;
+  // Dummy playback position (00:03 of 01:32 ≈ 0.03) — 영상이 없을 때만.
+  static const double _dummyProgress = 0.03;
+  bool _dummyPlaying = true;
+
+  VideoPlayerController? _controller;
+  bool _loadFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.videoUrl;
+    if (url != null) _load(url);
+  }
+
+  Future<void> _load(String url) async {
+    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    _controller = controller;
+    controller.addListener(_onTick);
+    try {
+      await controller.initialize();
+      await controller.play();
+    } catch (_) {
+      if (mounted) setState(() => _loadFailed = true);
+    }
+  }
+
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ?..removeListener(_onTick)
+      ..dispose();
+    super.dispose();
+  }
+
+  bool get _hasVideo => _controller?.value.isInitialized ?? false;
+
+  bool get _playing =>
+      _hasVideo ? _controller!.value.isPlaying : _dummyPlaying;
+
+  double get _progress {
+    if (!_hasVideo) return _dummyProgress;
+    final total = _controller!.value.duration.inMilliseconds;
+    if (total == 0) return 0;
+    return (_controller!.value.position.inMilliseconds / total).clamp(0, 1);
+  }
+
+  void _togglePlay() {
+    final controller = _controller;
+    if (!_hasVideo || controller == null) {
+      setState(() => _dummyPlaying = !_dummyPlaying);
+      return;
+    }
+    final value = controller.value;
+    if (value.isPlaying) {
+      controller.pause();
+    } else {
+      // 끝까지 본 뒤 누르면 처음부터 다시 재생한다.
+      if (value.position >= value.duration) controller.seekTo(Duration.zero);
+      controller.play();
+    }
+  }
+
+  static String _format(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Widget _surface() {
+    final controller = _controller;
+    if (_hasVideo && controller != null) {
+      return Center(
+        child: AspectRatio(
+          aspectRatio: controller.value.aspectRatio,
+          child: VideoPlayer(controller),
+        ),
+      );
+    }
+    if (controller != null && !_loadFailed) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    // TODO: 지난 날짜 숏폼은 Storage 저장 후 재생 예정
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MascotImage(pose: MascotPose.front, size: 200, onDark: true),
+          if (_loadFailed) ...[
+            Gap.h12,
+            Text(
+              '영상을 불러오지 못했어요.',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.callTextSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +140,8 @@ class _ShortformPlayerScreenState extends State<ShortformPlayerScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── The "video" surface: the current frame, centered ──────────────
-          // TODO: 실제 생성된 숏폼 영상 프레임으로 교체 예정
-          const Center(
-            child: MascotImage(pose: MascotPose.front, size: 200, onDark: true),
-          ),
+          // ── The video surface (or placeholder frame), centered ───────────
+          _surface(),
 
           // ── Bottom scrim so controls stay legible over the frame ──────────
           const Positioned(
@@ -57,7 +163,7 @@ class _ShortformPlayerScreenState extends State<ShortformPlayerScreen> {
           // ── Center play / pause control ───────────────────────────────────
           Center(
             child: GestureDetector(
-              onTap: () => setState(() => _playing = !_playing),
+              onTap: _togglePlay,
               child: Container(
                 width: 72,
                 height: 72,
@@ -131,19 +237,23 @@ class _ShortformPlayerScreenState extends State<ShortformPlayerScreen> {
                       ),
                     ),
                     Gap.h12,
-                    const _Scrubber(progress: _progress),
+                    _Scrubber(progress: _progress),
                     Gap.h8,
                     Row(
                       children: [
                         Text(
-                          DiaryFlowDummy.videoPosition,
+                          _hasVideo
+                              ? _format(_controller!.value.position)
+                              : DiaryFlowDummy.videoPosition,
                           style: AppTypography.caption.copyWith(
                             color: AppColors.callTextPrimary,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          DiaryFlowDummy.videoDuration,
+                          _hasVideo
+                              ? _format(_controller!.value.duration)
+                              : DiaryFlowDummy.videoDuration,
                           style: AppTypography.caption.copyWith(
                             color: AppColors.callTextSecondary,
                           ),
