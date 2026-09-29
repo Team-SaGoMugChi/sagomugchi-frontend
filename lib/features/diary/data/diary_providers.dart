@@ -11,6 +11,9 @@ import 'datasources/diary_analysis_remote_data_source.dart';
 import 'datasources/diary_data_source.dart';
 import 'datasources/diary_dummy_data_source.dart';
 import 'datasources/diary_remote_data_source.dart';
+import 'datasources/video_data_source.dart';
+import 'datasources/video_dummy_data_source.dart';
+import 'datasources/video_remote_data_source.dart';
 import 'models/counsel_session.dart';
 import 'models/diary_entry.dart';
 import 'models/emotion_report.dart';
@@ -20,6 +23,8 @@ import 'repositories/diary_analysis_repository.dart';
 import 'repositories/diary_analysis_repository_impl.dart';
 import 'repositories/diary_repository.dart';
 import 'repositories/diary_repository_impl.dart';
+import 'repositories/video_repository.dart';
+import 'repositories/video_repository_impl.dart';
 
 /// Swap point: dummy vs real data source, chosen by [AppConfig].
 /// Tests override the config with `useDummyData: true` to stay off Firebase.
@@ -89,4 +94,20 @@ final counselDataSourceProvider = Provider<CounselDataSource>((ref) {
 
 final counselRepositoryProvider = Provider<CounselRepository>((ref) {
   return CounselRepositoryImpl(ref.watch(counselDataSourceProvider));
+});
+
+/// Swap point for Step3 영상 생성 (AI 서버 `POST /video/jobs`).
+final videoDataSourceProvider = Provider<VideoDataSource>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useDummyData) {
+    return VideoDummyDataSource();
+  }
+  return VideoRemoteDataSource(
+    ref.watch(apiClientProvider),
+    baseUrl: config.apiBaseUrl,
+  );
+});
+
+final videoRepositoryProvider = Provider<VideoRepository>((ref) {
+  return VideoRepositoryImpl(ref.watch(videoDataSourceProvider));
 });
