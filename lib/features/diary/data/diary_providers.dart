@@ -7,6 +7,7 @@ import 'datasources/counsel_dummy_data_source.dart';
 import 'datasources/counsel_remote_data_source.dart';
 import 'datasources/diary_analysis_data_source.dart';
 import 'datasources/diary_analysis_dummy_data_source.dart';
+import 'datasources/diary_analysis_face_file_data_source.dart';
 import 'datasources/diary_analysis_remote_data_source.dart';
 import 'datasources/diary_data_source.dart';
 import 'datasources/diary_dummy_data_source.dart';
@@ -40,6 +41,10 @@ final diaryRepositoryProvider = Provider<DiaryRepository>((ref) {
   return DiaryRepositoryImpl(ref.watch(diaryDataSourceProvider));
 });
 
+/// 에뮬레이터 테스트용 얼굴 사진 파일 이름 — 비어 있으면 Step1 카메라 캡처를 쓴다.
+/// `--dart-define=ODDO_FACE_IMAGE_FILE=face.jpg` ([DiaryAnalysisFaceFileDataSource]).
+const _faceTestFile = String.fromEnvironment('ODDO_FACE_IMAGE_FILE');
+
 /// Swap point for Step1의 baseline-비교 감정 분석 (diary CRUD와는 다른 관심사라
 /// 별도 데이터소스/repository로 분리 — baseline과 같은 패턴).
 final diaryAnalysisDataSourceProvider = Provider<DiaryAnalysisDataSource>((
@@ -49,7 +54,11 @@ final diaryAnalysisDataSourceProvider = Provider<DiaryAnalysisDataSource>((
   if (config.useDummyData) {
     return DiaryAnalysisDummyDataSource();
   }
-  return DiaryAnalysisRemoteDataSource(ref.watch(apiClientProvider));
+  final remote = DiaryAnalysisRemoteDataSource(ref.watch(apiClientProvider));
+  if (_faceTestFile.isNotEmpty) {
+    return DiaryAnalysisFaceFileDataSource(_faceTestFile, remote);
+  }
+  return remote;
 });
 
 final diaryAnalysisRepositoryProvider = Provider<DiaryAnalysisRepository>((
