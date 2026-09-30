@@ -9,7 +9,6 @@ import '../../../../core/media/audio_recorder_service.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../core/permissions/app_permissions.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../data/dummy/diary_flow_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
@@ -22,6 +21,7 @@ import '../../application/counsel_controller.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/counsel_session.dart';
+import '../widgets/counsel_copy.dart';
 
 /// Screen 44 — Step 4. 영상통화 상담. 상담 종료 → 리포트 생성.
 ///
@@ -52,10 +52,6 @@ class _DiaryStep4CounselCallScreenState
   /// 상담봇 응답을 소리로 읽을지. 끄면 자막만 남는다.
   bool _speakerOff = false;
 
-  /// 에뮬레이터처럼 마이크가 없는 환경에서 대화 왕복을 확인하기 위한 입력줄.
-  /// 실기기 테스트가 끝나면 지운다.
-  final TextEditingController _input = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -66,12 +62,6 @@ class _DiaryStep4CounselCallScreenState
           .read(counselControllerProvider.notifier)
           .restoreIfEmpty(ref.read(viewingDateProvider));
     });
-  }
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
   }
 
   /// 상담 종료 — 대화를 draft에 넘기고 리포트 생성으로 넘어간다.
@@ -167,13 +157,6 @@ class _DiaryStep4CounselCallScreenState
     if (mounted) setState(() => _speakerOff = turningOff);
   }
 
-  void _send() {
-    final text = _input.text;
-    if (text.trim().isEmpty) return;
-    _input.clear();
-    ref.read(counselControllerProvider.notifier).sendTurn(text);
-  }
-
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -198,17 +181,16 @@ class _DiaryStep4CounselCallScreenState
     ref.listen<CounselState>(counselControllerProvider, _speakIfNew);
 
     final counsel = ref.watch(counselControllerProvider);
-    final busy = counsel.sending || _transcribing;
 
     // 마지막 탄카츄 발화 — 아직 대화 전이면 기본 인사말.
     final lastOddo = counsel.messages.lastWhere(
       (m) => m.speaker == CounselSpeaker.oddo,
       orElse: () => const CounselMessage(
         speaker: CounselSpeaker.oddo,
-        text: DiaryFlowDummy.counselBubble,
+        text: CounselCopy.greeting,
       ),
     );
-    final bubbleText = counsel.sending ? '잠시만요, 생각하고 있어요…' : lastOddo.text;
+    final bubbleText = counsel.sending ? CounselCopy.thinking : lastOddo.text;
 
     return Scaffold(
       backgroundColor: AppColors.callBackground,
@@ -257,11 +239,12 @@ class _DiaryStep4CounselCallScreenState
               ],
             ),
             CallStatusRow(
-              label: _recording
-                  ? '듣고 있어요'
-                  : _transcribing
-                  ? '말을 옮기고 있어요'
-                  : DiaryFlowDummy.counselStatus,
+              label: CounselCopy.callStatus(
+                recording: _recording,
+                transcribing: _transcribing,
+                sending: counsel.sending,
+                crisis: counsel.crisis,
+              ),
               dotColor: _recording ? AppColors.error : AppColors.success,
             ),
             Expanded(
@@ -289,27 +272,15 @@ class _DiaryStep4CounselCallScreenState
                     const Positioned(
                       left: AppSpacing.screenH,
                       right: AppSpacing.screenH,
-                      bottom: 244,
+                      bottom: 176,
                       child: _CrisisBanner(),
                     ),
-                  // 말풍선 — 입력줄과 컨트롤 버튼 위로 띄운다.
-                  Positioned(
-                    left: AppSpacing.screenH,
-                    right: AppSpacing.screenH,
-                    bottom: 172,
-                    child: _OddoBubble(text: bubbleText),
-                  ),
-                  // TODO: 실기기 음성 테스트가 끝나면 이 입력줄 제거.
+                  // 말풍선 — 컨트롤 버튼 위로 띄운다.
                   Positioned(
                     left: AppSpacing.screenH,
                     right: AppSpacing.screenH,
                     bottom: 104,
-                    child: _TempInputBar(
-                      controller: _input,
-                      sending: busy,
-                      enabled: !counsel.crisis && !_recording,
-                      onSend: _send,
-                    ),
+                    child: _OddoBubble(text: bubbleText),
                   ),
                   Positioned(
                     left: 0,
@@ -410,71 +381,6 @@ class _CrisisBanner extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 마이크가 없는 환경(에뮬레이터)에서 대화 왕복을 확인하기 위한 입력줄.
-class _TempInputBar extends StatelessWidget {
-  const _TempInputBar({
-    required this.controller,
-    required this.sending,
-    required this.onSend,
-    this.enabled = true,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final VoidCallback onSend;
-
-  /// 위기 안내 중이거나 녹음 중에는 입력을 막는다.
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: enabled && !sending,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: enabled ? '하고 싶은 말을 적어보세요' : '지금은 듣고 있어요',
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-          ),
-          if (sending)
-            const Padding(
-              padding: EdgeInsets.all(10),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.send_rounded, color: AppColors.primary),
-              onPressed: enabled ? onSend : null,
-            ),
         ],
       ),
     );

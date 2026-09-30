@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../data/dummy/diary_flow_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
@@ -14,6 +13,7 @@ import '../../../records/application/viewing_date_provider.dart';
 import '../../application/counsel_controller.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../data/models/counsel_session.dart';
+import '../widgets/counsel_copy.dart';
 
 /// Screen 44-B — Step 4. 채팅 상담.
 ///
@@ -101,7 +101,7 @@ class _DiaryStep4CounselChatScreenState
         ? const [
             CounselMessage(
               speaker: CounselSpeaker.oddo,
-              text: DiaryFlowDummy.counselBubble,
+              text: CounselCopy.greeting,
             ),
           ]
         : counsel.messages;
