@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/diary_providers.dart';
 import '../data/models/counsel_report.dart';
+import 'counsel_controller.dart';
 import 'diary_draft_provider.dart';
 
 /// 45번 화면에서 만드는 상담 리포트의 상태.
@@ -49,8 +50,8 @@ class CounselReportController extends Notifier<CounselReportState> {
           .fetchReport(
             messages: draft.counselMessages,
             emotions: draft.fusionResult?.emotionScores,
-            // TODO(고도화): Step2 요약이 나오면 원문 대신 요약을 보낸다.
-            diarySummary: draft.transcript,
+            // 상담 턴과 같은 기준 — 요약 우선, 없으면 원문.
+            diarySummary: counselDiaryContext(draft),
           )
           .timeout(_timeout);
       state = CounselReportState(report: report);
