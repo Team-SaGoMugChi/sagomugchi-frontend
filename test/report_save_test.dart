@@ -79,6 +79,8 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   required bool withFusion,
   AppConfig config = _testConfig,
   String? transcript,
+  String? diaryText,
+  String? summary,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -97,6 +99,12 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   }
   if (transcript != null) {
     container.read(diaryDraftProvider.notifier).setTranscript(transcript);
+  }
+  if (diaryText != null) {
+    container.read(diaryDraftProvider.notifier).setDiaryText(diaryText);
+  }
+  if (summary != null) {
+    container.read(diaryDraftProvider.notifier).setSummary(summary);
   }
 
   final router = GoRouter(
@@ -186,6 +194,27 @@ void main() {
     expect(repository.savedReport!.analysisComment, isEmpty);
     expect(repository.savedReport!.behaviorGuides, isEmpty);
     expect(repository.savedReport!.recommendedActivities, isEmpty);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('saves the refined diary and summary apart from the raw answers', (
+    tester,
+  ) async {
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: true,
+      config: _realDataConfig,
+      transcript: '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.',
+      diaryText: '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.',
+      summary: '발표를 마치고 긴장이 풀린 하루였어요.',
+    );
+
+    final entry = repository.savedEntry!;
+    expect(entry.transcript, '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.');
+    expect(entry.diaryText, '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.');
+    expect(entry.summary, '발표를 마치고 긴장이 풀린 하루였어요.');
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));

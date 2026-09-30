@@ -19,7 +19,10 @@ import '../../../../widgets/primary_button.dart';
 import '../../application/diary_draft_provider.dart';
 import '../widgets/diary_step_header.dart';
 
-/// Screen 39 — Step 2. 확인하기. Review/edit STT + summary + keywords + scores.
+/// Screen 39 — Step 2. 확인하기. 탄카츄와의 대화를 정제한 "오늘의 일기"(수정
+/// 가능) + AI 요약 + 감정 키워드·점수. 원래 대화는 "대화 내용 보기"(40번)로
+/// 따로 본다. 감정 분석은 원 답변으로 이미 끝났고, 여기서 고친 일기는
+/// `diaryText`로만 저장된다.
 class DiaryStep2ConfirmScreen extends ConsumerStatefulWidget {
   const DiaryStep2ConfirmScreen({super.key});
 
@@ -30,9 +33,11 @@ class DiaryStep2ConfirmScreen extends ConsumerStatefulWidget {
 
 class _DiaryStep2ConfirmScreenState
     extends ConsumerState<DiaryStep2ConfirmScreen> {
-  // Step1 처리에서 받은 STT 원문. 화면 시연용 더미 모드에서만 샘플로 폴백.
+  // Step1 처리에서 정제한 일기. 정제에 실패했으면 원 답변, 화면 시연용 더미
+  // 모드에서만 샘플로 폴백.
   late final TextEditingController _controller = TextEditingController(
-    text: ref.read(diaryDraftProvider).transcript ??
+    text: ref.read(diaryDraftProvider).diaryText ??
+        ref.read(diaryDraftProvider).transcript ??
         (ref.read(appConfigProvider).useDummyData
             ? DummySeed.diaryJan14.transcript
             : ''),
@@ -54,9 +59,14 @@ class _DiaryStep2ConfirmScreenState
   Widget build(BuildContext context) {
     final entry = DummySeed.diaryJan14;
     final useDummyData = ref.watch(appConfigProvider).useDummyData;
-    // 실제 모드에서는 서버가 계산한 값만 보여준다. AI 요약과 감정 안정도는
-    // 아직 서버 출력에 없으므로 더미 모드가 아니면 표시하지 않는다.
-    final fusionResult = ref.watch(diaryDraftProvider).fusionResult;
+    final draft = ref.watch(diaryDraftProvider);
+    // 실제 모드에서는 서버가 계산한 값만 보여준다. 감정 안정도는 아직 서버
+    // 출력에 없으므로 더미 모드가 아니면 표시하지 않는다.
+    final fusionResult = draft.fusionResult;
+    final summary = (draft.summary ?? (useDummyData ? entry.summary : ''))
+        .trim();
+    final hasConversation =
+        draft.interviewMessages.isNotEmpty || useDummyData;
     final emotionKeywords = fusionResult?.emotionKeywords ??
         (useDummyData ? entry.emotionKeywords : const <String>[]);
     final emotionIntensity =
@@ -94,13 +104,13 @@ class _DiaryStep2ConfirmScreenState
                       ),
                       Gap.h8,
                       const Text(
-                        'STT가 잘 변환되었는지 확인하고, 틀린 부분은 직접 수정할 수 있어요.',
+                        '탄카츄와 나눈 이야기를 일기로 정리했어요. 틀린 부분은 직접 고칠 수 있어요.',
                         style: AppTypography.bodySecondary,
                       ),
                       Gap.h16,
-                      _TranscriptCard(controller: _controller),
+                      _DiaryCard(controller: _controller),
                       Gap.h12,
-                      if (useDummyData) ...[
+                      if (summary.isNotEmpty) ...[
                         OddoCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +120,7 @@ class _DiaryStep2ConfirmScreenState
                                 title: 'AI 요약',
                               ),
                               Gap.h8,
-                              Text(entry.summary, style: AppTypography.body),
+                              Text(summary, style: AppTypography.body),
                             ],
                           ),
                         ),
@@ -172,20 +182,23 @@ class _DiaryStep2ConfirmScreenState
                   top: false,
                   child: Column(
                     children: [
-                      SecondaryButton(
-                        label: '추가 정보가 필요해요!',
-                        onPressed: () =>
-                            context.pushNamed(AppRoute.diaryStep2Chat),
-                      ),
-                      Gap.h8,
+                      if (hasConversation) ...[
+                        SecondaryButton(
+                          label: '대화 내용 보기',
+                          onPressed: () =>
+                              context.pushNamed(AppRoute.diaryStep2Chat),
+                        ),
+                        Gap.h8,
+                      ],
                       PrimaryButton(
                         label: '저장하고 다음 단계',
                         enabled: canContinue,
                         onPressed: () {
-                          // 수정한 원문을 완료 시 저장할 draft로 보관.
+                          // 고친 일기를 완료 시 저장할 draft로 보관. 원 답변
+                          // (transcript)은 분석·영상·상담 입력이라 그대로 둔다.
                           ref
                               .read(diaryDraftProvider.notifier)
-                              .setTranscript(_controller.text);
+                              .setDiaryText(_controller.text);
                           context.pushNamed(AppRoute.diaryStep3VideoLoading);
                         },
                       ),
@@ -201,8 +214,8 @@ class _DiaryStep2ConfirmScreenState
   }
 }
 
-class _TranscriptCard extends StatelessWidget {
-  const _TranscriptCard({required this.controller});
+class _DiaryCard extends StatelessWidget {
+  const _DiaryCard({required this.controller});
   final TextEditingController controller;
 
   @override
@@ -214,8 +227,8 @@ class _TranscriptCard extends StatelessWidget {
           const Row(
             children: [
               CardSectionHeader(
-                icon: Icons.record_voice_over_outlined,
-                title: '대화 원문',
+                icon: Icons.menu_book_rounded,
+                title: '오늘의 일기',
               ),
               Spacer(),
               // TODO: 노트를 든 포즈로 교체 예정

@@ -74,13 +74,18 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     final savedTranscript = transcript == null || transcript.isEmpty
         ? sampleEntry.transcript
         : transcript;
+    // Step2에서 확인·수정한 정제 일기. 대화형 말하기 이전 흐름엔 없다.
+    final diaryText = _nonEmpty(draft.diaryText);
 
     final entry = DiaryEntry(
       id: DateFormatter.dateKey(writtenDate),
       date: writtenDate,
       transcript: savedTranscript,
-      // 별도의 요약 API가 연결되기 전에는 사용자가 확인한 원문을 저장한다.
-      summary: useSampleContent ? sampleEntry.summary : savedTranscript,
+      diaryText: diaryText,
+      // AI 요약이 없으면(요약 실패 등) 사용자가 확인한 글을 저장한다.
+      summary: useSampleContent
+          ? sampleEntry.summary
+          : _nonEmpty(draft.summary) ?? diaryText ?? savedTranscript,
       emotionKeywords: fusion?.emotionKeywords ?? sampleEntry.emotionKeywords,
       emotionIntensity:
           fusion?.emotionIntensity ?? sampleEntry.emotionIntensity,
@@ -169,6 +174,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       recommendedActivities:
           useSampleContent ? sample.recommendedActivities : const [],
     );
+  }
+
+  static String? _nonEmpty(String? text) {
+    final trimmed = text?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 
   /// 서버 `emotion_scores`는 0–100, Firestore `emotionDistribution`은 감정 →

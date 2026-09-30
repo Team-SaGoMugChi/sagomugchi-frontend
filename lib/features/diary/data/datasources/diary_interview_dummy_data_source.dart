@@ -46,4 +46,14 @@ class DiaryInterviewDummyDataSource implements DiaryInterviewDataSource {
       summary: summary,
     );
   }
+
+  /// 사용자가 한 말만 이어 붙인다 — 정제 없이 화면 흐름만 확인하는 용도.
+  @override
+  Future<String?> refine({required List<InterviewMessage> messages}) async {
+    await Future<void>.delayed(AppDurations.dummyLatency);
+    return messages
+        .where((m) => m.speaker == InterviewSpeaker.user)
+        .map((m) => m.text)
+        .join(' ');
+  }
 }

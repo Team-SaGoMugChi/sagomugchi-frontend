@@ -1,15 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/counsel_session.dart';
+import '../data/models/diary_interview.dart';
 import '../data/models/fusion_result.dart';
 
 /// The in-progress diary run, carried across the write-flow steps until the
 /// final "기록 완료하기" save.
 ///
-/// - [transcript]: Step 1 녹음의 STT 원문. Step 2 (확인하기)에서 사용자가
-///   수정하면 그 값으로 바뀐다.
+/// - [transcript]: Step 1 말하기에서 사용자가 한 말(차례별 STT를 이어 붙인 원
+///   답변). 감정 분석·영상·상담의 입력이라 다듬지 않는다.
+/// - [interviewMessages]: Step 1에서 탄카츄와 나눈 대화 전체 — 40번 "대화
+///   내용 보기"와 일기 정제의 재료.
+/// - [diaryText]: 대화를 일기 한 편으로 정제한 글(`/diary/interview/refine`).
+///   Step 2 (확인하기)에서 사용자가 고치면 그 값으로 바뀐다. 보여주기용이다.
 /// - [summary]: Step 1 대화(`/diary/interview/turn`)가 만든 일기 요약 —
-///   38번 감정 분석 로딩 등에 보여준다. 감정 분석 입력은 [transcript]다.
+///   38번 감정 분석 로딩 등에 보여준다.
 /// - [recordingPath]: Step 1 (말하기)에서 녹음된 음성 파일 경로 —
 ///   Phase 4에서 AI 서버 업로드/분석에 사용.
 /// - [faceImagePath]: Step 1 종료 시점에 캡처한 정지 이미지 — baseline과
@@ -23,6 +28,8 @@ import '../data/models/fusion_result.dart';
 class DiaryDraftState {
   const DiaryDraftState({
     this.transcript,
+    this.interviewMessages = const [],
+    this.diaryText,
     this.summary,
     this.recordingPath,
     this.faceImagePath,
@@ -32,6 +39,8 @@ class DiaryDraftState {
   });
 
   final String? transcript;
+  final List<InterviewMessage> interviewMessages;
+  final String? diaryText;
   final String? summary;
   final String? recordingPath;
   final String? faceImagePath;
@@ -41,6 +50,8 @@ class DiaryDraftState {
 
   DiaryDraftState copyWith({
     String? transcript,
+    List<InterviewMessage>? interviewMessages,
+    String? diaryText,
     String? summary,
     String? recordingPath,
     String? faceImagePath,
@@ -49,6 +60,8 @@ class DiaryDraftState {
     DateTime? counselStartedAt,
   }) => DiaryDraftState(
     transcript: transcript ?? this.transcript,
+    interviewMessages: interviewMessages ?? this.interviewMessages,
+    diaryText: diaryText ?? this.diaryText,
     summary: summary ?? this.summary,
     recordingPath: recordingPath ?? this.recordingPath,
     faceImagePath: faceImagePath ?? this.faceImagePath,
@@ -65,10 +78,16 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
   void setTranscript(String transcript) =>
       state = state.copyWith(transcript: transcript);
 
+  void setInterviewMessages(List<InterviewMessage> messages) =>
+      state = state.copyWith(interviewMessages: List.unmodifiable(messages));
+
+  void setDiaryText(String diaryText) =>
+      state = state.copyWith(diaryText: diaryText);
+
   void setSummary(String summary) => state = state.copyWith(summary: summary);
 
-  /// 새 녹음은 이전 녹음에서 나온 원문/요약/분석 결과를 무효로 만든다 — 남겨두면
-  /// Step1 분석이 옛 원문을 재사용한다. (copyWith는 null로 못 지워서 직접 생성)
+  /// 새 녹음은 이전 녹음에서 나온 원문/대화/일기/요약/분석 결과를 무효로 만든다 —
+  /// 남겨두면 Step1 분석이 옛 원문을 재사용한다. (copyWith는 null로 못 지워서 직접 생성)
   void setRecordingPath(String path) => state = DiaryDraftState(
     recordingPath: path,
     faceImagePath: state.faceImagePath,
