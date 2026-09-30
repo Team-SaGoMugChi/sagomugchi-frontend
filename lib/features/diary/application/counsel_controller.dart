@@ -6,6 +6,19 @@ import '../data/diary_providers.dart';
 import '../data/models/counsel_session.dart';
 import 'diary_draft_provider.dart';
 
+/// 상담·리포트에 넘길 오늘 일기 맥락.
+///
+/// 일기 대화(`/diary/interview/turn`)가 만든 요약을 먼저 쓰고, 요약이 없을
+/// 때만 원문을 쓴다. 대화형 일기는 원문이 길어서 그대로 보내면 토큰만
+/// 늘고 상담봇이 핵심을 놓치기 쉽다.
+String? counselDiaryContext(DiaryDraftState draft) {
+  final summary = draft.summary?.trim();
+  if (summary != null && summary.isNotEmpty) return summary;
+  final transcript = draft.transcript?.trim();
+  if (transcript != null && transcript.isNotEmpty) return transcript;
+  return null;
+}
+
 /// Step4 상담 대화 상태 — 메시지 목록, 전송 중 여부, 위기 감지 여부.
 class CounselState {
   const CounselState({
@@ -74,7 +87,8 @@ class CounselController extends Notifier<CounselState> {
     );
 
     try {
-      final fusion = ref.read(diaryDraftProvider).fusionResult;
+      final draft = ref.read(diaryDraftProvider);
+      final fusion = draft.fusionResult;
       final result = await ref
           .read(counselRepositoryProvider)
           .sendTurn(
@@ -82,7 +96,7 @@ class CounselController extends Notifier<CounselState> {
             history: history,
             emotions: fusion?.emotionScores,
             signals: fusion?.signals,
-            diarySummary: ref.read(diaryDraftProvider).transcript,
+            diarySummary: counselDiaryContext(draft),
             incongruent: fusion?.incongruent ?? false,
             persona: await _loadPersona(),
             psychProfile: await _loadPsychProfile(),
