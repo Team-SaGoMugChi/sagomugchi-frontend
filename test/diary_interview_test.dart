@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
+import 'package:oddo/features/diary/application/diary_draft_provider.dart';
 import 'package:oddo/features/diary/application/diary_interview_controller.dart';
 import 'package:oddo/features/diary/data/datasources/diary_interview_remote_data_source.dart';
 import 'package:oddo/features/diary/data/diary_providers.dart';
@@ -36,6 +37,7 @@ class _Client implements ApiClient {
     'crisis': false,
     'slots': {'무엇을': '팀 회의', '누가': null},
     'missing': ['누가'],
+    'summary': '오늘은 팀 회의가 있었던 하루였어요.',
   };
 
   @override
@@ -153,6 +155,21 @@ void main() {
       expect(state().slots, {'무엇을': '팀 회의', '어디서': null});
     });
 
+    test('keeps the latest summary and ignores turns without one', () async {
+      repository.result = const InterviewTurnResult(
+        reply: '어디에서 있었던 일이에요?',
+        summary: '오늘은 팀 회의에서 의견이 무시당한 하루였어요.',
+      );
+      await answer('팀 회의가 있었어요.');
+      repository.result = const InterviewTurnResult(
+        reply: '누구와 함께였어요?',
+        summary: '  ',
+      );
+      await answer('스터디룸이요.');
+
+      expect(state().summary, '오늘은 팀 회의에서 의견이 무시당한 하루였어요.');
+    });
+
     test('start does not reset an ongoing conversation', () async {
       await answer('팀 회의가 있었어요.');
       controller().start(_greeting);
@@ -182,6 +199,7 @@ void main() {
       expect(result.done, isFalse);
       expect(result.slots, {'무엇을': '팀 회의', '누가': null});
       expect(result.missing, ['누가']);
+      expect(result.summary, '오늘은 팀 회의가 있었던 하루였어요.');
     });
 
     test('reads a response without slots as unknown slots', () async {
@@ -192,6 +210,22 @@ void main() {
 
       expect(result.slots, isEmpty);
       expect(result.missing, isEmpty);
+      expect(result.summary, isNull);
+    });
+  });
+
+  group('diary draft summary', () {
+    test('a new recording drops the previous summary', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final draft = container.read(diaryDraftProvider.notifier)
+        ..setRecordingPath('first.wav')
+        ..setSummary('오늘은 회의가 있었던 하루였어요.');
+      expect(container.read(diaryDraftProvider).summary, isNotNull);
+
+      draft.setRecordingPath('second.wav');
+
+      expect(container.read(diaryDraftProvider).summary, isNull);
     });
 
     test('rejects a response without a reply', () async {

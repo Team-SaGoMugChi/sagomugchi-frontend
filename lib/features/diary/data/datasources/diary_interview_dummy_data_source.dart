@@ -30,17 +30,20 @@ class DiaryInterviewDummyDataSource implements DiaryInterviewDataSource {
       for (final name in _slots)
         if (slots[name] == null) name,
     ];
+    const summary = '오늘은 친구와의 대화에서 오해가 생겨 속상했던 하루였어요.';
     if (missing.isEmpty) {
       return InterviewTurnResult(
         reply: '이야기해줘서 고마워요. 들은 이야기로 오늘 일기를 정리해볼게요.',
         done: true,
         slots: slots,
+        summary: summary,
       );
     }
     return InterviewTurnResult(
       reply: _questions[missing.first]!,
       slots: slots,
       missing: missing,
+      summary: summary,
     );
   }
 }

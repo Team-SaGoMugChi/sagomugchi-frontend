@@ -10,14 +10,17 @@ import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/card_section_header.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../application/diary_draft_provider.dart';
 import '../../application/step1_analysis_controller.dart';
 
 /// Screen 38 — Step 1 처리 중. 녹음/얼굴 캡처를 baseline과 비교해 감정을
 /// 뽑는 실제 서버 호출(step1AnalysisController)을 진행하고, 끝나면 Step 2
-/// 확인하기로 넘어간다. 실패하면 재시도할 수 있다.
+/// 확인하기로 넘어간다. 실패하면 재시도할 수 있다. 기다리는 동안 말하기
+/// 대화에서 받은 AI 일기 요약을 보여준다(없으면 숨김).
 class DiaryStep1ProcessingScreen extends ConsumerStatefulWidget {
   const DiaryStep1ProcessingScreen({super.key});
 
@@ -50,6 +53,7 @@ class _DiaryStep1ProcessingScreenState
     });
 
     final analysis = ref.watch(step1AnalysisControllerProvider);
+    final summary = ref.watch(diaryDraftProvider).summary;
 
     return Scaffold(
       body: AppBackground(
@@ -90,7 +94,7 @@ class _DiaryStep1ProcessingScreenState
                                 .read(step1AnalysisControllerProvider.notifier)
                                 .submit(),
                           )
-                        : const _LoadingContent(items: _items),
+                        : _LoadingContent(items: _items, summary: summary),
                   ),
                 ),
               ),
@@ -108,11 +112,15 @@ class _DiaryStep1ProcessingScreenState
 }
 
 class _LoadingContent extends StatelessWidget {
-  const _LoadingContent({required this.items});
+  const _LoadingContent({required this.items, this.summary});
   final List<String> items;
+
+  /// 말하기 대화에서 받은 일기 요약. 없으면 카드를 숨긴다.
+  final String? summary;
 
   @override
   Widget build(BuildContext context) {
+    final summary = this.summary?.trim() ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -143,6 +151,23 @@ class _LoadingContent extends StatelessWidget {
         const Center(child: MascotImage(pose: MascotPose.thinking, size: 150)),
         Gap.h24,
         _ProgressCard(items: items),
+        if (summary.isNotEmpty) ...[
+          Gap.h16,
+          // 41번 영상 제작 로딩의 요약 카드와 같은 모양.
+          OddoCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CardSectionHeader(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'AI 일기 요약',
+                ),
+                Gap.h8,
+                Text(summary, style: AppTypography.body),
+              ],
+            ),
+          ),
+        ],
         Gap.h16,
         Container(
           padding: const EdgeInsets.all(AppSpacing.sm),

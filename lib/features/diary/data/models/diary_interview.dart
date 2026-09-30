@@ -24,6 +24,7 @@ class InterviewTurnResult {
     this.crisis = false,
     this.slots = const {},
     this.missing = const [],
+    this.summary,
   });
 
   final String reply;
@@ -35,6 +36,10 @@ class InterviewTurnResult {
   final Map<String, String?> slots;
   final List<String> missing;
 
+  /// 지금까지 들은 이야기의 일기 요약(1~2문장). 보여주기용이고 감정 분석
+  /// 입력이 아니다. 서버가 못 만든 차례면 null.
+  final String? summary;
+
   factory InterviewTurnResult.fromJson(Map<String, dynamic> json) =>
       InterviewTurnResult(
         reply: json['reply'] as String,
@@ -45,5 +50,6 @@ class InterviewTurnResult {
         ),
         missing: (json['missing'] as List<dynamic>? ?? const [])
             .cast<String>(),
+        summary: json['summary'] as String?,
       );
 }

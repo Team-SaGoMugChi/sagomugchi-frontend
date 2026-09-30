@@ -187,12 +187,14 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
     }
     if (!mounted) return;
 
-    // 새 녹음 경로가 이전 원문·분석 결과를 지우므로 원문은 그 뒤에 싣는다.
+    // 새 녹음 경로가 이전 원문·요약·분석 결과를 지우므로 원문과 요약은 그 뒤에 싣는다.
     final draft = ref.read(diaryDraftProvider.notifier);
     if (photo != null) draft.setFaceImagePath(photo.path);
     draft
       ..setRecordingPath(recordingPath)
       ..setTranscript(interview.transcript);
+    final summary = interview.summary;
+    if (summary != null) draft.setSummary(summary);
     context.pushReplacementNamed(AppRoute.diaryStep1Processing);
   }
 

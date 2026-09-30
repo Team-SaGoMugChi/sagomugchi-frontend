@@ -10,6 +10,7 @@ class DiaryInterviewState {
     this.messages = const [],
     this.recordingPaths = const [],
     this.slots = const {},
+    this.summary,
     this.waiting = false,
     this.done = false,
     this.crisis = false,
@@ -24,6 +25,10 @@ class DiaryInterviewState {
   /// 서버가 마지막으로 알려준 육하원칙 칸(빈 칸은 null). 칸을 알 수 없던
   /// 차례의 응답으로는 덮어쓰지 않는다.
   final Map<String, String?> slots;
+
+  /// 서버가 마지막으로 만든 일기 요약 — 38번 감정 분석 로딩 등에 보여준다.
+  /// 요약을 못 만든 차례의 응답으로는 지우지 않는다.
+  final String? summary;
 
   /// 탄카츄의 다음 질문을 기다리는 중.
   final bool waiting;
@@ -45,6 +50,7 @@ class DiaryInterviewState {
     List<InterviewMessage>? messages,
     List<String>? recordingPaths,
     Map<String, String?>? slots,
+    String? summary,
     bool? waiting,
     bool? done,
     bool? crisis,
@@ -52,6 +58,7 @@ class DiaryInterviewState {
     messages: messages ?? this.messages,
     recordingPaths: recordingPaths ?? this.recordingPaths,
     slots: slots ?? this.slots,
+    summary: summary ?? this.summary,
     waiting: waiting ?? this.waiting,
     done: done ?? this.done,
     crisis: crisis ?? this.crisis,
@@ -97,6 +104,7 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
     var done = false;
     var crisis = false;
     Map<String, String?>? slots;
+    String? summary;
     try {
       final result = await ref
           .read(diaryInterviewRepositoryProvider)
@@ -105,6 +113,7 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
       done = result.done;
       crisis = result.crisis;
       if (result.slots.isNotEmpty) slots = result.slots;
+      if (result.summary?.trim().isNotEmpty ?? false) summary = result.summary;
     } catch (_) {
       reply = InterviewMessage(speaker: InterviewSpeaker.oddo, text: keepGoing);
     }
@@ -112,6 +121,7 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
     state = state.copyWith(
       messages: [...state.messages, reply],
       slots: slots,
+      summary: summary,
       waiting: false,
       done: done,
       crisis: crisis,
