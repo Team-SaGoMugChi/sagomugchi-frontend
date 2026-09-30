@@ -8,6 +8,8 @@ import '../data/models/fusion_result.dart';
 ///
 /// - [transcript]: Step 1 녹음의 STT 원문. Step 2 (확인하기)에서 사용자가
 ///   수정하면 그 값으로 바뀐다.
+/// - [summary]: Step 1 대화(`/diary/interview/turn`)가 만든 일기 요약 —
+///   38번 감정 분석 로딩 등에 보여준다. 감정 분석 입력은 [transcript]다.
 /// - [recordingPath]: Step 1 (말하기)에서 녹음된 음성 파일 경로 —
 ///   Phase 4에서 AI 서버 업로드/분석에 사용.
 /// - [faceImagePath]: Step 1 종료 시점에 캡처한 정지 이미지 — baseline과
@@ -18,12 +20,10 @@ import '../data/models/fusion_result.dart';
 /// - [counselMessages] / [counselStartedAt]: Step 4 상담에서 주고받은 대화와
 ///   시작 시각. 46번 화면의 "기록 완료하기"가 이걸 그대로 Firestore
 ///   `counsel_sessions/{yyyy-MM-dd}`에 저장한다.
-///
-/// TODO(Phase 5): grow into a full draft (summary) once the AI pipeline
-/// produces real values for that too.
 class DiaryDraftState {
   const DiaryDraftState({
     this.transcript,
+    this.summary,
     this.recordingPath,
     this.faceImagePath,
     this.fusionResult,
@@ -32,6 +32,7 @@ class DiaryDraftState {
   });
 
   final String? transcript;
+  final String? summary;
   final String? recordingPath;
   final String? faceImagePath;
   final FusionResult? fusionResult;
@@ -40,6 +41,7 @@ class DiaryDraftState {
 
   DiaryDraftState copyWith({
     String? transcript,
+    String? summary,
     String? recordingPath,
     String? faceImagePath,
     FusionResult? fusionResult,
@@ -47,6 +49,7 @@ class DiaryDraftState {
     DateTime? counselStartedAt,
   }) => DiaryDraftState(
     transcript: transcript ?? this.transcript,
+    summary: summary ?? this.summary,
     recordingPath: recordingPath ?? this.recordingPath,
     faceImagePath: faceImagePath ?? this.faceImagePath,
     fusionResult: fusionResult ?? this.fusionResult,
@@ -62,7 +65,9 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
   void setTranscript(String transcript) =>
       state = state.copyWith(transcript: transcript);
 
-  /// 새 녹음은 이전 녹음에서 나온 원문/분석 결과를 무효로 만든다 — 남겨두면
+  void setSummary(String summary) => state = state.copyWith(summary: summary);
+
+  /// 새 녹음은 이전 녹음에서 나온 원문/요약/분석 결과를 무효로 만든다 — 남겨두면
   /// Step1 분석이 옛 원문을 재사용한다. (copyWith는 null로 못 지워서 직접 생성)
   void setRecordingPath(String path) => state = DiaryDraftState(
     recordingPath: path,
