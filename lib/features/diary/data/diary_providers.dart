@@ -11,6 +11,9 @@ import 'datasources/diary_analysis_face_file_data_source.dart';
 import 'datasources/diary_analysis_remote_data_source.dart';
 import 'datasources/diary_data_source.dart';
 import 'datasources/diary_dummy_data_source.dart';
+import 'datasources/diary_interview_data_source.dart';
+import 'datasources/diary_interview_dummy_data_source.dart';
+import 'datasources/diary_interview_remote_data_source.dart';
 import 'datasources/diary_remote_data_source.dart';
 import 'datasources/video_data_source.dart';
 import 'datasources/video_dummy_data_source.dart';
@@ -22,6 +25,8 @@ import 'repositories/counsel_repository.dart';
 import 'repositories/counsel_repository_impl.dart';
 import 'repositories/diary_analysis_repository.dart';
 import 'repositories/diary_analysis_repository_impl.dart';
+import 'repositories/diary_interview_repository.dart';
+import 'repositories/diary_interview_repository_impl.dart';
 import 'repositories/diary_repository.dart';
 import 'repositories/diary_repository_impl.dart';
 import 'repositories/video_repository.dart';
@@ -66,6 +71,25 @@ final diaryAnalysisRepositoryProvider = Provider<DiaryAnalysisRepository>((
 ) {
   return DiaryAnalysisRepositoryImpl(
     ref.watch(diaryAnalysisDataSourceProvider),
+  );
+});
+
+/// Swap point for 37번 말하기 대화 (AI 서버 `POST /diary/interview/turn`).
+final diaryInterviewDataSourceProvider = Provider<DiaryInterviewDataSource>((
+  ref,
+) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useDummyData) {
+    return DiaryInterviewDummyDataSource();
+  }
+  return DiaryInterviewRemoteDataSource(ref.watch(apiClientProvider));
+});
+
+final diaryInterviewRepositoryProvider = Provider<DiaryInterviewRepository>((
+  ref,
+) {
+  return DiaryInterviewRepositoryImpl(
+    ref.watch(diaryInterviewDataSourceProvider),
   );
 });
 
