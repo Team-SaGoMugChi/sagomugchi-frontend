@@ -6,6 +6,7 @@ class DiaryEntry {
     required this.transcript,
     required this.summary,
     required this.emotionKeywords,
+    this.diaryText,
     this.videoUrl,
     this.emotionIntensity = 0,
     this.emotionStability = 0,
@@ -18,8 +19,12 @@ class DiaryEntry {
   /// 기록 완료 버튼을 누른 실제 시각 (구버전 문서엔 없을 수 있음).
   final DateTime? writtenAt;
 
-  /// Raw STT text the user reviewed/edited in Step 2.
+  /// Step 1에서 사용자가 한 말(원 답변). 감정 분석·영상·상담의 입력.
   final String transcript;
+
+  /// 탄카츄와의 대화를 일기 한 편으로 정제하고 Step 2에서 사용자가 고친 글 —
+  /// 일기 상세에 보여주는 본문. 대화형 말하기 이전 문서엔 없다(null).
+  final String? diaryText;
 
   /// AI-generated summary written in diary style.
   final String summary;
@@ -37,6 +42,7 @@ class DiaryEntry {
         id: json['id'] as String,
         date: DateTime.parse(json['date'] as String),
         transcript: json['transcript'] as String,
+        diaryText: json['diaryText'] as String?,
         summary: json['summary'] as String,
         emotionKeywords: (json['emotionKeywords'] as List<dynamic>)
             .cast<String>(),
@@ -52,6 +58,7 @@ class DiaryEntry {
         'id': id,
         'date': date.toIso8601String(),
         'transcript': transcript,
+        if (diaryText != null) 'diaryText': diaryText,
         'summary': summary,
         'emotionKeywords': emotionKeywords,
         'videoUrl': videoUrl,

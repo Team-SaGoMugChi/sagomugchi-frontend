@@ -14,4 +14,9 @@ class DiaryInterviewRepositoryImpl implements DiaryInterviewRepository {
   }) {
     return _dataSource.sendTurn(userText: userText, history: history);
   }
+
+  @override
+  Future<String?> refine({required List<InterviewMessage> messages}) {
+    return _dataSource.refine(messages: messages);
+  }
 }

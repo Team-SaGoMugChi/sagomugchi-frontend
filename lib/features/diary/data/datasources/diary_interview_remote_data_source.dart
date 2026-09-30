@@ -27,4 +27,16 @@ class DiaryInterviewRemoteDataSource implements DiaryInterviewDataSource {
     }
     return InterviewTurnResult.fromJson(json);
   }
+
+  @override
+  Future<String?> refine({required List<InterviewMessage> messages}) async {
+    final json = await _apiClient.post(
+      '/diary/interview/refine',
+      body: {
+        'messages': [for (final m in messages) m.toJson()],
+      },
+    );
+    final diary = json['diary'];
+    return diary is String && diary.trim().isNotEmpty ? diary.trim() : null;
+  }
 }

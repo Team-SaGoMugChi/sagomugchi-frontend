@@ -11,4 +11,8 @@ abstract interface class DiaryInterviewDataSource {
     required String userText,
     List<InterviewMessage> history = const [],
   });
+
+  /// 대화 전체(`POST /diary/interview/refine`)를 일기 한 편으로 정제한다 —
+  /// 39번 "오늘의 일기"에 보여주는 용도. 서버가 만들지 못하면 null.
+  Future<String?> refine({required List<InterviewMessage> messages});
 }

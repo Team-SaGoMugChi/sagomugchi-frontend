@@ -7,7 +7,8 @@ import '../data/models/fusion_result.dart';
 import 'diary_draft_provider.dart';
 
 /// Step1(말하기)에서 모은 녹음을 원문으로 바꾸고(STT), 녹음/얼굴 캡처를
-/// baseline과 비교해 감정을 뽑는 상태.
+/// baseline과 비교해 감정을 뽑는 상태. 같은 시간에 탄카츄와의 대화를 일기
+/// 한 편으로 정제해 draft에 싣는다.
 ///
 /// idle은 `AsyncData(null)`로 표현한다 — 처리 화면 진입 시 자동으로 [submit]을
 /// 호출하고, 실패하면 사용자가 재시도 버튼으로 다시 [submit]을 부를 수 있다
@@ -31,6 +32,8 @@ class Step1AnalysisController extends Notifier<AsyncValue<FusionResult?>> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      // 일기 정제는 감정 분석과 동시에 — 기다리는 시간이 늘지 않게.
+      final refining = _refineDiary();
       final baseline = await ref.read(baselineRepositoryProvider).fetchSaved();
       if (baseline == null) {
         throw const AppException('베이스라인 측정 정보를 찾을 수 없어요. 설정에서 다시 측정해주세요.');
@@ -57,8 +60,27 @@ class Step1AnalysisController extends Notifier<AsyncValue<FusionResult?>> {
         baseline: baseline,
       );
       ref.read(diaryDraftProvider.notifier).setFusionResult(result);
+      await refining;
       return result;
     });
+  }
+
+  /// 탄카츄와 나눈 대화를 일기 한 편으로 정제해 draft에 싣는다(39번 "오늘의
+  /// 일기"). 이미 있거나 대화가 없으면(더미 흐름 등) 건너뛴다. 실패해도
+  /// 분석은 이어간다 — Step2는 원 답변을 보여준다.
+  Future<void> _refineDiary() async {
+    final draft = ref.read(diaryDraftProvider);
+    if (draft.diaryText != null || draft.interviewMessages.isEmpty) return;
+    try {
+      final diary = await ref
+          .read(diaryInterviewRepositoryProvider)
+          .refine(messages: draft.interviewMessages);
+      if (diary != null && ref.mounted) {
+        ref.read(diaryDraftProvider.notifier).setDiaryText(diary);
+      }
+    } catch (_) {
+      // 정제는 보여주기용이라 실패해도 기록 흐름을 막지 않는다.
+    }
   }
 }
 

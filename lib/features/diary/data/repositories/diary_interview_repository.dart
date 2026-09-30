@@ -5,4 +5,6 @@ abstract interface class DiaryInterviewRepository {
     required String userText,
     List<InterviewMessage> history = const [],
   });
+
+  Future<String?> refine({required List<InterviewMessage> messages});
 }

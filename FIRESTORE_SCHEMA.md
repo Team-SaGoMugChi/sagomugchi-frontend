@@ -57,8 +57,9 @@ users/{uid}                              ← AppUser        (계정 프로필)
 |---|---|---|
 | `id` | string | 문서 id와 동일 (`yyyy-MM-dd`) |
 | `date` | string(ISO) | date-only 자정 기준 |
-| `transcript` | string | STT 원문 (Step2에서 수정본) |
-| `summary` | string | AI 요약 |
+| `transcript` | string | Step1 말하기에서 사용자가 한 말(차례별 STT를 이어 붙인 원 답변). 감정 분석·영상·상담 입력이라 다듬지 않음 |
+| `diaryText` | string? | 탄카츄와의 대화를 일기 한 편으로 정제하고 Step2에서 사용자가 고친 글 — 일기 상세 본문 (2026-09-30 추가, 구 문서엔 없음) |
+| `summary` | string | AI 요약(한두 문장). 요약이 없으면 `diaryText` → `transcript` 순으로 대신 저장 |
 | `emotionKeywords` | string[] | 감정 키워드 |
 | `videoUrl` | string? | 생성된 숏폼 Storage URL (Step3 전엔 없음) |
 | `emotionIntensity` | int 0–100 | |

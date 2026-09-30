@@ -13,8 +13,10 @@ import 'package:oddo/features/diary/application/diary_draft_provider.dart';
 import 'package:oddo/features/diary/application/step1_analysis_controller.dart';
 import 'package:oddo/features/diary/data/datasources/diary_analysis_remote_data_source.dart';
 import 'package:oddo/features/diary/data/diary_providers.dart';
+import 'package:oddo/features/diary/data/models/diary_interview.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
 import 'package:oddo/features/diary/data/repositories/diary_analysis_repository.dart';
+import 'package:oddo/features/diary/data/repositories/diary_interview_repository.dart';
 
 final _baseline = BaselineProfile(
   voice: const {
@@ -116,6 +118,22 @@ class _AnalysisRepository implements DiaryAnalysisRepository {
   }
 }
 
+class _InterviewRepository implements DiaryInterviewRepository {
+  final refined = <List<InterviewMessage>>[];
+  String? diary = '오늘 발표를 마쳤다.';
+  Object? error;
+
+  @override
+  Future<String?> refine({required List<InterviewMessage> messages}) async {
+    refined.add(messages);
+    if (error != null) throw error!;
+    return diary;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _Client implements ApiClient {
   Object? error;
   Map<String, dynamic> response = {'text': '오늘 발표가 끝났어요.'};
@@ -168,13 +186,16 @@ void main() {
   group('Step1 STT flow', () {
     late ProviderContainer container;
     late _AnalysisRepository repository;
+    late _InterviewRepository interview;
 
     setUp(() {
       repository = _AnalysisRepository();
+      interview = _InterviewRepository();
       container = ProviderContainer(
         overrides: [
           baselineRepositoryProvider.overrideWithValue(_BaselineRepository()),
           diaryAnalysisRepositoryProvider.overrideWithValue(repository),
+          diaryInterviewRepositoryProvider.overrideWithValue(interview),
         ],
       );
       container.read(diaryDraftProvider.notifier)
@@ -238,6 +259,53 @@ void main() {
       await submit();
       expect(repository.transcribed, ['voice.wav']);
       expect(repository.analyzedTexts, ['voice.wav 원문', 'voice.wav 원문']);
+    });
+
+    group('with a conversation', () {
+      const conversation = [
+        InterviewMessage(speaker: InterviewSpeaker.oddo, text: '오늘 어땠어요?'),
+        InterviewMessage(speaker: InterviewSpeaker.user, text: '발표를 마쳤어요.'),
+      ];
+
+      setUp(() {
+        container.read(diaryDraftProvider.notifier)
+          ..setTranscript('발표를 마쳤어요.')
+          ..setInterviewMessages(conversation);
+      });
+
+      test('refines the conversation into a diary during analysis', () async {
+        await submit();
+
+        expect(interview.refined.single.map((m) => m.text), [
+          '오늘 어땠어요?',
+          '발표를 마쳤어요.',
+        ]);
+        expect(container.read(diaryDraftProvider).diaryText, '오늘 발표를 마쳤다.');
+        // 감정 분석은 정제본이 아니라 원 답변으로 한다.
+        expect(repository.analyzedTexts, ['발표를 마쳤어요.']);
+      });
+
+      test('analysis still succeeds when refining fails', () async {
+        interview.error = const NetworkException();
+        await submit();
+
+        expect(container.read(step1AnalysisControllerProvider).value, _fusion);
+        expect(container.read(diaryDraftProvider).diaryText, isNull);
+      });
+
+      test('retry does not refine again once a diary exists', () async {
+        repository.analyzeError = const NetworkException();
+        await submit();
+        repository.analyzeError = null;
+        await submit();
+
+        expect(interview.refined, hasLength(1));
+      });
+    });
+
+    test('does not refine without a conversation', () async {
+      await submit();
+      expect(interview.refined, isEmpty);
     });
 
     test('new recording drops the previous transcript', () async {

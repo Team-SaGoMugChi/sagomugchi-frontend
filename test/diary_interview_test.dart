@@ -6,6 +6,7 @@ import 'package:oddo/features/diary/application/diary_draft_provider.dart';
 import 'package:oddo/features/diary/application/diary_interview_controller.dart';
 import 'package:oddo/features/diary/data/datasources/diary_interview_remote_data_source.dart';
 import 'package:oddo/features/diary/data/diary_providers.dart';
+import 'package:oddo/features/diary/data/models/diary_entry.dart';
 import 'package:oddo/features/diary/data/models/diary_interview.dart';
 import 'package:oddo/features/diary/data/repositories/diary_interview_repository.dart';
 
@@ -26,6 +27,10 @@ class _Repository implements DiaryInterviewRepository {
     if (error != null) throw error!;
     return result;
   }
+
+  @override
+  Future<String?> refine({required List<InterviewMessage> messages}) async =>
+      null;
 }
 
 class _Client implements ApiClient {
@@ -202,6 +207,35 @@ void main() {
       expect(result.summary, '오늘은 팀 회의가 있었던 하루였어요.');
     });
 
+    test('refine posts the whole conversation and reads the diary', () async {
+      final client = _Client()
+        ..response = {'diary': '  오늘 팀 회의에서 내 의견이 무시당했다.  '};
+      final diary = await DiaryInterviewRemoteDataSource(client).refine(
+        messages: const [
+          InterviewMessage(speaker: InterviewSpeaker.oddo, text: _greeting),
+          InterviewMessage(speaker: InterviewSpeaker.user, text: '회의요.'),
+        ],
+      );
+
+      expect(client.path, '/diary/interview/refine');
+      expect(client.body, {
+        'messages': [
+          {'speaker': 'oddo', 'text': _greeting},
+          {'speaker': 'user', 'text': '회의요.'},
+        ],
+      });
+      expect(diary, '오늘 팀 회의에서 내 의견이 무시당했다.');
+    });
+
+    test('refine reads a missing diary as null', () async {
+      final client = _Client()..response = {'diary': null};
+      final diary = await DiaryInterviewRemoteDataSource(
+        client,
+      ).refine(messages: const []);
+
+      expect(diary, isNull);
+    });
+
     test('reads a response without slots as unknown slots', () async {
       final client = _Client()..response = {'reply': '어디였어요?'};
       final result = await DiaryInterviewRemoteDataSource(
@@ -211,6 +245,37 @@ void main() {
       expect(result.slots, isEmpty);
       expect(result.missing, isEmpty);
       expect(result.summary, isNull);
+    });
+  });
+
+  group('diary entry', () {
+    test('stores the refined diary next to the raw transcript', () {
+      final entry = DiaryEntry(
+        id: '2026-09-30',
+        date: DateTime(2026, 9, 30),
+        transcript: '회의가 있었어요.\n스터디룸이요.',
+        diaryText: '오늘 스터디룸에서 회의를 했다.',
+        summary: '회의가 있었던 하루였어요.',
+        emotionKeywords: const ['슬픔'],
+      );
+
+      final json = entry.toJson();
+      expect(json['transcript'], '회의가 있었어요.\n스터디룸이요.');
+      expect(json['diaryText'], '오늘 스터디룸에서 회의를 했다.');
+      expect(DiaryEntry.fromJson(json).diaryText, '오늘 스터디룸에서 회의를 했다.');
+    });
+
+    test('reads an entry saved before refinement without a diary text', () {
+      final json = DiaryEntry(
+        id: '2026-09-14',
+        date: DateTime(2026, 9, 14),
+        transcript: '예전 원문',
+        summary: '예전 원문',
+        emotionKeywords: const [],
+      ).toJson();
+
+      expect(json.containsKey('diaryText'), isFalse);
+      expect(DiaryEntry.fromJson(json).diaryText, isNull);
     });
   });
 

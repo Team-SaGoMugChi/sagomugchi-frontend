@@ -72,7 +72,8 @@ class DiaryDetailScreen extends ConsumerWidget {
                       style: AppTypography.caption,
                     ),
                     Gap.h16,
-                    Text(entry.transcript,
+                    // 정제한 일기가 본문. 대화형 말하기 이전 기록엔 원 답변뿐이다.
+                    Text(entry.diaryText ?? entry.transcript,
                         style: AppTypography.body.copyWith(height: 1.7)),
                   ],
                 ),
