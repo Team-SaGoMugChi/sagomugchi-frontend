@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,6 +117,18 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
           .read(diaryRepositoryProvider)
           .saveRecord(entry: entry, report: report, counsel: counsel);
       ref.read(recordedDaysProvider.notifier).markRecorded(writtenDate);
+      // 감정 분석과 기록 저장이 끝났으므로 임시 얼굴 사진을 기기에서 정리한다.
+      final facePaths = {
+        ...draft.faceImagePaths,
+        if (draft.faceImagePath != null) draft.faceImagePath!,
+      };
+      for (final path in facePaths) {
+        try {
+          await File(path).delete();
+        } on FileSystemException {
+          // 운영체제가 이미 임시 파일을 지운 경우.
+        }
+      }
       ref.read(diaryDraftProvider.notifier).clear();
       // 다음 상담은 빈 대화에서 시작한다(저장된 기록은 이어하기로 불러온다).
       ref.invalidate(counselControllerProvider);

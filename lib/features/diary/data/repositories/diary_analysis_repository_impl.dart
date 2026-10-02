@@ -18,12 +18,16 @@ class DiaryAnalysisRepositoryImpl implements DiaryAnalysisRepository {
     required String text,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
     required BaselineProfile baseline,
   }) {
     return _dataSource.analyzeStep2(
       text: text,
       voiceFilePath: voiceFilePath,
       faceImagePath: faceImagePath,
+      faceImagePaths: faceImagePaths,
+      faceTimestampsMs: faceTimestampsMs,
       baseline: baseline,
     );
   }
