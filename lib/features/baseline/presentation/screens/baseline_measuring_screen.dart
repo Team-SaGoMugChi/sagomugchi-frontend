@@ -18,6 +18,7 @@ import '../../../../widgets/camera_self_view.dart';
 import '../../../../widgets/elapsed_timer_text.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/tip_card.dart';
+import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
 import '../../application/baseline_upload_controller.dart';
@@ -39,6 +40,8 @@ class _BaselineMeasuringScreenState
   bool _advanced = false;
   bool _recording = false;
   ConversationTurn? _turn;
+  Timer? _faceCaptureTimer;
+  Future<void>? _faceCapture;
 
   // 실제 baseline 음성 녹음이 화면 전체에서 계속 돌아가고 있어서, 여기서는
   // (튜토리얼 연습 화면과 달리) STT로 "말이 끝났는지"를 감지하지 않는다 —
@@ -78,6 +81,10 @@ class _BaselineMeasuringScreenState
       return;
     }
     setState(() => _recording = true);
+    _faceCaptureTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _captureFace(),
+    );
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
@@ -100,7 +107,18 @@ class _BaselineMeasuringScreenState
     // X 버튼 등으로 화면을 바로 나가면 _advance를 거치지 않으므로, 남아있는
     // 대화 대기 루프를 여기서 끊어준다.
     _conversation?.stop();
+    _faceCaptureTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _captureFace() => _faceCapture ??= _takeAndSaveFace()
+      .whenComplete(() => _faceCapture = null);
+
+  Future<void> _takeAndSaveFace() async {
+    final photo = await _cameraKey.currentState?.takePicture();
+    if (!mounted || photo == null) return;
+    ref.read(baselineFaceFramesProvider.notifier).add(photo.path);
+    ref.read(baselineFaceImageProvider.notifier).set(photo.path);
   }
 
   Future<void> _advance() async {
@@ -110,15 +128,13 @@ class _BaselineMeasuringScreenState
       _recording = false;
     });
     _conversation?.stop();
+    _faceCaptureTimer?.cancel();
 
-    // 정지 이미지 캡처는 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이 바뀌는 걸 방지.
+    // 측정 중에는 1분마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
     final recorder = ref.read(audioRecorderProvider);
-    final photo = await _cameraKey.currentState?.takePicture();
+    await _captureFace();
     final path = await recorder.stop();
     if (!mounted) return;
-    if (photo != null) {
-      ref.read(baselineFaceImageProvider.notifier).set(photo.path);
-    }
 
     if (path != null) {
       ref.read(baselineRecordingProvider.notifier).set(path);
@@ -169,7 +185,7 @@ class _BaselineMeasuringScreenState
                     ),
                     Gap.h8,
                     const Text(
-                      '안내에 따라 편하게 이야기해주세요.\n얼굴 사진은 측정을 마칠 때 촬영해요.',
+                      '안내에 따라 편하게 이야기해주세요.\n얼굴 사진은 측정 중에 자동으로 촬영해요.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.callTextSecondary,

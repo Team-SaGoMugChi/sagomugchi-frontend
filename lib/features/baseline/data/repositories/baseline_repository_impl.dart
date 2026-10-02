@@ -11,10 +11,12 @@ class BaselineRepositoryImpl implements BaselineRepository {
   Future<BaselineProfile> submitMeasurement({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) {
     return _dataSource.upload(
       voiceFilePath: voiceFilePath,
       faceImagePath: faceImagePath,
+      faceImagePaths: faceImagePaths,
     );
   }
 

@@ -7,6 +7,7 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/dummy/home_dummy.dart';
 import '../../../../data/dummy/records_dummy.dart';
+import '../../../../features/baseline/application/baseline_face_frames_provider.dart';
 import '../../../../features/baseline/application/baseline_face_image_provider.dart';
 import '../../../../features/baseline/application/baseline_recording_provider.dart';
 import '../../../../features/onboarding/application/onboarding_controller.dart';
@@ -59,7 +60,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _showBaselineDialog() {
     final hasPendingMeasurement =
         ref.read(baselineRecordingProvider) != null &&
-        ref.read(baselineFaceImageProvider) != null;
+        (ref.read(baselineFaceImageProvider) != null ||
+            ref.read(baselineFaceFramesProvider).isNotEmpty);
     showBaselineNeededDialog(
       context,
       hasPendingMeasurement: hasPendingMeasurement,

@@ -23,9 +23,11 @@ class BaselineFileDataSource implements BaselineDataSource {
   Future<BaselineProfile> upload({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) => _uploader.upload(
     voiceFilePath: voiceFilePath,
     faceImagePath: faceImagePath,
+    faceImagePaths: faceImagePaths,
   );
 
   @override

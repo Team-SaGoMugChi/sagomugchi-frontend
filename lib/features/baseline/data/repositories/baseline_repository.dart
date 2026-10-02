@@ -5,6 +5,7 @@ abstract interface class BaselineRepository {
   Future<BaselineProfile> submitMeasurement({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   });
 
   /// 이전에 저장된 baseline 프로필을 읽어온다. 아직 측정 전이면 null.
