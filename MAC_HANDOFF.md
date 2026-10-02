@@ -4,6 +4,13 @@
 
 ## 가장 먼저 알아야 할 점
 
+### 2026-10-02 베이스라인 그룹값 → 일기 분석 연결
+
+- Step1 말하기는 사용자 답변을 녹음하는 동안 1초마다 얼굴 사진을 시도한다(한 일기 최대 400장). 질문 TTS 중에는 녹음·촬영하지 않는다. 각 차례 WAV의 실제 PCM 길이로 사진 시각을 합친 음성 파일 기준으로 옮겨, 반복 `face_images`와 `face_timeline`으로 Step2에 보낸다. 사진이 한 장뿐인 기존 요청도 받는다.
+- Step2는 일기 음성의 pYIN 유성 시각과 사진을 맞춰 각 사진을 발화·무음 베이스라인의 AU 평균/표준편차와 비교한다. 구형 v2 기준값에 그룹값이 없거나 일기 사진 시각이 없으면 전체 AU 기준값을 쓴다. 타임라인 형식·순서가 틀리면 422로 거부한다.
+- 검증: Flutter 전체 167개 테스트 통과, 정적 분석 문제 없음. Android 디버그 APK 빌드 성공. 백엔드 전체 300개 테스트 통과. 로컬 Python 환경에 누락됐던 영상 의존성을 설치한 뒤 전체 테스트를 다시 확인했다. 실제 촬영 속도·사진/음성 시각 정합성·발화 경계·업로드 시간은 실기기 검증이 남았다.
+- 이 변경은 기존 후속 이슈 프론트 #52·백엔드 #56의 브랜치에 추가한다. PR #53·#57은 **게시 상태이며 `develop`에 아직 병합되지 않았다.** 백엔드 #57을 먼저 병합한 뒤 프론트 #53을 병합해야 한다.
+
 ### 2026-10-02 베이스라인 다중 얼굴 프레임 및 음성 구간 후속
 
 - 최초 다중 프레임 이슈인 프론트 [#50](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/50)·백엔드 [#54](https://github.com/Team-SaGoMugChi/sagomugchi-backend/issues/54)의 [PR #51](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/51)·[PR #55](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/55)는 원래 구현까지만 `develop`에 병합됐다. 음성 시각 연동 후속은 새 이슈 프론트 [#52](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/52)·백엔드 [#56](https://github.com/Team-SaGoMugChi/sagomugchi-backend/issues/56)과 최신 `develop` 기반 `52-baseline-voice-timeline`·`56-baseline-voice-timeline` 브랜치로 옮겼다.

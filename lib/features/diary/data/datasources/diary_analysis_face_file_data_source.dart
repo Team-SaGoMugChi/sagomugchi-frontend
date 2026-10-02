@@ -27,6 +27,8 @@ class DiaryAnalysisFaceFileDataSource implements DiaryAnalysisDataSource {
     required String text,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
     required BaselineProfile baseline,
   }) async {
     final file = await deviceTestFile(_fileName);

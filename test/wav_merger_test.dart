@@ -1,10 +1,15 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/media/wav_merger.dart';
 
 /// PCM 16-bit 모노 WAV. [extraChunk]면 fmt와 data 사이에 LIST 청크를 끼운다.
-Uint8List _wav(List<int> samples, {int sampleRate = 16000, bool extraChunk = false}) {
+Uint8List _wav(
+  List<int> samples, {
+  int sampleRate = 16000,
+  bool extraChunk = false,
+}) {
   final data = Uint8List(samples.length * 2);
   final view = ByteData.sublistView(data);
   for (var i = 0; i < samples.length; i++) {
@@ -24,7 +29,11 @@ Uint8List _wav(List<int> samples, {int sampleRate = 16000, bool extraChunk = fal
     ...list,
     ..._chunk('data', data),
   ];
-  return Uint8List.fromList([...'RIFF'.codeUnits, ..._u32(body.length), ...body]);
+  return Uint8List.fromList([
+    ...'RIFF'.codeUnits,
+    ..._u32(body.length),
+    ...body,
+  ]);
 }
 
 List<int> _chunk(String id, Uint8List body) => [
@@ -41,10 +50,28 @@ List<int> _samples(Uint8List wav) {
   final view = ByteData.sublistView(wav);
   expect(String.fromCharCodes(wav, 36, 40), 'data');
   final size = view.getUint32(40, Endian.little);
-  return [for (var i = 0; i < size; i += 2) view.getInt16(44 + i, Endian.little)];
+  return [
+    for (var i = 0; i < size; i += 2) view.getInt16(44 + i, Endian.little),
+  ];
 }
 
 void main() {
+  test(
+    'uses PCM length for turn offsets, including non-audio chunks',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('oddo-wav-');
+      try {
+        final path = '${dir.path}/turn.wav';
+        await File(
+          path,
+        ).writeAsBytes(_wav(List.filled(16000, 0), extraChunk: true));
+        expect(await WavMerger.durationMs(path), 1000);
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    },
+  );
+
   test('joins PCM samples in order under one header', () {
     final merged = WavMerger.merge([
       _wav([1, 2, 3]),
@@ -60,7 +87,10 @@ void main() {
 
   test('rejects recordings with different formats', () {
     expect(
-      () => WavMerger.merge([_wav([1]), _wav([2], sampleRate: 44100)]),
+      () => WavMerger.merge([
+        _wav([1]),
+        _wav([2], sampleRate: 44100),
+      ]),
       throwsFormatException,
     );
   });

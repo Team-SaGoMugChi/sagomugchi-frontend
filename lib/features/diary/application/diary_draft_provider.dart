@@ -17,8 +17,8 @@ import '../data/models/fusion_result.dart';
 ///   38번 감정 분석 로딩 등에 보여준다.
 /// - [recordingPath]: Step 1 (말하기)에서 녹음된 음성 파일 경로 —
 ///   Phase 4에서 AI 서버 업로드/분석에 사용.
-/// - [faceImagePath]: Step 1 종료 시점에 캡처한 정지 이미지 — baseline과
-///   같은 방식으로 표정 분석에 사용.
+/// - [faceImagePath], [faceImagePaths], [faceTimestampsMs]: Step 1에서 캡처한
+///   정지 이미지와 합친 녹음 기준 시각 — 발화·무음 베이스라인 비교에 사용.
 /// - [fusionResult]: 그 둘 + baseline을 서버(`/diary/step2/analyze`)에 보내서
 ///   받은 감정 키워드/점수/Δ. 아직 없으면(분석 전/실패) null — Step2 확인
 ///   화면은 이 경우 더미 콘텐츠로 폴백한다.
@@ -33,6 +33,8 @@ class DiaryDraftState {
     this.summary,
     this.recordingPath,
     this.faceImagePath,
+    this.faceImagePaths = const [],
+    this.faceTimestampsMs = const [],
     this.fusionResult,
     this.counselMessages = const [],
     this.counselStartedAt,
@@ -44,6 +46,8 @@ class DiaryDraftState {
   final String? summary;
   final String? recordingPath;
   final String? faceImagePath;
+  final List<String> faceImagePaths;
+  final List<int> faceTimestampsMs;
   final FusionResult? fusionResult;
   final List<CounselMessage> counselMessages;
   final DateTime? counselStartedAt;
@@ -55,6 +59,8 @@ class DiaryDraftState {
     String? summary,
     String? recordingPath,
     String? faceImagePath,
+    List<String>? faceImagePaths,
+    List<int>? faceTimestampsMs,
     FusionResult? fusionResult,
     List<CounselMessage>? counselMessages,
     DateTime? counselStartedAt,
@@ -65,6 +71,8 @@ class DiaryDraftState {
     summary: summary ?? this.summary,
     recordingPath: recordingPath ?? this.recordingPath,
     faceImagePath: faceImagePath ?? this.faceImagePath,
+    faceImagePaths: faceImagePaths ?? this.faceImagePaths,
+    faceTimestampsMs: faceTimestampsMs ?? this.faceTimestampsMs,
     fusionResult: fusionResult ?? this.fusionResult,
     counselMessages: counselMessages ?? this.counselMessages,
     counselStartedAt: counselStartedAt ?? this.counselStartedAt,
@@ -91,12 +99,39 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
   void setRecordingPath(String path) => state = DiaryDraftState(
     recordingPath: path,
     faceImagePath: state.faceImagePath,
+    faceImagePaths: state.faceImagePaths,
+    faceTimestampsMs: state.faceTimestampsMs,
     counselMessages: state.counselMessages,
     counselStartedAt: state.counselStartedAt,
   );
 
-  void setFaceImagePath(String path) =>
-      state = state.copyWith(faceImagePath: path);
+  void setFaceImagePath(String path) => state = state.copyWith(
+    faceImagePath: path,
+    faceImagePaths: const [],
+    faceTimestampsMs: const [],
+  );
+
+  void clearFace() => state = DiaryDraftState(
+    transcript: state.transcript,
+    interviewMessages: state.interviewMessages,
+    diaryText: state.diaryText,
+    summary: state.summary,
+    recordingPath: state.recordingPath,
+    fusionResult: state.fusionResult,
+    counselMessages: state.counselMessages,
+    counselStartedAt: state.counselStartedAt,
+  );
+
+  void setFaceTimeline(List<String> paths, List<int> timestampsMs) {
+    if (paths.length != timestampsMs.length) {
+      throw ArgumentError('face timeline length');
+    }
+    state = state.copyWith(
+      faceImagePath: paths.isEmpty ? null : paths.first,
+      faceImagePaths: List.unmodifiable(paths),
+      faceTimestampsMs: List.unmodifiable(timestampsMs),
+    );
+  }
 
   void setFusionResult(FusionResult result) =>
       state = state.copyWith(fusionResult: result);

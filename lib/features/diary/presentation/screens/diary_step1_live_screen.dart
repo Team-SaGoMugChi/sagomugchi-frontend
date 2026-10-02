@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,7 +34,7 @@ import '../widgets/diary_interview_copy.dart';
 /// 일기에 빠진 사실(육하원칙·경과 시간)을 골라 다음 질문을 준다. 탄카츄가 말하는
 /// 동안은 녹음하지 않아서, 탄카츄 목소리가 감정 분석(음성·원문)에 섞이지 않는다.
 ///
-/// 통화 종료 → 얼굴을 캡처하고, 차례별 녹음을 하나로 이어 붙여 답변만 모은
+/// 답변을 녹음하는 동안 얼굴을 주기적으로 캡처하고, 통화 종료 시 차례별 녹음을 이어 붙여
 /// 원문과 함께 draft에 싣는다. 처리 화면은 원문이 이미 있으니 STT를 다시 부르지
 /// 않고 감정 분석만 한다 — 추가 질문에 대한 답도 분석에 들어간다.
 class DiaryStep1LiveScreen extends ConsumerStatefulWidget {
@@ -44,6 +47,59 @@ class DiaryStep1LiveScreen extends ConsumerStatefulWidget {
 
 class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   final _cameraKey = GlobalKey<CameraSelfViewState>();
+  final Map<String, List<({String path, int timeMs})>> _turnFaces = {};
+  final List<({String path, int timeMs})> _currentFaces = [];
+  Timer? _faceTimer;
+  Future<void>? _faceCapture;
+  Stopwatch? _turnClock;
+  bool _handedToDraft = false;
+
+  @override
+  void dispose() {
+    _faceTimer?.cancel();
+    if (!_handedToDraft) {
+      for (final face in [
+        ..._currentFaces,
+        for (final faces in _turnFaces.values) ...faces,
+      ]) {
+        unawaited(_deleteCapture(face.path));
+      }
+    }
+    super.dispose();
+  }
+
+  Future<void> _deleteCapture(String path) async {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // Temporary image was already removed.
+    }
+  }
+
+  Future<void> _captureFace() =>
+      _faceCapture ??= _takeFace().whenComplete(() => _faceCapture = null);
+
+  Future<void> _takeFace() async {
+    final savedCount = _turnFaces.values.fold<int>(
+      0,
+      (total, faces) => total + faces.length,
+    );
+    if (!_recording || savedCount + _currentFaces.length >= 400) return;
+    final photo = await _cameraKey.currentState?.takePicture();
+    if (photo == null) return;
+    if (!mounted || !_recording) {
+      try {
+        await File(photo.path).delete();
+      } on FileSystemException {
+        // Capture was already removed while leaving the screen.
+      }
+      return;
+    }
+    _currentFaces.add((
+      path: photo.path,
+      timeMs: _turnClock?.elapsedMilliseconds ?? 0,
+    ));
+  }
 
   /// 녹음 중 — 마이크 버튼으로 켜고 끈다.
   bool _recording = false;
@@ -109,14 +165,31 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
       return;
     }
     setState(() => _recording = true);
+    _currentFaces.clear();
+    _turnClock = Stopwatch()..start();
+    _faceTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _captureFace(),
+    );
   }
 
   /// 녹음을 멈추고 원문으로 옮긴다. 옮기지 못하면 null — 그 차례는 버린다.
   Future<({String path, String text})?> _finishTurn() async {
+    _faceTimer?.cancel();
+    await _faceCapture;
+    _turnClock?.stop();
     final path = await ref.read(audioRecorderProvider).stop();
     if (!mounted) return null;
     setState(() => _recording = false);
     if (path == null) {
+      for (final face in _currentFaces) {
+        try {
+          await File(face.path).delete();
+        } on FileSystemException {
+          /* temporary image already gone */
+        }
+      }
+      _currentFaces.clear();
       _showMessage('녹음을 가져오지 못했어요. 다시 한 번 눌러주세요.');
       return null;
     }
@@ -130,6 +203,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
         _showMessage('말소리를 알아듣지 못했어요. 조금 더 또박또박 말해주세요.');
         return null;
       }
+      _turnFaces[path] = List.of(_currentFaces);
+      _currentFaces.clear();
       return (path: path, text: text.trim());
     } on AppException catch (e) {
       // 서버가 재녹음 안내 문구를 내려준다 — 있으면 그대로 보여준다.
@@ -139,6 +214,14 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
       _showMessage('음성을 옮기지 못했어요. 잠시 후 다시 시도해주세요.');
       return null;
     } finally {
+      for (final face in _currentFaces) {
+        try {
+          await File(face.path).delete();
+        } on FileSystemException {
+          /* temporary image already gone */
+        }
+      }
+      _currentFaces.clear();
       if (mounted) setState(() => _transcribing = false);
     }
   }
@@ -150,7 +233,10 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
     // 정지 이미지 캡처를 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이
     // 바뀌는 걸 방지(baseline 측정과 같은 순서).
-    final photo = await _cameraKey.currentState?.takePicture();
+    if (_recording) await _captureFace();
+    final photo = _recording
+        ? null
+        : await _cameraKey.currentState?.takePicture();
     if (_recording) {
       final turn = await _finishTurn();
       if (turn != null && mounted) {
@@ -189,14 +275,39 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
     // 새 녹음 경로가 이전 원문·요약·분석 결과를 지우므로 원문과 요약은 그 뒤에 싣는다.
     final draft = ref.read(diaryDraftProvider.notifier);
-    if (photo != null) draft.setFaceImagePath(photo.path);
+    final facePaths = <String>[];
+    final faceTimes = <int>[];
+    var offsetMs = 0;
+    for (final path in interview.recordingPaths) {
+      for (final face
+          in _turnFaces[path] ?? const <({String path, int timeMs})>[]) {
+        facePaths.add(face.path);
+        faceTimes.add(offsetMs + face.timeMs);
+      }
+      offsetMs += await WavMerger.durationMs(path);
+    }
     draft
       ..setRecordingPath(recordingPath)
       ..setTranscript(interview.transcript)
       ..setInterviewMessages(interview.messages);
+    if (facePaths.isNotEmpty) {
+      draft.setFaceTimeline(facePaths, faceTimes);
+      if (photo != null) {
+        try {
+          await File(photo.path).delete();
+        } on FileSystemException {
+          /* temporary image already gone */
+        }
+      }
+    } else if (photo != null) {
+      draft.setFaceImagePath(photo.path);
+    } else {
+      draft.clearFace();
+    }
     final summary = interview.summary;
     if (summary != null) draft.setSummary(summary);
-    context.pushReplacementNamed(AppRoute.diaryStep1Processing);
+    _handedToDraft = true;
+    if (mounted) context.pushReplacementNamed(AppRoute.diaryStep1Processing);
   }
 
   Future<void> _toggleSpeaker() async {
@@ -207,7 +318,9 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// 새로 도착한 탄카츄의 말만 읽는다 — 화면이 다시 그려질 때마다 반복해서

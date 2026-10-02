@@ -9,6 +9,16 @@ import 'package:path_provider/path_provider.dart';
 /// 같은 `AudioRecorderService` 설정으로 녹음한 파일이라 형식(fmt)이 같아야 한다.
 /// 다르면 [FormatException] — 샘플레이트가 다른 PCM을 이으면 소리가 망가진다.
 abstract final class WavMerger {
+  /// Actual PCM duration, used to place per-turn photos on the merged audio timeline.
+  static Future<int> durationMs(String path) async {
+    final wav = _parse(await File(path).readAsBytes());
+    final format = ByteData.sublistView(wav.format);
+    if (wav.format.length < 16) throw const FormatException('invalid WAV fmt');
+    final bytesPerSecond = format.getUint32(8, Endian.little);
+    if (bytesPerSecond == 0) throw const FormatException('invalid WAV rate');
+    return (wav.data.length * 1000 / bytesPerSecond).round();
+  }
+
   /// [paths]를 순서대로 이어 `<tmp>/<fileName>.wav`로 쓰고 경로를 돌려준다.
   /// 파일이 하나면 복사하지 않고 그 경로를 그대로 돌려준다.
   static Future<String> mergeFiles(
@@ -16,7 +26,9 @@ abstract final class WavMerger {
     required String fileName,
   }) async {
     if (paths.length == 1) return paths.single;
-    final merged = merge([for (final path in paths) await File(path).readAsBytes()]);
+    final merged = merge([
+      for (final path in paths) await File(path).readAsBytes(),
+    ]);
     final dir = await getTemporaryDirectory();
     final output = File('${dir.path}/$fileName.wav');
     await output.writeAsBytes(merged, flush: true);
