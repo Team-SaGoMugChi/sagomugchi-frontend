@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,10 +39,12 @@ class _BaselineMeasuringScreenState
     extends ConsumerState<BaselineMeasuringScreen> {
   final _cameraKey = GlobalKey<CameraSelfViewState>();
   bool _advanced = false;
+  bool _aborted = false;
   bool _recording = false;
   ConversationTurn? _turn;
   Timer? _faceCaptureTimer;
   Future<void>? _faceCapture;
+  Stopwatch? _recordingClock;
 
   // 실제 baseline 음성 녹음이 화면 전체에서 계속 돌아가고 있어서, 여기서는
   // (튜토리얼 연습 화면과 달리) STT로 "말이 끝났는지"를 감지하지 않는다 —
@@ -81,13 +84,15 @@ class _BaselineMeasuringScreenState
       return;
     }
     setState(() => _recording = true);
+    _recordingClock = Stopwatch()..start();
     _faceCaptureTimer = Timer.periodic(
-      const Duration(minutes: 1),
+      const Duration(seconds: 1),
       (_) => _captureFace(),
     );
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
+      speakPrompt: _speakWithoutRecording,
     );
     _conversation = conversation;
     await conversation.run(
@@ -98,8 +103,67 @@ class _BaselineMeasuringScreenState
       },
     );
     if (!mounted || _advanced) return;
-    await ref.read(ttsServiceProvider).speak('감사합니다, 측정을 마칠게요.');
+    const closing = '감사합니다, 측정을 마칠게요.';
+    setState(
+      () => _turn = const ConversationTurn(caption: closing, speaking: true),
+    );
+    await _speakWithoutRecording(closing);
+    if (!mounted || _advanced) return;
+    setState(
+      () => _turn = const ConversationTurn(caption: closing, speaking: false),
+    );
     await _advance();
+  }
+
+  /// 앱 안내 음성이 사용자 음성 기준값에 섞이지 않게 녹음을 일시정지한다.
+  /// 일시정지에 실패하면 음성 재생을 생략하고 화면의 질문 자막만 보여준다.
+  Future<void> _speakWithoutRecording(String prompt) async {
+    if (!mounted || _advanced) return;
+    final recorder = ref.read(audioRecorderProvider);
+    final paused = await recorder.pause();
+    if (!paused) return;
+    _recordingClock?.stop();
+    try {
+      if (mounted && !_advanced) {
+        await ref.read(ttsServiceProvider).speak(prompt);
+      }
+    } finally {
+      if (mounted && !_advanced) {
+        final resumed = await recorder.resume();
+        if (resumed) {
+          _recordingClock?.start();
+        } else {
+          await _abortMeasurement();
+        }
+      }
+    }
+  }
+
+  Future<void> _abortMeasurement() async {
+    if (_advanced || !mounted) return;
+    _aborted = true;
+    setState(() {
+      _advanced = true;
+      _recording = false;
+    });
+    _conversation?.stop();
+    _faceCaptureTimer?.cancel();
+    _recordingClock?.stop();
+    final images = ref.read(baselineFaceFramesProvider);
+    final audio = await ref.read(audioRecorderProvider).stop();
+    ref.read(baselineUploadControllerProvider.notifier).startMeasurement();
+    for (final path in [...images, ?audio]) {
+      try {
+        await File(path).delete();
+      } on FileSystemException {
+        // 임시 파일이 이미 정리된 경우.
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('녹음을 다시 시작하지 못했어요. 측정을 다시 진행해주세요.')),
+    );
+    context.pushReplacementNamed(AppRoute.baselineReady);
   }
 
   @override
@@ -115,9 +179,28 @@ class _BaselineMeasuringScreenState
       .whenComplete(() => _faceCapture = null);
 
   Future<void> _takeAndSaveFace() async {
+    if (_turn?.speaking ?? false) return;
+    if (ref.read(baselineFaceFramesProvider).length >=
+        BaselineFaceFrames.maxFrameCount) {
+      return;
+    }
     final photo = await _cameraKey.currentState?.takePicture();
-    if (!mounted || photo == null) return;
-    ref.read(baselineFaceFramesProvider.notifier).add(photo.path);
+    if (photo == null) return;
+    if (!mounted || _aborted) {
+      try {
+        await File(photo.path).delete();
+      } on FileSystemException {
+        // 임시 사진이 이미 정리된 경우.
+      }
+      return;
+    }
+    ref
+        .read(baselineFaceFramesProvider.notifier)
+        .add(
+          photo.path,
+          timestampMs: _recordingClock?.elapsedMilliseconds,
+          promptSpeaking: _turn?.speaking ?? false,
+        );
     ref.read(baselineFaceImageProvider.notifier).set(photo.path);
   }
 
@@ -129,10 +212,12 @@ class _BaselineMeasuringScreenState
     });
     _conversation?.stop();
     _faceCaptureTimer?.cancel();
+    await ref.read(ttsServiceProvider).stop();
 
-    // 측정 중에는 1분마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
+    // 측정 중에는 1초마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
     final recorder = ref.read(audioRecorderProvider);
     await _captureFace();
+    _recordingClock?.stop();
     final path = await recorder.stop();
     if (!mounted) return;
 

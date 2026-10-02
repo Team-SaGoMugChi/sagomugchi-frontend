@@ -36,19 +36,25 @@ class AudioRecorderService {
   }
 
   /// 녹음 일시정지 (마이크 음소거 버튼용). 실패는 조용히 무시.
-  Future<void> pause() async {
-    if (!_recording) return;
+  Future<bool> pause() async {
+    if (!_recording) return false;
     try {
       await _recorder.pause();
-    } catch (_) {}
+      return await _recorder.isPaused();
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 일시정지된 녹음 재개.
-  Future<void> resume() async {
-    if (!_recording) return;
+  Future<bool> resume() async {
+    if (!_recording) return false;
     try {
       await _recorder.resume();
-    } catch (_) {}
+      return !await _recorder.isPaused();
+    } catch (_) {
+      return false;
+    }
   }
 
   /// dBFS 진폭 스트림(대략 -160=무음 ~ 0=최대) — 별도 STT 엔진 없이 "지금

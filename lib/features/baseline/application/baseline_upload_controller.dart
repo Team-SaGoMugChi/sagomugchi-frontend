@@ -39,6 +39,7 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
     final voicePath = ref.read(baselineRecordingProvider);
     final facePath = ref.read(baselineFaceImageProvider);
     final facePaths = ref.read(baselineFaceFramesProvider);
+    final faceFrames = ref.read(baselineFaceFramesProvider.notifier);
     final capturedFaces = facePaths.isNotEmpty ? facePaths : [?facePath];
 
     if (voicePath == null || voicePath.isEmpty || capturedFaces.isEmpty) {
@@ -60,6 +61,8 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
             voiceFilePath: voicePath,
             faceImagePath: capturedFaces.first,
             faceImagePaths: capturedFaces,
+            faceTimestampsMs: faceFrames.timestampsMs,
+            facePromptFlags: faceFrames.promptFlags,
           );
     });
     if (ref.mounted && submission == _submission) {

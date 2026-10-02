@@ -17,10 +17,15 @@ export 'guided_conversation_controller.dart' show ConversationTurn;
 /// [budget] 시간을 채우거나 [prompts]를 다 쓰면 멈춘다 — 실제로 얼마나
 /// 오래 이야기하는지에 따라 몇 개 질문까지 갈지 자연스럽게 달라진다.
 class AmplitudePacedConversationController {
-  AmplitudePacedConversationController(this._tts, this._amplitude);
+  AmplitudePacedConversationController(
+    this._tts,
+    this._amplitude, {
+    Future<void> Function(String prompt)? speakPrompt,
+  }) : _speakPrompt = speakPrompt;
 
   final TtsService _tts;
   final Stream<double> _amplitude;
+  final Future<void> Function(String prompt)? _speakPrompt;
 
   // record 패키지의 dBFS 범위는 대략 -160(무음)~0(최대). 실기기 배경 잡음
   // 바닥을 감안해 -35dB를 "말하는 중" 문턱으로 잡았다(조용한 실내 기준
@@ -45,10 +50,10 @@ class AmplitudePacedConversationController {
     for (final prompt in prompts) {
       if (_stopped || elapsed.elapsed >= budget) break;
       onTurn(ConversationTurn(caption: prompt, speaking: true));
-      await _tts.speak(prompt);
+      await (_speakPrompt?.call(prompt) ?? _tts.speak(prompt));
       if (_stopped) break;
 
-      onTurn(const ConversationTurn(caption: '편하게 이야기해주세요.', speaking: false));
+      onTurn(ConversationTurn(caption: prompt, speaking: false));
       await _waitForPause();
     }
   }

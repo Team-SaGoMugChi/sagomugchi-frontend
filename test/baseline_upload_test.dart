@@ -27,6 +27,8 @@ final _profile = BaselineProfile(
 class _Repository implements BaselineRepository {
   int calls = 0;
   List<String> expectedFaces = const ['face.jpg'];
+  List<int> expectedTimes = const [];
+  List<bool> expectedPromptFlags = const [];
   Future<BaselineProfile> Function() response = () async => _profile;
 
   @override
@@ -34,11 +36,15 @@ class _Repository implements BaselineRepository {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) {
     calls++;
     expect(voiceFilePath, 'voice.wav');
     expect(faceImagePath, expectedFaces.first);
     expect(faceImagePaths, expectedFaces);
+    expect(faceTimestampsMs, expectedTimes);
+    expect(facePromptFlags, expectedPromptFlags);
     return response();
   }
 
@@ -51,6 +57,7 @@ class _Client implements ApiClient {
   int? featureVersion;
   Duration? receiveTimeout;
   List<String> expectedFaces = const ['face.jpg'];
+  String? expectedTimeline;
 
   @override
   Future<Map<String, dynamic>> postMultipart(
@@ -61,7 +68,11 @@ class _Client implements ApiClient {
     Duration? receiveTimeout,
   }) async {
     expect(path, '/baseline');
-    expect(fields, {'user_id': 'user-1'});
+    final expectedFields = {'user_id': 'user-1'};
+    if (expectedTimeline != null) {
+      expectedFields['face_timeline'] = expectedTimeline!;
+    }
+    expect(fields, expectedFields);
     expect(filePaths, {'voice_file': 'voice.wav'});
     expect(fileListPaths, {'face_images': expectedFaces});
     this.receiveTimeout = receiveTimeout;
@@ -177,9 +188,11 @@ void main() {
     test('multiple face captures remain available for retry', () async {
       container.read(baselineRecordingProvider.notifier).set('voice.wav');
       container.read(baselineFaceFramesProvider.notifier)
-        ..add('first.jpg')
-        ..add('last.jpg');
+        ..add('first.jpg', timestampMs: 1000)
+        ..add('last.jpg', timestampMs: 2000, promptSpeaking: true);
       repository.expectedFaces = const ['first.jpg', 'last.jpg'];
+      repository.expectedTimes = const [1000, 2000];
+      repository.expectedPromptFlags = const [false, true];
       repository.response = () async => throw const NetworkException();
       await controller.submit();
       expect(
@@ -214,11 +227,14 @@ void main() {
 
     test('sends repeated face image fields', () async {
       client.expectedFaces = const ['first.jpg', 'last.jpg'];
+      client.expectedTimeline = '1000,0;2000,1';
       await BaselineApi(client).upload(
         userId: 'user-1',
         voiceFilePath: 'voice.wav',
         faceImagePath: 'first.jpg',
         faceImagePaths: client.expectedFaces,
+        faceTimestampsMs: const [1000, 2000],
+        facePromptFlags: const [false, true],
       );
     });
 
@@ -234,6 +250,7 @@ void main() {
       'voice_not_detected',
       'invalid_face_image',
       'face_not_detected',
+      'invalid_face_timeline',
     ]) {
       test('$code asks for a fresh measurement', () async {
         final request = RequestOptions(path: '/baseline');
