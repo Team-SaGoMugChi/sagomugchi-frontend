@@ -18,11 +18,23 @@ class BaselineApi {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) async {
     try {
       final json = await _client.postMultipart(
         '/baseline',
-        fields: {'user_id': userId},
+        fields: {
+          'user_id': userId,
+          if (faceImagePaths.isNotEmpty &&
+              faceTimestampsMs.length == faceImagePaths.length &&
+              facePromptFlags.length == faceImagePaths.length)
+            'face_timeline': List.generate(
+              faceImagePaths.length,
+              (index) =>
+                  '${faceTimestampsMs[index]},${facePromptFlags[index] ? 1 : 0}',
+            ).join(';'),
+        },
         filePaths: {'voice_file': voiceFilePath},
         fileListPaths: {
           'face_images': faceImagePaths.isEmpty
@@ -53,6 +65,7 @@ class BaselineApi {
               'invalid_face_image',
               'face_not_detected',
               'face_analysis_unavailable',
+              'invalid_face_timeline',
             }.contains(detail['code']) &&
             detail['message'] is String) {
           throw BaselineMeasurementException(

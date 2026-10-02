@@ -24,10 +24,14 @@ class BaselineFileDataSource implements BaselineDataSource {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) => _uploader.upload(
     voiceFilePath: voiceFilePath,
     faceImagePath: faceImagePath,
     faceImagePaths: faceImagePaths,
+    faceTimestampsMs: faceTimestampsMs,
+    facePromptFlags: facePromptFlags,
   );
 
   @override

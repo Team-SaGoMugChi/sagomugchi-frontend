@@ -7,11 +7,11 @@
 ### 2026-10-02 베이스라인 다중 얼굴 프레임 마무리
 
 - 팀 이슈: 프론트 [#50](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/50), 백엔드 [#54](https://github.com/Team-SaGoMugChi/sagomugchi-backend/issues/54). 각각 최신 팀 `develop`에서 `50-baseline-multiframe`, `54-baseline-multiframe` 브랜치를 만들었다.
-- 프론트는 베이스라인 녹음 중 1분마다 얼굴 사진을 수집하고 종료 직전 한 장을 더 촬영한다(최대 8장). 사진 경로를 동일 계정의 로컬 재시도 상태에 보존하고, 서버 저장 성공 후 경로와 업로드한 임시 파일을 정리한다. 기존 단일 사진 재시도 데이터도 읽는다. `/baseline`에는 반복 `face_images` multipart 필드로 전달한다.
-- 백엔드는 기존 단일 `face_image`와 새 다중 `face_images` 요청을 모두 받는다. 첫 사진에 얼굴이 없더라도 후속 사진에서 사용 가능한 얼굴 비율을 찾고, AU 9종의 로그 평균·표준편차는 수집된 프레임 전체로 계산한다. Step2도 다중 얼굴 사진을 받을 수 있다. 저장 스키마의 `featureVersion: 2`는 유지한다.
-- 검증: Flutter 전체 테스트 162개 통과, `flutter analyze` 문제 없음, `dart fix --apply` 수정 없음. 백엔드 전체 테스트 287개 통과·3개 선택 테스트 건너뜀, 두 저장소 `git diff --check` 통과. 이번 기기 조회에는 연결된 Android 기기가 없어 새 다중 프레임 실측·Firestore 재조회는 미완료다.
+- 프론트는 베이스라인 녹음 중 1초마다 얼굴 사진을 시도하고 종료 직전 한 장을 더 촬영한다(최대 400장, 6분 측정이면 최대 약 360장). 카메라 촬영 속도에 따라 실제 장수는 달라진다. 사진별 녹음 기준 시각과 앱 안내 음성 재생 여부를 함께 저장해 재시도에도 보존하고, `/baseline`의 반복 `face_images` 및 `face_timeline` 필드로 전달한다. 기존 단일 사진 재시도 데이터도 읽는다. 서버 저장 성공 뒤 경로와 업로드한 임시 파일을 정리한다.
+- 백엔드는 기존 단일 `face_image`와 새 다중 `face_images` 요청을 모두 받는다. 첫 사진에 얼굴이 없더라도 후속 사진에서 사용 가능한 얼굴 비율을 찾고, AU 9종의 로그 평균·표준편차는 수집된 프레임 전체로 계산한다. `face_timeline`이 있으면 안내 음성 중의 프레임을 제외하고 촬영 시각 주변 0.5초의 pYIN 유성 비율로 사용자 발화·무음 프레임 수와 각 그룹의 AU 통계를 별도로 저장한다. 그룹별 수치는 현행 감정 융합에는 아직 반영하지 않는다. Step2도 다중 얼굴 사진을 받을 수 있다. 저장 스키마의 `featureVersion: 2`는 유지한다.
+- 검증: 1초 촬영·음성 구간 연동 수정 후 Flutter 전체 테스트 163개, 백엔드 294개 통과·3개 선택 테스트 건너뜀. `flutter analyze` 문제 없음. 이번 기기 조회에는 연결된 Android 기기가 없어 실제 촬영 장수·음성 구간 정합성·Firestore 재조회는 미완료다.
 - 백엔드 커밋 `aa0b61f`와 [PR #55](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/55), 프론트 구현 커밋 `43ea373`과 [PR #51](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/51)을 게시했다. 둘 다 base는 `develop`이며 **PR 게시 상태이고 develop에 병합하지 않았다**. 백엔드 PR을 먼저 병합한 뒤 프론트 PR을 병합해야 한다.
-- 후속: 실기기에서 새 측정의 `auFrameCount`·`auTotalFrames`와 앱 재시작 후 저장 결과를 확인한다. 개인 측정 원값과 사용자 ID는 기록하지 않는다.
+- 후속: 실기기에서 새 측정의 실제 촬영 장수, 발화·무음 그룹 구분, 업로드 크기·시간, 앱 재시작 후 저장 결과를 확인한다. pYIN 유성 여부는 무성 자음에서 오분류될 수 있으므로 실제 음성과 비교해 경계 오분류를 확인해야 한다. 개인 측정 원값과 사용자 ID는 기록하지 않는다.
 
 ### 2026-10-02 팀 Git 최신화
 

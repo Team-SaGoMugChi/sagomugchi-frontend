@@ -42,6 +42,7 @@ class _BaselineMeasuringScreenState
   ConversationTurn? _turn;
   Timer? _faceCaptureTimer;
   Future<void>? _faceCapture;
+  Stopwatch? _recordingClock;
 
   // 실제 baseline 음성 녹음이 화면 전체에서 계속 돌아가고 있어서, 여기서는
   // (튜토리얼 연습 화면과 달리) STT로 "말이 끝났는지"를 감지하지 않는다 —
@@ -81,8 +82,9 @@ class _BaselineMeasuringScreenState
       return;
     }
     setState(() => _recording = true);
+    _recordingClock = Stopwatch()..start();
     _faceCaptureTimer = Timer.periodic(
-      const Duration(minutes: 1),
+      const Duration(seconds: 1),
       (_) => _captureFace(),
     );
     final conversation = AmplitudePacedConversationController(
@@ -115,9 +117,19 @@ class _BaselineMeasuringScreenState
       .whenComplete(() => _faceCapture = null);
 
   Future<void> _takeAndSaveFace() async {
+    if (ref.read(baselineFaceFramesProvider).length >=
+        BaselineFaceFrames.maxFrameCount) {
+      return;
+    }
     final photo = await _cameraKey.currentState?.takePicture();
     if (!mounted || photo == null) return;
-    ref.read(baselineFaceFramesProvider.notifier).add(photo.path);
+    ref
+        .read(baselineFaceFramesProvider.notifier)
+        .add(
+          photo.path,
+          timestampMs: _recordingClock?.elapsedMilliseconds,
+          promptSpeaking: _turn?.speaking ?? false,
+        );
     ref.read(baselineFaceImageProvider.notifier).set(photo.path);
   }
 
@@ -130,9 +142,10 @@ class _BaselineMeasuringScreenState
     _conversation?.stop();
     _faceCaptureTimer?.cancel();
 
-    // 측정 중에는 1분마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
+    // 측정 중에는 1초마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
     final recorder = ref.read(audioRecorderProvider);
     await _captureFace();
+    _recordingClock?.stop();
     final path = await recorder.stop();
     if (!mounted) return;
 

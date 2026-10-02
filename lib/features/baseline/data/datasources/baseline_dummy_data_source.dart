@@ -9,6 +9,8 @@ class BaselineDummyDataSource implements BaselineDataSource {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return BaselineProfile(
