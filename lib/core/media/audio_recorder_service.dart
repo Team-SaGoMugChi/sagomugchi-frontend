@@ -40,7 +40,7 @@ class AudioRecorderService {
     if (!_recording) return false;
     try {
       await _recorder.pause();
-      return true;
+      return await _recorder.isPaused();
     } catch (_) {
       return false;
     }
@@ -51,7 +51,7 @@ class AudioRecorderService {
     if (!_recording) return false;
     try {
       await _recorder.resume();
-      return true;
+      return !await _recorder.isPaused();
     } catch (_) {
       return false;
     }
