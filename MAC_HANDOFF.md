@@ -4,6 +4,22 @@
 
 ## 가장 먼저 알아야 할 점
 
+### 2026-10-02 베이스라인 다중 얼굴 프레임 마무리
+
+- 팀 이슈: 프론트 [#50](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/50), 백엔드 [#54](https://github.com/Team-SaGoMugChi/sagomugchi-backend/issues/54). 각각 최신 팀 `develop`에서 `50-baseline-multiframe`, `54-baseline-multiframe` 브랜치를 만들었다.
+- 프론트는 베이스라인 녹음 중 1분마다 얼굴 사진을 수집하고 종료 직전 한 장을 더 촬영한다(최대 8장). 사진 경로를 동일 계정의 로컬 재시도 상태에 보존하고, 서버 저장 성공 후 경로와 업로드한 임시 파일을 정리한다. 기존 단일 사진 재시도 데이터도 읽는다. `/baseline`에는 반복 `face_images` multipart 필드로 전달한다.
+- 백엔드는 기존 단일 `face_image`와 새 다중 `face_images` 요청을 모두 받는다. 첫 사진에 얼굴이 없더라도 후속 사진에서 사용 가능한 얼굴 비율을 찾고, AU 9종의 로그 평균·표준편차는 수집된 프레임 전체로 계산한다. Step2도 다중 얼굴 사진을 받을 수 있다. 저장 스키마의 `featureVersion: 2`는 유지한다.
+- 검증: Flutter 전체 테스트 162개 통과, `flutter analyze` 문제 없음, `dart fix --apply` 수정 없음. 백엔드 전체 테스트 287개 통과·3개 선택 테스트 건너뜀, 두 저장소 `git diff --check` 통과. 이번 기기 조회에는 연결된 Android 기기가 없어 새 다중 프레임 실측·Firestore 재조회는 미완료다.
+- 백엔드 커밋 `aa0b61f`와 [PR #55](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/55), 프론트 구현 커밋 `43ea373`과 [PR #51](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/51)을 게시했다. 둘 다 base는 `develop`이며 **PR 게시 상태이고 develop에 병합하지 않았다**. 백엔드 PR을 먼저 병합한 뒤 프론트 PR을 병합해야 한다.
+- 후속: 실기기에서 새 측정의 `auFrameCount`·`auTotalFrames`와 앱 재시작 후 저장 결과를 확인한다. 개인 측정 원값과 사용자 ID는 기록하지 않는다.
+
+### 2026-10-02 팀 Git 최신화
+
+- 프론트 팀 원격 `teamfront/develop`을 fetch한 뒤 로컬 `frontend-develop`을 fast-forward했다. 양쪽 HEAD는 `2921c74`로 같다. 기존 `34-baseline-contract`의 변경은 팀 `develop`에 병합되어 있다. 현재 작업 트리에는 추적되지 않은 개인 로컬 설정 `.claude/settings.local.json`만 남아 있으며 건드리지 않았다.
+- 별도 실제 백엔드 저장소 `C:/Users/hk976/Oddo_app_backend`의 `origin/develop`을 fetch하고 로컬 `develop`을 fast-forward했다. 양쪽 HEAD는 `5006772`로 같다.
+- 백엔드의 미커밋 다중 얼굴 프레임 작업 6개 파일은 갱신 전에 `stash@{0}` (`preserve multi-frame baseline work before 2026-10-02 sync`)에 보존했다. 원래 브랜치는 `31-baseline-multimodal-contract`이며, 위 새 이슈 브랜치에 적용·보완해 커밋했다. 복구용 stash는 그대로 보존했다.
+- 이 단계는 원격에 이미 병합된 커밋을 로컬로 동기화한 것이며, 새 구현은 위 이슈 브랜치에서 진행했다.
+
 ### 2026-09-26 최신화 및 연결 검증
 
 - **2026-09-27 베이스라인 업로드 복구·v2 실측 성공:** 측정 음성·얼굴 파일 경로와 소유 계정을 기기 로컬에 임시 보존하고, 같은 계정의 베이스라인 안내 화면과 홈 팝업에서 `이전 측정 다시 저장하기`로 재전송하도록 수정했다. 다른 계정에는 노출하지 않으며 서버 저장 성공 뒤 임시 경로를 삭제한다. 6분 음성 구간 분석이 기존 60초 제한을 넘겨 앱이 먼저 연결 실패로 처리하던 문제는 베이스라인 요청만 5분간 기다리도록 고쳤다. 새 APK에서 보존 파일 재전송, 백엔드 200 응답, 앱 완료 화면의 실제 측정 시각과 얼굴·음성 저장 완료 표시까지 확인했다. 정적 분석과 Flutter 전체 테스트 105개를 통과했다.
