@@ -40,12 +40,16 @@ class BaselineRemoteDataSource implements BaselineDataSource {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) async {
     return BaselineApi(_apiClient).upload(
       userId: _uid,
       voiceFilePath: voiceFilePath,
       faceImagePath: faceImagePath,
       faceImagePaths: faceImagePaths,
+      faceTimestampsMs: faceTimestampsMs,
+      facePromptFlags: facePromptFlags,
     );
   }
 

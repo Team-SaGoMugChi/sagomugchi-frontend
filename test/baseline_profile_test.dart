@@ -42,6 +42,8 @@ class _Repository implements BaselineRepository {
     required String voiceFilePath,
     required String faceImagePath,
     List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
+    List<bool> facePromptFlags = const [],
   }) => upload();
 }
 

@@ -94,7 +94,7 @@ users/{uid}                              ← AppUser        (계정 프로필)
 |---|---|---|
 | `voice` | map<string,double> | 기존 6개 음성값과 3초 유성 구간의 `window*Mean`, `window*Std`, `windowCount`, `windowUsedCount`. v2 멀티모달 z-score 기준값 |
 | `featureVersion` | int | 신규 측정은 2. 필드 없는 과거 데이터는 버전 0, 이전 6개 음성·4개 얼굴 계약은 버전 1로 취급하며 Step2 전 재측정 필요. API 이름은 `feature_version` |
-| `face` | map<string,double> | 기존 얼굴 비율 4개와 AU 9종의 `au*LogMean`, `au*LogStd`, `auFrameCount`, `auTotalFrames`. 신규 측정은 녹음 중 여러 시점의 사진(최대 8장)을 분석해 AU 통계를 만든다. |
+| `face` | map<string,double> | 기존 얼굴 비율 4개와 AU 9종의 `au*LogMean`, `au*LogStd`, `auFrameCount`, `auTotalFrames`. 신규 측정은 녹음 중 1초 간격의 사진(최대 400장)을 분석한다. 녹음 기준 촬영 시각과 안내 음성 재생 여부가 있을 때는 촬영 시각 주변 0.5초의 pYIN 유성 비율로 사용자 발화·무음 프레임을 나누어 `speakingFrameCount`, `silentFrameCount`와 각 그룹의 AU 로그 평균·표준편차도 추가한다. 안내 음성 중의 프레임은 두 그룹에서 제외한다. 그룹별 수치는 현재 감정 융합 계산에는 아직 사용하지 않는다. |
 | `measuredAt` | string(ISO) | 측정 시각 |
 
 > 키를 고정하지 않고 map으로 둔 이유: 음성/표정 특징 항목은 AI 서버(Phase 4)가 결정하며,
