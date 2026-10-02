@@ -11,6 +11,9 @@ import 'datasources/diary_analysis_face_file_data_source.dart';
 import 'datasources/diary_analysis_remote_data_source.dart';
 import 'datasources/diary_data_source.dart';
 import 'datasources/diary_dummy_data_source.dart';
+import 'datasources/diary_handoff_data_source.dart';
+import 'datasources/diary_handoff_dummy_data_source.dart';
+import 'datasources/diary_handoff_remote_data_source.dart';
 import 'datasources/diary_interview_data_source.dart';
 import 'datasources/diary_interview_dummy_data_source.dart';
 import 'datasources/diary_interview_remote_data_source.dart';
@@ -25,6 +28,8 @@ import 'repositories/counsel_repository.dart';
 import 'repositories/counsel_repository_impl.dart';
 import 'repositories/diary_analysis_repository.dart';
 import 'repositories/diary_analysis_repository_impl.dart';
+import 'repositories/diary_handoff_repository.dart';
+import 'repositories/diary_handoff_repository_impl.dart';
 import 'repositories/diary_interview_repository.dart';
 import 'repositories/diary_interview_repository_impl.dart';
 import 'repositories/diary_repository.dart';
@@ -91,6 +96,20 @@ final diaryInterviewRepositoryProvider = Provider<DiaryInterviewRepository>((
   return DiaryInterviewRepositoryImpl(
     ref.watch(diaryInterviewDataSourceProvider),
   );
+});
+
+/// Swap point for 영상·상담 파트 전달 JSON (AI 서버 `POST /diary/handoff` +
+/// Firestore `users/{uid}/handoffs/{yyyy-MM-dd}`).
+final diaryHandoffDataSourceProvider = Provider<DiaryHandoffDataSource>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useDummyData) {
+    return DiaryHandoffDummyDataSource();
+  }
+  return DiaryHandoffRemoteDataSource(ref.watch(apiClientProvider));
+});
+
+final diaryHandoffRepositoryProvider = Provider<DiaryHandoffRepository>((ref) {
+  return DiaryHandoffRepositoryImpl(ref.watch(diaryHandoffDataSourceProvider));
 });
 
 /// The viewed date's diary entry (일기 상세, screen 48). Null = 기록 없음.

@@ -11,6 +11,7 @@ import '../data/models/fusion_result.dart';
 ///   답변). 감정 분석·영상·상담의 입력이라 다듬지 않는다.
 /// - [interviewMessages]: Step 1에서 탄카츄와 나눈 대화 전체 — 40번 "대화
 ///   내용 보기"와 일기 정제의 재료.
+/// - [interviewSlots]: 대화에서 채운 칸(육하원칙 + 기분) — 영상·상담 전달 JSON의 재료.
 /// - [diaryText]: 대화를 일기 한 편으로 정제한 글(`/diary/interview/refine`).
 ///   Step 2 (확인하기)에서 사용자가 고치면 그 값으로 바뀐다. 보여주기용이다.
 /// - [summary]: Step 1 대화(`/diary/interview/turn`)가 만든 일기 요약 —
@@ -29,6 +30,7 @@ class DiaryDraftState {
   const DiaryDraftState({
     this.transcript,
     this.interviewMessages = const [],
+    this.interviewSlots = const {},
     this.diaryText,
     this.summary,
     this.recordingPath,
@@ -40,6 +42,7 @@ class DiaryDraftState {
 
   final String? transcript;
   final List<InterviewMessage> interviewMessages;
+  final Map<String, String?> interviewSlots;
   final String? diaryText;
   final String? summary;
   final String? recordingPath;
@@ -51,6 +54,7 @@ class DiaryDraftState {
   DiaryDraftState copyWith({
     String? transcript,
     List<InterviewMessage>? interviewMessages,
+    Map<String, String?>? interviewSlots,
     String? diaryText,
     String? summary,
     String? recordingPath,
@@ -61,6 +65,7 @@ class DiaryDraftState {
   }) => DiaryDraftState(
     transcript: transcript ?? this.transcript,
     interviewMessages: interviewMessages ?? this.interviewMessages,
+    interviewSlots: interviewSlots ?? this.interviewSlots,
     diaryText: diaryText ?? this.diaryText,
     summary: summary ?? this.summary,
     recordingPath: recordingPath ?? this.recordingPath,
@@ -80,6 +85,9 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
 
   void setInterviewMessages(List<InterviewMessage> messages) =>
       state = state.copyWith(interviewMessages: List.unmodifiable(messages));
+
+  void setInterviewSlots(Map<String, String?> slots) =>
+      state = state.copyWith(interviewSlots: Map.unmodifiable(slots));
 
   void setDiaryText(String diaryText) =>
       state = state.copyWith(diaryText: diaryText);

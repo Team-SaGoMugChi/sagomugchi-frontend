@@ -193,7 +193,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
     draft
       ..setRecordingPath(recordingPath)
       ..setTranscript(interview.transcript)
-      ..setInterviewMessages(interview.messages);
+      ..setInterviewMessages(interview.messages)
+      ..setInterviewSlots(interview.slots);
     final summary = interview.summary;
     if (summary != null) draft.setSummary(summary);
     context.pushReplacementNamed(AppRoute.diaryStep1Processing);
