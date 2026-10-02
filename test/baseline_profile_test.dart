@@ -140,6 +140,13 @@ void main() {
       await localStore.setStringList(LocalStore.kBaselinePendingFacePaths, [
         face.path,
       ]);
+      await localStore.setStringList(LocalStore.kBaselinePendingFaceTimes, [
+        '1200',
+      ]);
+      await localStore.setStringList(
+        LocalStore.kBaselinePendingFacePromptFlags,
+        ['0'],
+      );
 
       final container = ProviderContainer(
         overrides: [
@@ -155,13 +162,61 @@ void main() {
       expect(container.read(baselineRecordingProvider), voice.path);
       expect(container.read(baselineFaceImageProvider), face.path);
       expect(container.read(baselineFaceFramesProvider), [face.path]);
+      expect(container.read(baselineFaceFramesProvider.notifier).timestampsMs, [
+        1200,
+      ]);
+      expect(container.read(baselineFaceFramesProvider.notifier).promptFlags, [
+        false,
+      ]);
 
       auth.enter('second');
       expect(container.read(baselineRecordingProvider), isNull);
       expect(container.read(baselineFaceImageProvider), isNull);
       expect(container.read(baselineFaceFramesProvider), isEmpty);
+      expect(
+        container.read(baselineFaceFramesProvider.notifier).timestampsMs,
+        isEmpty,
+      );
     },
   );
+
+  test('new face capture persists its recording time for retry', () async {
+    final directory = await Directory.systemTemp.createTemp('oddo-face-time-');
+    addTearDown(() => directory.delete(recursive: true));
+    final face = File('${directory.path}/face.jpg')..writeAsBytesSync([1]);
+    final first = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(_AuthController.new),
+        localStoreProvider.overrideWithValue(localStore),
+      ],
+    );
+    final firstAuth =
+        first.read(authControllerProvider.notifier) as _AuthController;
+    firstAuth.enter('first');
+    first
+        .read(baselineFaceFramesProvider.notifier)
+        .add(face.path, timestampMs: 1700, promptSpeaking: false);
+    await Future<void>.delayed(Duration.zero);
+    first.dispose();
+
+    final restored = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(_AuthController.new),
+        localStoreProvider.overrideWithValue(localStore),
+      ],
+    );
+    addTearDown(restored.dispose);
+    (restored.read(authControllerProvider.notifier) as _AuthController).enter(
+      'first',
+    );
+    expect(restored.read(baselineFaceFramesProvider), [face.path]);
+    expect(restored.read(baselineFaceFramesProvider.notifier).timestampsMs, [
+      1700,
+    ]);
+    expect(restored.read(baselineFaceFramesProvider.notifier).promptFlags, [
+      false,
+    ]);
+  });
 
   test('complete requires usable voice and face references', () {
     expect(_profile.isComplete, isTrue);
