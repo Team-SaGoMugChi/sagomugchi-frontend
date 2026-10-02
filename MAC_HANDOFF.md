@@ -15,8 +15,9 @@
 
 ### 2026-10-02 팀 Git 최신화
 
-- 프론트 팀 원격 `teamfront/develop`을 fetch한 뒤 로컬 `frontend-develop`을 fast-forward했다. 양쪽 HEAD는 `2921c74`로 같다. 기존 `34-baseline-contract`의 변경은 팀 `develop`에 병합되어 있다. 현재 작업 트리에는 추적되지 않은 개인 로컬 설정 `.claude/settings.local.json`만 남아 있으며 건드리지 않았다.
-- 별도 실제 백엔드 저장소 `C:/Users/hk976/Oddo_app_backend`의 `origin/develop`을 fetch하고 로컬 `develop`을 fast-forward했다. 양쪽 HEAD는 `5006772`로 같다.
+- 후속 확인에서 기존 다중 프레임 PR #51·#55가 각각 팀 `develop`에 병합된 것을 확인했다. 로컬 `frontend-develop`은 `teamfront/develop` `882cab3`, 로컬 백엔드 `develop`은 `origin/develop` `577027d`로 fast-forward했다. 후속 이슈 #52·#56 브랜치는 이 최신 `develop`을 조상으로 한다.
+- 최초 동기화 때 프론트 팀 원격 `teamfront/develop`을 fetch한 뒤 로컬 `frontend-develop`을 `2921c74`로 fast-forward했다. 기존 `34-baseline-contract`의 변경은 팀 `develop`에 병합되어 있다. 현재 작업 트리에는 추적되지 않은 개인 로컬 설정 `.claude/settings.local.json`만 남아 있으며 건드리지 않았다.
+- 최초 동기화 때 별도 실제 백엔드 저장소 `C:/Users/hk976/Oddo_app_backend`의 `origin/develop`을 fetch하고 로컬 `develop`을 `5006772`로 fast-forward했다.
 - 백엔드의 미커밋 다중 얼굴 프레임 작업 6개 파일은 갱신 전에 `stash@{0}` (`preserve multi-frame baseline work before 2026-10-02 sync`)에 보존했다. 원래 브랜치는 `31-baseline-multimodal-contract`이며, 위 새 이슈 브랜치에 적용·보완해 커밋했다. 복구용 stash는 그대로 보존했다.
 - 이 단계는 원격에 이미 병합된 커밋을 로컬로 동기화한 것이며, 새 구현은 위 이슈 브랜치에서 진행했다.
 
