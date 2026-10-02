@@ -21,6 +21,7 @@ class LocalStore {
   static const String kBaselinePendingOwner = 'baseline_pending_owner';
   static const String kBaselinePendingVoicePath = 'baseline_pending_voice_path';
   static const String kBaselinePendingFacePath = 'baseline_pending_face_path';
+  static const String kBaselinePendingFacePaths = 'baseline_pending_face_paths';
   static const String kBig5Progress = 'psych_big5_progress_v1';
 
   /// 일기 리마인더 알림 on/off (Phase 7 로컬 푸시의 스위치).

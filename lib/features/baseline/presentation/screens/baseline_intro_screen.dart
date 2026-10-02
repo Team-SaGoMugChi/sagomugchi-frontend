@@ -16,6 +16,7 @@ import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../../widgets/security_card.dart';
 import '../../../../widgets/tip_card.dart';
+import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
 import '../widgets/baseline_header.dart';
@@ -28,7 +29,8 @@ class BaselineIntroScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final hasPendingMeasurement =
         ref.watch(baselineRecordingProvider) != null &&
-        ref.watch(baselineFaceImageProvider) != null;
+        (ref.watch(baselineFaceImageProvider) != null ||
+            ref.watch(baselineFaceFramesProvider).isNotEmpty);
     return Scaffold(
       body: AppBackground(
         child: SafeArea(

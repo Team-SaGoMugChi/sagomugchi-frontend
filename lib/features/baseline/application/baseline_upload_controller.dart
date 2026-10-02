@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_controller.dart';
 import '../data/baseline_providers.dart';
 import '../data/models/baseline_measurement_exception.dart';
 import '../data/models/baseline_profile.dart';
+import 'baseline_face_frames_provider.dart';
 import 'baseline_face_image_provider.dart';
 import 'baseline_recording_provider.dart';
 
@@ -25,6 +29,7 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
     _submission++;
     ref.read(baselineRecordingProvider.notifier).clear();
     ref.read(baselineFaceImageProvider.notifier).clear();
+    ref.read(baselineFaceFramesProvider.notifier).clear();
     state = const AsyncData(null);
   }
 
@@ -33,11 +38,10 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
     final submission = ++_submission;
     final voicePath = ref.read(baselineRecordingProvider);
     final facePath = ref.read(baselineFaceImageProvider);
+    final facePaths = ref.read(baselineFaceFramesProvider);
+    final capturedFaces = facePaths.isNotEmpty ? facePaths : [?facePath];
 
-    if (voicePath == null ||
-        voicePath.isEmpty ||
-        facePath == null ||
-        facePath.isEmpty) {
+    if (voicePath == null || voicePath.isEmpty || capturedFaces.isEmpty) {
       state = AsyncError(
         const BaselineMeasurementException(
           '음성 또는 얼굴 데이터를 찾을 수 없어요. 측정을 다시 진행해주세요.',
@@ -52,14 +56,32 @@ class BaselineUploadController extends Notifier<AsyncValue<BaselineProfile?>> {
     final result = await AsyncValue.guard(() {
       return ref
           .read(baselineRepositoryProvider)
-          .submitMeasurement(voiceFilePath: voicePath, faceImagePath: facePath);
+          .submitMeasurement(
+            voiceFilePath: voicePath,
+            faceImagePath: capturedFaces.first,
+            faceImagePaths: capturedFaces,
+          );
     });
     if (ref.mounted && submission == _submission) {
       state = result;
       if (result.hasValue) {
         ref.read(baselineRecordingProvider.notifier).clear();
         ref.read(baselineFaceImageProvider.notifier).clear();
+        ref.read(baselineFaceFramesProvider.notifier).clear();
+        unawaited(
+          _removeUploadedFiles({voicePath, ...capturedFaces, ?facePath}),
+        );
       }
+    }
+  }
+}
+
+Future<void> _removeUploadedFiles(Set<String> paths) async {
+  for (final path in paths) {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // The file may already have been removed by the OS cache manager.
     }
   }
 }

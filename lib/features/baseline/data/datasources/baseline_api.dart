@@ -17,12 +17,18 @@ class BaselineApi {
     required String userId,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) async {
     try {
       final json = await _client.postMultipart(
         '/baseline',
         fields: {'user_id': userId},
-        filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
+        filePaths: {'voice_file': voiceFilePath},
+        fileListPaths: {
+          'face_images': faceImagePaths.isEmpty
+              ? [faceImagePath]
+              : faceImagePaths,
+        },
         receiveTimeout: const Duration(minutes: 5),
       );
       return BaselineProfile.fromJson({

@@ -8,6 +8,7 @@ import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/auth/application/auth_controller.dart';
 import 'package:oddo/features/auth/data/models/app_user.dart';
+import 'package:oddo/features/baseline/application/baseline_face_frames_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_face_image_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_profile_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_recording_provider.dart';
@@ -40,6 +41,7 @@ class _Repository implements BaselineRepository {
   Future<BaselineProfile> submitMeasurement({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) => upload();
 }
 
@@ -133,6 +135,9 @@ void main() {
         LocalStore.kBaselinePendingFacePath,
         face.path,
       );
+      await localStore.setStringList(LocalStore.kBaselinePendingFacePaths, [
+        face.path,
+      ]);
 
       final container = ProviderContainer(
         overrides: [
@@ -147,10 +152,12 @@ void main() {
 
       expect(container.read(baselineRecordingProvider), voice.path);
       expect(container.read(baselineFaceImageProvider), face.path);
+      expect(container.read(baselineFaceFramesProvider), [face.path]);
 
       auth.enter('second');
       expect(container.read(baselineRecordingProvider), isNull);
       expect(container.read(baselineFaceImageProvider), isNull);
+      expect(container.read(baselineFaceFramesProvider), isEmpty);
     },
   );
 

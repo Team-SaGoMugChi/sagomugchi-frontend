@@ -20,6 +20,7 @@ abstract interface class ApiClient {
     String path, {
     Map<String, String> fields,
     Map<String, String> filePaths,
+    Map<String, List<String>> fileListPaths,
     Duration? receiveTimeout,
   });
 }
@@ -79,6 +80,7 @@ class DioApiClient implements ApiClient {
     String path, {
     Map<String, String> fields = const {},
     Map<String, String> filePaths = const {},
+    Map<String, List<String>> fileListPaths = const {},
     Duration? receiveTimeout,
   }) => _request(() async {
     final formData = FormData.fromMap({
@@ -86,6 +88,13 @@ class DioApiClient implements ApiClient {
       for (final entry in filePaths.entries)
         entry.key: await MultipartFile.fromFile(entry.value),
     });
+    for (final entry in fileListPaths.entries) {
+      for (final filePath in entry.value) {
+        formData.files.add(
+          MapEntry(entry.key, await MultipartFile.fromFile(filePath)),
+        );
+      }
+    }
     return _dio.post<Map<String, dynamic>>(
       path,
       data: formData,

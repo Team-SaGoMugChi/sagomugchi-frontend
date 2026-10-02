@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
 import 'package:oddo/core/storage/local_store.dart';
+import 'package:oddo/features/baseline/application/baseline_face_frames_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_face_image_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_recording_provider.dart';
 import 'package:oddo/features/baseline/application/baseline_upload_controller.dart';
@@ -25,16 +26,19 @@ final _profile = BaselineProfile(
 
 class _Repository implements BaselineRepository {
   int calls = 0;
+  List<String> expectedFaces = const ['face.jpg'];
   Future<BaselineProfile> Function() response = () async => _profile;
 
   @override
   Future<BaselineProfile> submitMeasurement({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) {
     calls++;
     expect(voiceFilePath, 'voice.wav');
-    expect(faceImagePath, 'face.jpg');
+    expect(faceImagePath, expectedFaces.first);
+    expect(faceImagePaths, expectedFaces);
     return response();
   }
 
@@ -46,17 +50,20 @@ class _Client implements ApiClient {
   Object? error;
   int? featureVersion;
   Duration? receiveTimeout;
+  List<String> expectedFaces = const ['face.jpg'];
 
   @override
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     Map<String, String> fields = const {},
     Map<String, String> filePaths = const {},
+    Map<String, List<String>> fileListPaths = const {},
     Duration? receiveTimeout,
   }) async {
     expect(path, '/baseline');
     expect(fields, {'user_id': 'user-1'});
-    expect(filePaths, {'voice_file': 'voice.wav', 'face_image': 'face.jpg'});
+    expect(filePaths, {'voice_file': 'voice.wav'});
+    expect(fileListPaths, {'face_images': expectedFaces});
     this.receiveTimeout = receiveTimeout;
     if (error != null) throw error!;
     return {
@@ -166,6 +173,24 @@ void main() {
         same(_profile),
       );
     });
+
+    test('multiple face captures remain available for retry', () async {
+      container.read(baselineRecordingProvider.notifier).set('voice.wav');
+      container.read(baselineFaceFramesProvider.notifier)
+        ..add('first.jpg')
+        ..add('last.jpg');
+      repository.expectedFaces = const ['first.jpg', 'last.jpg'];
+      repository.response = () async => throw const NetworkException();
+      await controller.submit();
+      expect(
+        container.read(baselineFaceFramesProvider),
+        repository.expectedFaces,
+      );
+      repository.response = () async => _profile;
+      await controller.submit();
+      expect(repository.calls, 2);
+      expect(container.read(baselineFaceFramesProvider), isEmpty);
+    });
   });
 
   group('baseline HTTP contract', () {
@@ -185,6 +210,16 @@ void main() {
       expect(result.measuredAt, _profile.measuredAt);
       expect(result.featureVersion, 0);
       expect(client.receiveTimeout, const Duration(minutes: 5));
+    });
+
+    test('sends repeated face image fields', () async {
+      client.expectedFaces = const ['first.jpg', 'last.jpg'];
+      await BaselineApi(client).upload(
+        userId: 'user-1',
+        voiceFilePath: 'voice.wav',
+        faceImagePath: 'first.jpg',
+        faceImagePaths: client.expectedFaces,
+      );
     });
 
     test('preserves API feature version in Firestore form', () async {

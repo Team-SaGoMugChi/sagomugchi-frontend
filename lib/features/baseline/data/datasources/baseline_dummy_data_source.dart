@@ -8,6 +8,7 @@ class BaselineDummyDataSource implements BaselineDataSource {
   Future<BaselineProfile> upload({
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return BaselineProfile(
