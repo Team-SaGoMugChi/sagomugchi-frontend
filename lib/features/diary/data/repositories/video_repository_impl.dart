@@ -13,12 +13,14 @@ class VideoRepositoryImpl implements VideoRepository {
     List<String>? emotionKeywords,
     Map<String, double>? emotionScores,
     int? emotionIntensity,
+    Map<String, dynamic>? diaryHandoff,
   }) {
     return _dataSource.createJob(
       text: text,
       emotionKeywords: emotionKeywords,
       emotionScores: emotionScores,
       emotionIntensity: emotionIntensity,
+      diaryHandoff: diaryHandoff,
     );
   }
 

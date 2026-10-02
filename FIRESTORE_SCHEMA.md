@@ -24,6 +24,7 @@ users/{uid}                              ← AppUser        (계정 프로필)
   ├─ diaries/{yyyy-MM-dd}                ← DiaryEntry     (날짜별 일기, Step1~3 산출물)
   ├─ reports/{yyyy-MM-dd}                ← EmotionReport  (날짜별 감정 리포트/행동 가이드)
   ├─ counsel_sessions/{yyyy-MM-dd}       ← CounselSession (날짜별 상담 로그, Step4)
+  ├─ handoffs/{yyyy-MM-dd}               ← DiaryHandoff   (영상·상담 파트 전달 JSON, Step2 확인 때)
   └─ meta/ (고정 id 문서 3개)
       ├─ baseline                        ← BaselineProfile (얼굴/음성 기준값)
       ├─ psych                           ← PsychResult     (Big5/MBTI/성향 결과)
@@ -67,6 +68,18 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | `writtenAt` | string(ISO)? | 기록 완료 시각 (2026-07-18 추가, 구 문서엔 없을 수 있음) |
 
 > "작성된 날짜 집합"(`recordedDaysProvider`)은 이 컬렉션의 **문서 id 목록**으로 계산한다.
+
+### `users/{uid}/handoffs/{yyyy-MM-dd}` — [DiaryHandoff](lib/features/diary/data/models/diary_handoff.dart)
+
+영상(Step3)·상담(Step4) 파트에 넘기는 JSON. 서버 `POST /diary/handoff`가 만들고, 앱이 Step2
+"저장하고 다음 단계"에서 저장한다(같은 날 다시 확인하면 덮어씀). 각 JSON의 `설명` 필드에 필드 뜻이 한국어로 들어 있다.
+`diaries`와 따로 둔다 — 기록을 끝내기 전에 저장되므로 "작성된 날짜 집합"에 섞이면 안 된다.
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `video` | map | `oddo.diary_emotion.v1` — 원문(`transcript`)·정제 일기·요약·대화 칸, 전체 감정(Step2 결합 결과)·`arc`, `scenes`·`turning_points`·문장별 감정(KOTE). 문장별 초 단위 시간 대신 `turn`(몇 번째 답) |
+| `counsel` | map | `oddo.counsel_context.v1` — `/counsel/turn` 요청 필드 이름(`emotions`·`signals`·`diary_summary`·`incongruent`) 그대로 + 대화 칸·정제 일기·감정 흐름 |
+| `createdAt` | string(ISO) | 만든 시각(UTC) |
 
 ### `users/{uid}/reports/{yyyy-MM-dd}` — [EmotionReport](lib/features/diary/data/models/emotion_report.dart)
 

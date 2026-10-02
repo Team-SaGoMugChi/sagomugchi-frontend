@@ -61,6 +61,7 @@ class _Repository implements VideoRepository {
     List<String>? emotionKeywords,
     Map<String, double>? emotionScores,
     int? emotionIntensity,
+    Map<String, dynamic>? diaryHandoff,
   }) async {
     created++;
     sent = {

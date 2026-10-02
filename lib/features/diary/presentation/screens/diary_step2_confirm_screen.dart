@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/oddo_chip.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../application/diary_draft_provider.dart';
+import '../../application/diary_handoff_controller.dart';
 import '../widgets/diary_step_header.dart';
 
 /// Screen 39 — Step 2. 확인하기. 탄카츄와의 대화를 정제한 "오늘의 일기"(수정
@@ -199,6 +202,12 @@ class _DiaryStep2ConfirmScreenState
                           ref
                               .read(diaryDraftProvider.notifier)
                               .setDiaryText(_controller.text);
+                          // 영상·상담 파트 전달 JSON — 기다리지 않는다.
+                          unawaited(
+                            ref
+                                .read(diaryHandoffControllerProvider.notifier)
+                                .submit(),
+                          );
                           context.pushNamed(AppRoute.diaryStep3VideoLoading);
                         },
                       ),

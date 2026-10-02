@@ -7,6 +7,7 @@ abstract interface class VideoRepository {
     List<String>? emotionKeywords,
     Map<String, double>? emotionScores,
     int? emotionIntensity,
+    Map<String, dynamic>? diaryHandoff,
   });
 
   Future<VideoJobStatus> fetchJob(String jobId);
