@@ -13,6 +13,8 @@ class _Recorder implements AudioRecorderService {
   final started = Completer<bool>();
   final stopped = Completer<String?>();
   int stops = 0;
+  int pauses = 0;
+  int resumes = 0;
 
   @override
   Future<bool> start({required String fileName}) => started.future;
@@ -21,6 +23,18 @@ class _Recorder implements AudioRecorderService {
   Future<String?> stop() {
     stops++;
     return stopped.future;
+  }
+
+  @override
+  Future<bool> pause() async {
+    pauses++;
+    return true;
+  }
+
+  @override
+  Future<bool> resume() async {
+    resumes++;
+    return true;
   }
 
   @override
@@ -37,6 +51,9 @@ class _Tts implements TtsService {
 
   @override
   Future<void> speak(String line) => speaking.future;
+
+  @override
+  Future<void> stop() async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -70,6 +87,7 @@ void main() {
     recorder.started.complete(true);
     await tester.pump();
     expect(find.text('녹음 중'), findsOneWidget);
+    expect(recorder.pauses, 1);
     await tester.tap(find.text('측정 마치고 분석하기'));
     await tester.pump();
     expect(find.text('녹음 중'), findsNothing);
