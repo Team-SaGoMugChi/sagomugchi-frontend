@@ -6,6 +6,7 @@ import '../../../core/error/app_exception.dart';
 import '../data/diary_providers.dart';
 import '../data/models/video_job_status.dart';
 import 'diary_draft_provider.dart';
+import 'diary_handoff_controller.dart';
 
 /// Step3 영상 제작 상태 — 서버 작업 상태와, 작업을 못 만들었거나 폴링이
 /// 끊겼을 때의 오류 문구.
@@ -63,6 +64,11 @@ class VideoJobController extends Notifier<VideoJobUiState> {
     state = const VideoJobUiState();
 
     final fusion = draft.fusionResult;
+    // Step2에서 만들기 시작한 영상 전달 JSON(장면·전환점·정제 일기 등)을 잠깐
+    // 기다렸다가 싣는다. 늦거나 실패하면 JSON 없이 지금처럼 만든다.
+    final handoff = await ref
+        .read(diaryHandoffControllerProvider.notifier)
+        .latest();
     try {
       final job = await ref
           .read(videoRepositoryProvider)
@@ -71,6 +77,7 @@ class VideoJobController extends Notifier<VideoJobUiState> {
             emotionKeywords: fusion?.emotionKeywords,
             emotionScores: fusion?.emotionScores,
             emotionIntensity: fusion?.emotionIntensity,
+            diaryHandoff: handoff?.video,
           );
       _apply(job);
     } on AppException catch (e) {

@@ -18,6 +18,7 @@ class VideoDummyDataSource implements VideoDataSource {
     List<String>? emotionKeywords,
     Map<String, double>? emotionScores,
     int? emotionIntensity,
+    Map<String, dynamic>? diaryHandoff,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     _polls = 0;

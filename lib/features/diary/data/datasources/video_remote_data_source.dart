@@ -19,6 +19,7 @@ class VideoRemoteDataSource implements VideoDataSource {
     List<String>? emotionKeywords,
     Map<String, double>? emotionScores,
     int? emotionIntensity,
+    Map<String, dynamic>? diaryHandoff,
   }) async {
     // 서버(JSON)는 snake_case, 앱은 camelCase — 변환은 여기서만 한다.
     final json = await _apiClient.post(
@@ -30,6 +31,7 @@ class VideoRemoteDataSource implements VideoDataSource {
         if (emotionScores != null && emotionScores.isNotEmpty)
           'emotion_scores': emotionScores,
         'emotion_intensity': ?emotionIntensity,
+        'diary_handoff': ?diaryHandoff,
       },
     );
     return _parse(json);
