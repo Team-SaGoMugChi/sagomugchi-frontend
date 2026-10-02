@@ -17,6 +17,8 @@ class DiaryAnalysisDummyDataSource implements DiaryAnalysisDataSource {
     required String text,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
     required BaselineProfile baseline,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
