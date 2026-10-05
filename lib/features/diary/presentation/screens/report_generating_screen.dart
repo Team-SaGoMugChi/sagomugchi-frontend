@@ -18,6 +18,10 @@ import '../../application/counsel_report_controller.dart';
 ///
 /// 생성에 실패하거나 30초를 넘겨도 46번으로 넘어간다 — 그쪽이 실패 배너와
 /// 다시 시도를 띄우고, 카드는 샘플로 채워져 화면이 비지 않는다.
+///
+/// 리포트는 서버가 LLM을 한 번 불러 한꺼번에 돌려주므로 중간 진행률을 알 수
+/// 없다. 앱이 아는 건 요청을 보낸 때와 응답이 온 때뿐이라, 단계는 그 두 시점만
+/// 표시하고 막대는 기다린 시간으로 채운다(그래서 % 숫자는 띄우지 않는다).
 class ReportGeneratingScreen extends ConsumerStatefulWidget {
   const ReportGeneratingScreen({super.key});
 
@@ -26,25 +30,49 @@ class ReportGeneratingScreen extends ConsumerStatefulWidget {
       _ReportGeneratingScreenState();
 }
 
-class _ReportGeneratingScreenState
-    extends ConsumerState<ReportGeneratingScreen> {
+class _ReportGeneratingScreenState extends ConsumerState<ReportGeneratingScreen>
+    with SingleTickerProviderStateMixin {
   bool _advanced = false;
 
-  static const List<String> _items = ['상담 내용 정리', '감정 분석', '맞춤 가이드 생성'];
+  /// 서버 응답(성공·실패·타임아웃)이 왔는지.
+  bool _responded = false;
+
+  /// 기다린 시간으로 채우는 막대 — 응답 전에는 [_waitingCap]에서 멈춘다.
+  late final AnimationController _progress = AnimationController(vsync: this);
+
+  static const List<String> _items = ['상담 대화 전달', 'AI 리포트 작성', '리포트 완성'];
 
   /// 응답이 너무 빨리 오면 화면이 깜빡이므로 최소한 이만큼은 보여준다.
   static const Duration _minimumVisible = Duration(milliseconds: 1500);
 
+  /// 보통 걸리는 시간(안내 문구 "10~20초"). 이 시간에 걸쳐 [_waitingCap]까지 찬다.
+  static const Duration _typicalWait = Duration(seconds: 15);
+  static const double _waitingCap = 0.9;
+
+  /// 응답이 온 뒤 남은 막대를 채우는 시간.
+  static const Duration _finishFill = Duration(milliseconds: 400);
+
   @override
   void initState() {
     super.initState();
+    _progress.animateTo(_waitingCap,
+        duration: _typicalWait, curve: Curves.easeOutCubic);
     WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+  }
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
   }
 
   Future<void> _generate() async {
     final startedAt = DateTime.now();
     // 30초 타임아웃은 컨트롤러가 건다 — 여기서 무한정 기다리지 않는다.
     await ref.read(counselReportControllerProvider.notifier).generate();
+    if (!mounted) return;
+    setState(() => _responded = true);
+    await _progress.animateTo(1, duration: _finishFill, curve: Curves.easeOut);
     final elapsed = DateTime.now().difference(startedAt);
     if (elapsed < _minimumVisible) {
       await Future<void>.delayed(_minimumVisible - elapsed);
@@ -60,6 +88,15 @@ class _ReportGeneratingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final failed = ref.watch(counselReportControllerProvider).failed;
+    final steps = [
+      _StepState.done,
+      _responded
+          ? (failed ? _StepState.failed : _StepState.done)
+          : _StepState.running,
+      _responded && !failed ? _StepState.done : _StepState.pending,
+    ];
+
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -111,7 +148,8 @@ class _ReportGeneratingScreenState
                             child: MascotImage(
                                 pose: MascotPose.clipboard, size: 150)),
                         Gap.h24,
-                        const _ProgressCard(items: _items),
+                        _ProgressCard(
+                            items: _items, steps: steps, progress: _progress),
                         Gap.h16,
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -149,9 +187,17 @@ class _ReportGeneratingScreenState
   }
 }
 
+enum _StepState { pending, running, done, failed }
+
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.items});
+  const _ProgressCard({
+    required this.items,
+    required this.steps,
+    required this.progress,
+  });
   final List<String> items;
+  final List<_StepState> steps;
+  final Animation<double> progress;
 
   @override
   Widget build(BuildContext context) {
@@ -159,43 +205,68 @@ class _ProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text('리포트 생성 상황',
-                  style: AppTypography.bodySecondary
-                      .copyWith(fontWeight: FontWeight.w700)),
-              const Spacer(),
-              Text('70%',
-                  style: AppTypography.bodySecondary.copyWith(
-                      color: AppColors.primary, fontWeight: FontWeight.w700)),
-            ],
-          ),
+          Text('리포트 생성 상황',
+              style: AppTypography.bodySecondary
+                  .copyWith(fontWeight: FontWeight.w700)),
           Gap.h8,
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: const LinearProgressIndicator(
-              value: 0.7,
-              minHeight: 8,
-              backgroundColor: AppColors.primarySoftBorder,
-              valueColor: AlwaysStoppedAnimation(AppColors.primary),
+            child: AnimatedBuilder(
+              animation: progress,
+              builder: (_, _) => LinearProgressIndicator(
+                value: progress.value,
+                minHeight: 8,
+                backgroundColor: AppColors.primarySoftBorder,
+                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              ),
             ),
           ),
           Gap.h12,
-          for (final item in items)
+          for (var i = 0; i < items.length; i++)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded,
-                      size: 16, color: AppColors.primary),
+                  _StepIcon(state: steps[i]),
                   const SizedBox(width: 8),
-                  Text(item, style: AppTypography.bodySecondary),
+                  Text(items[i],
+                      style: steps[i] == _StepState.pending
+                          ? AppTypography.bodySecondary
+                              .copyWith(color: AppColors.textTertiary)
+                          : AppTypography.bodySecondary),
                 ],
               ),
             ),
         ],
       ),
     );
+  }
+}
+
+class _StepIcon extends StatelessWidget {
+  const _StepIcon({required this.state});
+  final _StepState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (state) {
+      _StepState.done => const Icon(Icons.check_circle_rounded,
+          size: 16, color: AppColors.primary),
+      _StepState.running => const SizedBox(
+          width: 16,
+          height: 16,
+          child: Padding(
+            padding: EdgeInsets.all(2),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primary),
+          ),
+        ),
+      _StepState.pending => const Icon(Icons.radio_button_unchecked_rounded,
+          size: 16, color: AppColors.textTertiary),
+      // 실패해도 46번이 배너와 다시 시도를 띄우므로 여기선 조용히 표시만 한다.
+      _StepState.failed => const Icon(Icons.error_outline_rounded,
+          size: 16, color: AppColors.textSecondary),
+    };
   }
 }
 
