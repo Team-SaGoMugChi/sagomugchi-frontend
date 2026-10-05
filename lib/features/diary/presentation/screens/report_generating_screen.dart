@@ -10,8 +10,8 @@ import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/mascot_image.dart';
-import '../../../../widgets/oddo_card.dart';
 import '../../application/counsel_report_controller.dart';
+import '../widgets/loading_progress_card.dart';
 
 /// Screen 45 — 상담 후 리포트 생성. 상담이 끝나면 서버에 대화를 보내 리포트를
 /// 만들고, 완성되면 46번 화면으로 넘어간다.
@@ -39,8 +39,6 @@ class _ReportGeneratingScreenState extends ConsumerState<ReportGeneratingScreen>
 
   /// 기다린 시간으로 채우는 막대 — 응답 전에는 [_waitingCap]에서 멈춘다.
   late final AnimationController _progress = AnimationController(vsync: this);
-
-  static const List<String> _items = ['상담 대화 전달', 'AI 리포트 작성', '리포트 완성'];
 
   /// 응답이 너무 빨리 오면 화면이 깜빡이므로 최소한 이만큼은 보여준다.
   static const Duration _minimumVisible = Duration(milliseconds: 1500);
@@ -90,11 +88,19 @@ class _ReportGeneratingScreenState extends ConsumerState<ReportGeneratingScreen>
   Widget build(BuildContext context) {
     final failed = ref.watch(counselReportControllerProvider).failed;
     final steps = [
-      _StepState.done,
-      _responded
-          ? (failed ? _StepState.failed : _StepState.done)
-          : _StepState.running,
-      _responded && !failed ? _StepState.done : _StepState.pending,
+      ('상담 대화 전달', LoadingStepState.done),
+      (
+        'AI 리포트 작성',
+        _responded
+            ? (failed ? LoadingStepState.failed : LoadingStepState.done)
+            : LoadingStepState.running,
+      ),
+      (
+        '리포트 완성',
+        _responded && !failed
+            ? LoadingStepState.done
+            : LoadingStepState.pending,
+      ),
     ];
 
     return Scaffold(
@@ -148,8 +154,10 @@ class _ReportGeneratingScreenState extends ConsumerState<ReportGeneratingScreen>
                             child: MascotImage(
                                 pose: MascotPose.clipboard, size: 150)),
                         Gap.h24,
-                        _ProgressCard(
-                            items: _items, steps: steps, progress: _progress),
+                        LoadingProgressCard(
+                            title: '리포트 생성 상황',
+                            progress: _progress,
+                            steps: steps),
                         Gap.h16,
                         Container(
                           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -184,89 +192,6 @@ class _ReportGeneratingScreenState extends ConsumerState<ReportGeneratingScreen>
         ),
       ),
     );
-  }
-}
-
-enum _StepState { pending, running, done, failed }
-
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({
-    required this.items,
-    required this.steps,
-    required this.progress,
-  });
-  final List<String> items;
-  final List<_StepState> steps;
-  final Animation<double> progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return OddoCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('리포트 생성 상황',
-              style: AppTypography.bodySecondary
-                  .copyWith(fontWeight: FontWeight.w700)),
-          Gap.h8,
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: AnimatedBuilder(
-              animation: progress,
-              builder: (_, _) => LinearProgressIndicator(
-                value: progress.value,
-                minHeight: 8,
-                backgroundColor: AppColors.primarySoftBorder,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-              ),
-            ),
-          ),
-          Gap.h12,
-          for (var i = 0; i < items.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  _StepIcon(state: steps[i]),
-                  const SizedBox(width: 8),
-                  Text(items[i],
-                      style: steps[i] == _StepState.pending
-                          ? AppTypography.bodySecondary
-                              .copyWith(color: AppColors.textTertiary)
-                          : AppTypography.bodySecondary),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepIcon extends StatelessWidget {
-  const _StepIcon({required this.state});
-  final _StepState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return switch (state) {
-      _StepState.done => const Icon(Icons.check_circle_rounded,
-          size: 16, color: AppColors.primary),
-      _StepState.running => const SizedBox(
-          width: 16,
-          height: 16,
-          child: Padding(
-            padding: EdgeInsets.all(2),
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppColors.primary),
-          ),
-        ),
-      _StepState.pending => const Icon(Icons.radio_button_unchecked_rounded,
-          size: 16, color: AppColors.textTertiary),
-      // 실패해도 46번이 배너와 다시 시도를 띄우므로 여기선 조용히 표시만 한다.
-      _StepState.failed => const Icon(Icons.error_outline_rounded,
-          size: 16, color: AppColors.textSecondary),
-    };
   }
 }
 
