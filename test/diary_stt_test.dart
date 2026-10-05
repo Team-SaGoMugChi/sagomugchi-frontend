@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:oddo/app/router/app_routes.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
 import 'package:oddo/features/baseline/data/baseline_providers.dart';
@@ -17,6 +21,8 @@ import 'package:oddo/features/diary/data/models/diary_interview.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
 import 'package:oddo/features/diary/data/repositories/diary_analysis_repository.dart';
 import 'package:oddo/features/diary/data/repositories/diary_interview_repository.dart';
+import 'package:oddo/features/diary/presentation/screens/diary_step1_processing_screen.dart';
+import 'package:oddo/theme/app_theme.dart';
 
 final _baseline = BaselineProfile(
   voice: const {
@@ -99,6 +105,9 @@ class _AnalysisRepository implements DiaryAnalysisRepository {
   final analyzedTexts = <String>[];
   Object? analyzeError;
 
+  /// 설정하면 이게 끝날 때까지 감정 분석 응답을 붙잡아 둔다.
+  Completer<void>? gate;
+
   @override
   Future<String> transcribe({required String voiceFilePath}) async {
     transcribed.add(voiceFilePath);
@@ -113,6 +122,7 @@ class _AnalysisRepository implements DiaryAnalysisRepository {
     required BaselineProfile baseline,
   }) async {
     analyzedTexts.add(text);
+    if (gate != null) await gate!.future;
     if (analyzeError != null) throw analyzeError!;
     return _fusion;
   }
@@ -213,6 +223,9 @@ void main() {
       expect(repository.analyzedTexts, ['voice.wav 원문']);
       expect(container.read(diaryDraftProvider).transcript, 'voice.wav 원문');
       expect(container.read(diaryDraftProvider).fusionResult, same(_fusion));
+      final progress = container.read(step1ProgressProvider);
+      expect(progress.done, Step1Stage.values.toSet());
+      expect(progress.running, isEmpty);
     });
 
     test('rejects a legacy baseline before transcribing', () async {
@@ -256,6 +269,11 @@ void main() {
         container.read(step1AnalysisControllerProvider).error,
         isA<NetworkException>(),
       );
+      // 실패한 감정 분석은 끝난 단계로 치지 않는다.
+      expect(
+        container.read(step1ProgressProvider).done,
+        isNot(contains(Step1Stage.analyze)),
+      );
       repository.analyzeError = null;
       await submit();
       expect(repository.transcribed, ['voice.wav']);
@@ -284,6 +302,12 @@ void main() {
         expect(container.read(diaryDraftProvider).diaryText, '오늘 발표를 마쳤다.');
         // 감정 분석은 정제본이 아니라 원 답변으로 한다.
         expect(repository.analyzedTexts, ['발표를 마쳤어요.']);
+        // 원문은 말하기 대화에서 이미 받아서 음성 변환은 바로 끝난 단계다.
+        expect(repository.transcribed, isEmpty);
+        expect(
+          container.read(step1ProgressProvider).done,
+          Step1Stage.values.toSet(),
+        );
       });
 
       test('analysis still succeeds when refining fails', () async {
@@ -451,6 +475,92 @@ void main() {
     test('rejects a response without text', () async {
       client.response = {};
       await expectLater(transcribe(), throwsA(isA<ServerException>()));
+    });
+  });
+
+  group('Step1 processing screen (38)', () {
+    setUp(() {
+      final view =
+          TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.physicalSize = const Size(1170, 2532);
+      view.devicePixelRatio = 3.0;
+    });
+    tearDown(() {
+      final view =
+          TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+    });
+
+    double barValue(WidgetTester tester) => tester
+        .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+        .value!;
+
+    testWidgets('checks only the stages that actually finished', (
+      tester,
+    ) async {
+      final repository = _AnalysisRepository()..gate = Completer<void>();
+      final container = ProviderContainer(
+        overrides: [
+          baselineRepositoryProvider.overrideWithValue(_BaselineRepository()),
+          diaryAnalysisRepositoryProvider.overrideWithValue(repository),
+          diaryInterviewRepositoryProvider.overrideWithValue(
+            _InterviewRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(diaryDraftProvider.notifier)
+        ..setRecordingPath('voice.wav')
+        ..setFaceImagePath('face.jpg')
+        ..setTranscript('발표를 마쳤어요.')
+        ..setInterviewMessages(const [
+          InterviewMessage(speaker: InterviewSpeaker.user, text: '발표를 마쳤어요.'),
+        ]);
+
+      final router = GoRouter(
+        initialLocation: AppPath.diaryStep1Processing,
+        routes: [
+          GoRoute(
+            path: AppPath.diaryStep1Processing,
+            name: AppRoute.diaryStep1Processing,
+            builder: (_, _) => const DiaryStep1ProcessingScreen(),
+          ),
+          GoRoute(
+            path: AppPath.diaryStep2Confirm,
+            name: AppRoute.diaryStep2Confirm,
+            builder: (_, _) => const Text('39번 확인하기'),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: AppTheme.light,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // 고정 70%는 없다. 감정 분석만 남았고 나머지 세 단계는 끝났다.
+      expect(find.textContaining('%'), findsNothing);
+      expect(find.byIcon(Icons.check_circle_rounded), findsNWidgets(3));
+      expect(find.byIcon(Icons.radio_button_unchecked_rounded), findsNothing);
+
+      // 분석이 오래 걸려도 끝까지 차지 않는다: 끝난 몫 0.4 + 분석 몫 0.6의 90%.
+      await tester.pump(const Duration(seconds: 20));
+      expect(barValue(tester), closeTo(0.94, 0.001));
+      expect(find.text('39번 확인하기'), findsNothing);
+
+      repository.gate!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('39번 확인하기'), findsOneWidget);
     });
   });
 }

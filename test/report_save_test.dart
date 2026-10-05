@@ -82,6 +82,35 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   String? diaryText,
   String? summary,
 }) async {
+  final repository = await _pumpReportGuide(
+    tester,
+    fusion: withFusion ? _fusion : null,
+    config: config,
+    transcript: transcript,
+    diaryText: diaryText,
+    summary: summary,
+  );
+
+  if (!config.useDummyData) {
+    expect(find.text('회복 가능성'), findsNothing);
+    expect(find.text('상담을 지나며 속상함이 조금씩 가라앉았어요.'), findsNothing);
+  }
+
+  await tester.tap(find.text('기록 완료하기'));
+  await tester.pump();
+  await tester.pump();
+
+  return repository;
+}
+
+Future<_CapturingDiaryRepository> _pumpReportGuide(
+  WidgetTester tester, {
+  FusionResult? fusion,
+  AppConfig config = _testConfig,
+  String? transcript,
+  String? diaryText,
+  String? summary,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final repository = _CapturingDiaryRepository();
@@ -94,8 +123,8 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   );
   addTearDown(container.dispose);
 
-  if (withFusion) {
-    container.read(diaryDraftProvider.notifier).setFusionResult(_fusion);
+  if (fusion != null) {
+    container.read(diaryDraftProvider.notifier).setFusionResult(fusion);
   }
   if (transcript != null) {
     container.read(diaryDraftProvider.notifier).setTranscript(transcript);
@@ -132,17 +161,25 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   );
   await tester.pump();
 
-  if (!config.useDummyData) {
-    expect(find.text('회복 가능성'), findsNothing);
-    expect(find.text('상담을 지나며 속상함이 조금씩 가라앉았어요.'), findsNothing);
-  }
-
-  await tester.tap(find.text('기록 완료하기'));
-  await tester.pump();
-  await tester.pump();
-
   return repository;
 }
+
+/// 감정 여러 개가 섞인 Step2 결과 — 2026-10-05 실기기 일기를 문장별로 분석한 값.
+const _mixedFusion = FusionResult(
+  emotionKeywords: ['기쁨', '불안'],
+  emotionScores: {
+    '기쁨': 58.2,
+    '슬픔': 11.3,
+    '분노': 0.3,
+    '불안': 15.3,
+    '상처': 11.5,
+    '당황': 0,
+  },
+  emotionIntensity: 69,
+  textEmotionScores: {'기쁨': 0.582},
+  voiceDelta: {},
+  faceDelta: {},
+);
 
 void main() {
   setUp(() {
@@ -232,6 +269,58 @@ void main() {
 
     expect(repository.savedEntry, isNull);
     expect(find.textContaining('분석 결과가 없어 저장할 수 없어요'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('shows only the top three emotions but saves all of them', (
+    tester,
+  ) async {
+    final repository = await _pumpReportGuide(
+      tester,
+      fusion: _mixedFusion,
+      config: _realDataConfig,
+      transcript: '오늘 발표가 있었어요.',
+    );
+
+    // 높은 순으로 3개만, 나머지(0% 포함)는 숨긴다.
+    final top = ['기쁨', '불안', '상처'];
+    for (final name in top) {
+      expect(find.text(name), findsOneWidget, reason: name);
+    }
+    for (final name in ['슬픔', '분노', '당황']) {
+      expect(find.text(name), findsNothing, reason: name);
+    }
+    final rows = [for (final name in top) tester.getTopLeft(find.text(name)).dy];
+    expect(rows, orderedEquals([...rows]..sort()));
+
+    await tester.tap(find.text('기록 완료하기'));
+    await tester.pump();
+    await tester.pump();
+    expect(repository.savedReport!.emotionDistribution.length, 6);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('says so when no emotion was detected', (tester) async {
+    await _pumpReportGuide(
+      tester,
+      fusion: const FusionResult(
+        emotionKeywords: [],
+        emotionScores: {'기쁨': 0, '슬픔': 0, '분노': 0, '불안': 0, '상처': 0, '당황': 0},
+        emotionIntensity: 0,
+        textEmotionScores: {},
+        voiceDelta: {},
+        faceDelta: {},
+      ),
+      config: _realDataConfig,
+      transcript: '오늘은 월요일이었어요.',
+    );
+
+    expect(find.text('이번 일기에서는 감정을 뚜렷하게 읽지 못했어요.'), findsOneWidget);
+    expect(find.text('0%'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
