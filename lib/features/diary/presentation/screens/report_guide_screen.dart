@@ -439,10 +439,22 @@ class _ReportTab extends StatelessWidget {
   /// 상담 리포트. 없으면(상담 건너뜀·생성 실패) 관련 카드를 숨긴다.
   final CounselReport? counsel;
 
+  /// 감정 요약에 보여줄 감정 수. 저장값은 6종 그대로 두고 표시만 줄인다.
+  static const int _shownEmotionCount = 3;
+
+  /// 비중이 큰 순으로 상위 [_shownEmotionCount]개. 0%인 감정은 뺀다.
+  static List<MapEntry<String, double>> _topEmotions(
+          Map<String, double> distribution) =>
+      (distribution.entries.where((e) => e.value > 0).toList()
+            ..sort((a, b) => b.value.compareTo(a.value)))
+          .take(_shownEmotionCount)
+          .toList();
+
   @override
   Widget build(BuildContext context) {
     final moments = counsel?.moments ?? const <String>[];
     final reframe = counsel?.reframe ?? '';
+    final emotions = _topEmotions(report.emotionDistribution);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -454,11 +466,15 @@ class _ReportTab extends StatelessWidget {
               const CardSectionHeader(
                   icon: Icons.pie_chart_outline_rounded, title: '오늘의 감정 요약'),
               Gap.h12,
-              for (final e in report.emotionDistribution.entries)
+              for (final e in emotions)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _EmotionRow(name: e.key, value: e.value),
                 ),
+              // 판단 불가(모든 감정 0) — 감정이 없다는 뜻이 아니라 근거가 부족하다는 뜻.
+              if (emotions.isEmpty)
+                const Text('이번 일기에서는 감정을 뚜렷하게 읽지 못했어요.',
+                    style: AppTypography.bodySecondary),
               const Divider(color: AppColors.divider, height: 20),
               Row(
                 children: [
