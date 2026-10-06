@@ -119,6 +119,8 @@ class _AnalysisRepository implements DiaryAnalysisRepository {
     required String text,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
     required BaselineProfile baseline,
   }) async {
     analyzedTexts.add(text);
@@ -150,6 +152,7 @@ class _Client implements ApiClient {
   String? path;
   Map<String, String>? fields;
   Map<String, String>? filePaths;
+  Map<String, List<String>>? fileListPaths;
 
   @override
   Future<Map<String, dynamic>> postMultipart(
@@ -162,6 +165,7 @@ class _Client implements ApiClient {
     this.path = path;
     this.fields = fields;
     this.filePaths = filePaths;
+    this.fileListPaths = fileListPaths;
     if (error != null) throw error!;
     return response;
   }
@@ -384,6 +388,30 @@ void main() {
       );
       expect(jsonDecode(client.fields!['baseline_voice']!), _baseline.voice);
       expect(jsonDecode(client.fields!['baseline_face']!), _baseline.face);
+    });
+
+    test('sends timed diary photos in recording order', () async {
+      client.response = {
+        'emotion_keywords': <String>[],
+        'emotion_scores': <String, double>{},
+        'emotion_intensity': 0,
+        'text_emotion_scores': <String, double>{},
+        'voice_delta': <String, dynamic>{},
+        'face_delta': <String, dynamic>{},
+      };
+      await DiaryAnalysisRemoteDataSource(client, auth: _Auth()).analyzeStep2(
+        text: '오늘 이야기',
+        voiceFilePath: 'voice.wav',
+        faceImagePath: 'first.jpg',
+        faceImagePaths: ['first.jpg', 'second.jpg'],
+        faceTimestampsMs: [900, 2100],
+        baseline: _baseline,
+      );
+      expect(client.filePaths, {'voice_file': 'voice.wav'});
+      expect(client.fileListPaths, {
+        'face_images': ['first.jpg', 'second.jpg'],
+      });
+      expect(client.fields?['face_timeline'], '900,0;2100,0');
     });
 
     test(

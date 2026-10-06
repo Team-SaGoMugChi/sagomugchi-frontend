@@ -64,6 +64,8 @@ class Step1AnalysisController extends Notifier<AsyncValue<FusionResult?>> {
         text: transcript,
         voiceFilePath: voicePath,
         faceImagePath: facePath,
+        faceImagePaths: draft.faceImagePaths,
+        faceTimestampsMs: draft.faceTimestampsMs,
         baseline: baseline,
       );
       progress.finish(Step1Stage.analyze);

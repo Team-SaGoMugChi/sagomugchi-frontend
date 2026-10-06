@@ -49,6 +49,8 @@ class DiaryAnalysisRemoteDataSource implements DiaryAnalysisDataSource {
     required String text,
     required String voiceFilePath,
     required String faceImagePath,
+    List<String> faceImagePaths = const [],
+    List<int> faceTimestampsMs = const [],
     required BaselineProfile baseline,
   }) async {
     final Map<String, dynamic> json;
@@ -62,8 +64,20 @@ class DiaryAnalysisRemoteDataSource implements DiaryAnalysisDataSource {
           'baseline_feature_version': '${baseline.featureVersion}',
           'baseline_measured_at': baseline.measuredAt.toUtc().toIso8601String(),
           'user_id': ?_auth.currentUser?.uid,
+          if (faceImagePaths.isNotEmpty &&
+              faceImagePaths.length == faceTimestampsMs.length)
+            'face_timeline': faceTimestampsMs
+                .map((time) => '$time,0')
+                .join(';'),
         },
-        filePaths: {'voice_file': voiceFilePath, 'face_image': faceImagePath},
+        filePaths: {
+          'voice_file': voiceFilePath,
+          if (faceImagePaths.isEmpty) 'face_image': faceImagePath,
+        },
+        fileListPaths: faceImagePaths.isNotEmpty
+            ? {'face_images': faceImagePaths}
+            : const {},
+        receiveTimeout: const Duration(minutes: 5),
       );
     } on ServerException catch (error) {
       final cause = error.cause;
