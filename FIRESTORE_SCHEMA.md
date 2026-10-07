@@ -63,6 +63,7 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | `summary` | string | AI 요약(한두 문장). 요약이 없으면 `diaryText` → `transcript` 순으로 대신 저장 |
 | `emotionKeywords` | string[] | 감정 키워드 |
 | `videoUrl` | string? | 생성된 숏폼 Storage URL (Step3 전엔 없음) |
+| `videoRating` | string? | Step3 완료 화면 "이 영상은 어땠나요?" 응답 — `good`(좋았어요) / `okay`(보통이에요) / `bad`(별로였어요). 고르지 않았으면 필드 없음 (2026-10-07 추가) |
 | `emotionIntensity` | int 0–100 | |
 | `emotionStability` | int 0–100 | |
 | `writtenAt` | string(ISO)? | 기록 완료 시각 (2026-07-18 추가, 구 문서엔 없을 수 있음) |

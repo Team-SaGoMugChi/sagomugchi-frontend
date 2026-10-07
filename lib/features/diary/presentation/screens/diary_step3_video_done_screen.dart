@@ -4,36 +4,30 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/diary_flow_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/card_section_header.dart';
 import '../../../../widgets/mascot_image.dart';
-import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../../records/presentation/widgets/shortform_thumbnail.dart';
+import '../../application/diary_draft_provider.dart';
 import '../../application/video_job_controller.dart';
+import '../../data/models/video_rating.dart';
 import '../widgets/diary_step_header.dart';
 
-/// Screen 42 — Step 3. 영상 제작 완료·영상 확인. 플레이어를 누르면 방금 만든
-/// 영상을 전체화면으로 재생한다.
-class DiaryStep3VideoDoneScreen extends StatefulWidget {
+/// Screen 42 — Step 3. 영상 제작 완료·영상 확인. 미리보기를 누르면 방금 만든
+/// 영상을 전체화면 플레이어로 재생한다. 영상 평가는 기록 완료 때 일기와 함께
+/// 저장된다.
+class DiaryStep3VideoDoneScreen extends ConsumerWidget {
   const DiaryStep3VideoDoneScreen({super.key});
 
   @override
-  State<DiaryStep3VideoDoneScreen> createState() =>
-      _DiaryStep3VideoDoneScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final videoUrl = ref.watch(videoJobControllerProvider).videoUrl;
+    final rating = ref.watch(diaryDraftProvider.select((d) => d.videoRating));
 
-class _DiaryStep3VideoDoneScreenState extends State<DiaryStep3VideoDoneScreen> {
-  int? _rating;
-
-  static const List<String> _emojis = ['😊', '🙂', '😕'];
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -53,41 +47,30 @@ class _DiaryStep3VideoDoneScreenState extends State<DiaryStep3VideoDoneScreen> {
                     children: [
                       const _CompleteBanner(),
                       Gap.h16,
-                      const _VideoPlayerPlaceholder(),
-                      Gap.h16,
-                      const OddoCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CardSectionHeader(
-                              icon: Icons.subscriptions_outlined,
-                              title: '영상 요약',
-                            ),
-                            Gap.h8,
-                            Text(
-                              DiaryFlowDummy.videoSummary,
-                              style: AppTypography.body,
-                            ),
-                          ],
+                      ShortformThumbnail(
+                        videoUrl: videoUrl,
+                        onTap: () => context.pushNamed(
+                          AppRoute.shortformPlayer,
+                          extra: videoUrl,
                         ),
                       ),
-                      Gap.h16,
+                      // TODO: 영상 요약 카드 — 서버가 영상 내용 요약을 주면 다시 넣는다
+                      // (지금은 샘플 문장뿐이라 숨김, sagomugchi-backend#65).
+                      Gap.h24,
                       const Text('이 영상은 어땠나요?', style: AppTypography.subtitle),
                       Gap.h12,
                       Row(
                         children: [
-                          for (
-                            var i = 0;
-                            i < DiaryFlowDummy.ratingOptions.length;
-                            i++
-                          ) ...[
-                            if (i > 0) Gap.w12,
+                          for (final option in VideoRating.values) ...[
+                            if (option != VideoRating.values.first) Gap.w12,
                             Expanded(
                               child: _RatingChip(
-                                emoji: _emojis[i],
-                                label: DiaryFlowDummy.ratingOptions[i],
-                                selected: _rating == i,
-                                onTap: () => setState(() => _rating = i),
+                                emoji: option.emoji,
+                                label: option.label,
+                                selected: rating == option,
+                                onTap: () => ref
+                                    .read(diaryDraftProvider.notifier)
+                                    .setVideoRating(option),
                               ),
                             ),
                           ],
@@ -161,91 +144,6 @@ class _CompleteBanner extends StatelessWidget {
           // TODO: 기뻐하는 작은 포즈로 교체 예정
           const MascotImage(pose: MascotPose.celebrate, size: 44),
         ],
-      ),
-    );
-  }
-}
-
-class _VideoPlayerPlaceholder extends ConsumerWidget {
-  const _VideoPlayerPlaceholder();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // The player itself is the replay affordance — tap to open the full-screen
-    // shortform player (replaces the former bottom "다시 보기" button).
-    // 더미 모드에서는 영상 URL이 없어 플레이어가 플레이스홀더를 보여준다.
-    final videoUrl = ref.watch(videoJobControllerProvider).videoUrl;
-    return GestureDetector(
-      onTap: () =>
-          context.pushNamed(AppRoute.shortformPlayer, extra: videoUrl),
-      child: ClipRRect(
-        borderRadius: AppRadius.card,
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(color: AppColors.callBackground),
-              // TODO: 실제 영상 썸네일/플레이어로 교체 예정
-              const Center(
-                child: MascotImage(
-                  pose: MascotPose.front,
-                  size: 150,
-                  onDark: true,
-                ),
-              ),
-              const Center(
-                child: Icon(
-                  Icons.play_circle_fill_rounded,
-                  size: 56,
-                  color: Colors.white,
-                ),
-              ),
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: Row(
-                  children: [
-                    Text(
-                      DiaryFlowDummy.videoPosition,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.callTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.all(
-                          Radius.circular(AppRadius.pill),
-                        ),
-                        child: LinearProgressIndicator(
-                          value: 0.05,
-                          minHeight: 4,
-                          backgroundColor: Colors.white24,
-                          valueColor: AlwaysStoppedAnimation(AppColors.primary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DiaryFlowDummy.videoDuration,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.callTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.fullscreen_rounded,
-                      size: 18,
-                      color: AppColors.callTextPrimary,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

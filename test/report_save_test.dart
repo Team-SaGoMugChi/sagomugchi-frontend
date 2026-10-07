@@ -12,6 +12,7 @@ import 'package:oddo/features/diary/data/models/counsel_session.dart';
 import 'package:oddo/features/diary/data/models/diary_entry.dart';
 import 'package:oddo/features/diary/data/models/emotion_report.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
+import 'package:oddo/features/diary/data/models/video_rating.dart';
 import 'package:oddo/features/diary/data/repositories/diary_repository.dart';
 import 'package:oddo/features/diary/presentation/screens/report_guide_screen.dart';
 import 'package:oddo/theme/app_theme.dart';
@@ -81,6 +82,7 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   String? transcript,
   String? diaryText,
   String? summary,
+  VideoRating? videoRating,
 }) async {
   final repository = await _pumpReportGuide(
     tester,
@@ -89,6 +91,7 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
     transcript: transcript,
     diaryText: diaryText,
     summary: summary,
+    videoRating: videoRating,
   );
 
   if (!config.useDummyData) {
@@ -110,6 +113,7 @@ Future<_CapturingDiaryRepository> _pumpReportGuide(
   String? transcript,
   String? diaryText,
   String? summary,
+  VideoRating? videoRating,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -134,6 +138,9 @@ Future<_CapturingDiaryRepository> _pumpReportGuide(
   }
   if (summary != null) {
     container.read(diaryDraftProvider.notifier).setSummary(summary);
+  }
+  if (videoRating != null) {
+    container.read(diaryDraftProvider.notifier).setVideoRating(videoRating);
   }
 
   final router = GoRouter(
@@ -252,6 +259,23 @@ void main() {
     expect(entry.transcript, '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.');
     expect(entry.diaryText, '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.');
     expect(entry.summary, '발표를 마치고 긴장이 풀린 하루였어요.');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('saves the Step3 video rating with the diary', (tester) async {
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: true,
+      config: _realDataConfig,
+      transcript: '발표를 마쳤어요.',
+      videoRating: VideoRating.good,
+    );
+
+    final entry = repository.savedEntry!;
+    expect(entry.videoRating, VideoRating.good);
+    expect(entry.toJson()['videoRating'], 'good');
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));

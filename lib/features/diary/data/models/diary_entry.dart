@@ -1,3 +1,5 @@
+import 'video_rating.dart';
+
 /// One day's diary entry, produced by the Step 1–3 write flow.
 class DiaryEntry {
   const DiaryEntry({
@@ -8,6 +10,7 @@ class DiaryEntry {
     required this.emotionKeywords,
     this.diaryText,
     this.videoUrl,
+    this.videoRating,
     this.emotionIntensity = 0,
     this.emotionStability = 0,
     this.writtenAt,
@@ -34,6 +37,9 @@ class DiaryEntry {
   /// URL/path of the generated short-form video (null until Step 3 finishes).
   final String? videoUrl;
 
+  /// Step 3 완료 화면에서 고른 영상 평가. 고르지 않았으면 null.
+  final VideoRating? videoRating;
+
   /// 0–100 scores shown on the Step 2 confirm screen.
   final int emotionIntensity;
   final int emotionStability;
@@ -47,6 +53,7 @@ class DiaryEntry {
         emotionKeywords: (json['emotionKeywords'] as List<dynamic>)
             .cast<String>(),
         videoUrl: json['videoUrl'] as String?,
+        videoRating: VideoRating.fromKey(json['videoRating']),
         emotionIntensity: json['emotionIntensity'] as int? ?? 0,
         emotionStability: json['emotionStability'] as int? ?? 0,
         writtenAt: json['writtenAt'] != null
@@ -62,6 +69,7 @@ class DiaryEntry {
         'summary': summary,
         'emotionKeywords': emotionKeywords,
         'videoUrl': videoUrl,
+        if (videoRating != null) 'videoRating': videoRating!.key,
         'emotionIntensity': emotionIntensity,
         'emotionStability': emotionStability,
         if (writtenAt != null) 'writtenAt': writtenAt!.toIso8601String(),
