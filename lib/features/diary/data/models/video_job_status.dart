@@ -20,6 +20,7 @@ class VideoJobStatus {
     required this.progress,
     this.error,
     this.videoUrl,
+    this.thumbnailUrl,
   });
 
   final String jobId;
@@ -38,6 +39,10 @@ class VideoJobStatus {
   /// 경로를 base URL과 합쳐 채운다. 더미 모드에서는 null(재생할 파일 없음).
   final String? videoUrl;
 
+  /// [state]가 done일 때 대표 장면 가로(16:9) 썸네일 jpg의 절대 URL.
+  /// 서버가 썸네일을 만들지 못했으면 null — 영상은 그대로 볼 수 있다.
+  final String? thumbnailUrl;
+
   bool get isDone => state == VideoJobState.done;
   bool get isFailed => state == VideoJobState.failed;
 
@@ -46,6 +51,7 @@ class VideoJobStatus {
     required String baseUrl,
   }) {
     final path = json['video_url'] as String?;
+    final thumbnail = json['thumbnail_url'] as String?;
     return VideoJobStatus(
       jobId: json['job_id'] as String,
       state: VideoJobState.fromJson(json['status']),
@@ -55,6 +61,9 @@ class VideoJobStatus {
       videoUrl: path == null
           ? null
           : Uri.parse(baseUrl).resolve(path).toString(),
+      thumbnailUrl: thumbnail == null
+          ? null
+          : Uri.parse(baseUrl).resolve(thumbnail).toString(),
     );
   }
 }

@@ -107,7 +107,9 @@ class VideoJobController extends Notifier<VideoJobUiState> {
       // 지난 날짜에도 다시 볼 수 있게 Firebase Storage에 보관한다(기다리지 않는다).
       final url = job.videoUrl;
       if (url != null) {
-        ref.read(videoArchiveControllerProvider.notifier).archive(url);
+        ref
+            .read(videoArchiveControllerProvider.notifier)
+            .archive(url, thumbnailUrl: job.thumbnailUrl);
       }
     } else {
       _timer ??= Timer.periodic(pollInterval, (_) => _poll());

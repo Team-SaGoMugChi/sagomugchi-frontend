@@ -53,14 +53,34 @@ class _Archive implements VideoArchiveRepository {
   final bool fail;
 
   @override
-  Future<String> archive({required DateTime date, required String sourceUrl}) =>
-      throw UnimplementedError();
+  Future<String> archive({
+    required DateTime date,
+    required String sourceUrl,
+    String? thumbnailUrl,
+  }) => throw UnimplementedError();
 
   @override
   Future<String> playableUrl(String storagePath) async {
     if (fail) throw const ServerException('영상을 불러오지 못했어요.');
     return 'https://firebasestorage/$storagePath?token=t';
   }
+
+  @override
+  Future<String?> thumbnailUrl(String storagePath) async {
+    if (fail) throw const ServerException('썸네일을 불러오지 못했어요.');
+    return 'https://firebasestorage/${storagePath.replaceAll('.mp4', '.jpg')}?token=t';
+  }
+}
+
+Future<String?> _savedThumbnail(String? path, {bool fail = false}) {
+  final container = ProviderContainer(
+    overrides: [
+      diaryRepositoryProvider.overrideWithValue(_Diary(path)),
+      videoArchiveRepositoryProvider.overrideWithValue(_Archive(fail: fail)),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container.read(savedVideoThumbnailUrlProvider(_day).future);
 }
 
 Future<String?> _savedUrl(String? path, {bool fail = false}) {
@@ -93,7 +113,33 @@ void main() {
     });
   });
 
+  group('savedVideoThumbnailUrlProvider — 홈 카드 썸네일', () {
+    test('영상과 같은 이름의 jpg 주소', () async {
+      expect(
+        await _savedThumbnail('users/u1/videos/2026-10-07.mp4'),
+        'https://firebasestorage/users/u1/videos/2026-10-07.jpg?token=t',
+      );
+    });
+
+    test('영상이 없거나 썸네일을 못 받으면 null — 카드는 마스코트', () async {
+      expect(await _savedThumbnail(null), isNull);
+      expect(
+        await _savedThumbnail('users/u1/videos/x.mp4', fail: true),
+        isNull,
+      );
+    });
+  });
+
   group('보관 경로', () {
+    test('썸네일은 영상과 같은 이름의 jpg', () {
+      expect(
+        VideoArchiveFirebaseDataSource.thumbnailPathFor(
+          'users/u1/videos/2026-10-07.mp4',
+        ),
+        'users/u1/videos/2026-10-07.jpg',
+      );
+    });
+
     test('Storage 경로는 사용자·날짜별 mp4', () {
       expect(
         VideoArchiveFirebaseDataSource.pathFor('u1', _day),
@@ -108,6 +154,14 @@ void main() {
         sourceUrl: 'http://server/a.mp4',
       );
       expect(await dummy.playableUrl(path), 'http://server/a.mp4');
+      expect(await dummy.thumbnailUrl(path), isNull);
+
+      final withThumb = await dummy.archive(
+        date: _day,
+        sourceUrl: 'http://server/b.mp4',
+        thumbnailUrl: 'http://server/b.jpg',
+      );
+      expect(await dummy.thumbnailUrl(withThumb), 'http://server/b.jpg');
     });
   });
 }
