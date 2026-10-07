@@ -7,6 +7,7 @@ import '../data/diary_providers.dart';
 import '../data/models/video_job_status.dart';
 import 'diary_draft_provider.dart';
 import 'diary_handoff_controller.dart';
+import 'video_archive_controller.dart';
 
 /// Step3 영상 제작 상태 — 서버 작업 상태와, 작업을 못 만들었거나 폴링이
 /// 끊겼을 때의 오류 문구.
@@ -103,6 +104,11 @@ class VideoJobController extends Notifier<VideoJobUiState> {
     state = VideoJobUiState(job: job);
     if (job.isDone) {
       _stopPolling();
+      // 지난 날짜에도 다시 볼 수 있게 Firebase Storage에 보관한다(기다리지 않는다).
+      final url = job.videoUrl;
+      if (url != null) {
+        ref.read(videoArchiveControllerProvider.notifier).archive(url);
+      }
     } else {
       _timer ??= Timer.periodic(pollInterval, (_) => _poll());
     }

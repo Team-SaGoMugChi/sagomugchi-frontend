@@ -18,8 +18,8 @@ import '../../application/viewing_date_provider.dart';
 /// [videoUrl]이 있으면(Step3 완료 화면에서 방금 만든 영상) 재생한다. 화면을
 /// 누르면 조작부(재생/일시정지·재생바·시간)가 나타나고, 재생 중에는
 /// [controlsTimeout] 뒤 사라진다. 끝까지 보면 다시 보기 버튼이 남는다.
-/// [videoUrl]이 없으면(홈 등 — 지난 영상은 아직 저장되지 않음) 가짜 재생 화면 대신
-/// 볼 수 있는 영상이 없다고 알린다.
+/// [videoUrl]이 없으면(그날 보관된 영상이 없을 때) 가짜 재생 화면 대신 볼 수 있는
+/// 영상이 없다고 알린다. 지난 날짜 영상은 홈이 Firebase Storage 주소를 넘겨준다.
 class ShortformPlayerScreen extends ConsumerStatefulWidget {
   const ShortformPlayerScreen({super.key, this.videoUrl});
 
@@ -200,7 +200,7 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
     if (widget.videoUrl == null) {
       return const _StatusMessage(
         title: '아직 볼 수 있는 영상이 없어요',
-        body: '지난 날의 영상은 아직 다시 볼 수 없어요.',
+        body: '이 날은 저장된 영상이 없어요.',
       );
     }
     if (_loadFailed) {

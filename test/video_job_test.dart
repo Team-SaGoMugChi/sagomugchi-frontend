@@ -3,12 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
 import 'package:oddo/features/diary/application/diary_draft_provider.dart';
+import 'package:oddo/features/diary/application/video_archive_controller.dart';
 import 'package:oddo/features/diary/application/video_job_controller.dart';
 import 'package:oddo/features/diary/data/datasources/video_remote_data_source.dart';
 import 'package:oddo/features/diary/data/diary_providers.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
 import 'package:oddo/features/diary/data/models/video_job_status.dart';
+import 'package:oddo/features/diary/data/repositories/video_archive_repository.dart';
 import 'package:oddo/features/diary/data/repositories/video_repository.dart';
+import 'package:oddo/features/records/application/viewing_date_provider.dart';
 
 class _Client implements ApiClient {
   String? path;
@@ -105,9 +108,38 @@ const _fusion = FusionResult(
   faceDelta: {},
 );
 
-ProviderContainer _container(VideoRepository repository, {String? text}) {
+/// Firebase Storage 대신 — 올린 영상을 기억한다.
+class _Archive implements VideoArchiveRepository {
+  _Archive({this.fail = false});
+
+  final bool fail;
+  final List<(DateTime, String)> uploads = [];
+
+  @override
+  Future<String> archive({
+    required DateTime date,
+    required String sourceUrl,
+  }) async {
+    uploads.add((date, sourceUrl));
+    if (fail) throw const ServerException('영상을 보관하지 못했어요.');
+    return 'users/u1/videos/2026-10-07.mp4';
+  }
+
+  @override
+  Future<String> playableUrl(String storagePath) async =>
+      'https://storage/$storagePath';
+}
+
+ProviderContainer _container(
+  VideoRepository repository, {
+  String? text,
+  _Archive? archive,
+}) {
   final container = ProviderContainer(
-    overrides: [videoRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      videoRepositoryProvider.overrideWithValue(repository),
+      videoArchiveRepositoryProvider.overrideWithValue(archive ?? _Archive()),
+    ],
   );
   if (text != null) {
     container.read(diaryDraftProvider.notifier)
@@ -230,6 +262,57 @@ void main() {
 
       expect(repository.created, 0);
       expect(container.read(videoJobControllerProvider).isFailed, isTrue);
+    });
+  });
+
+  group('VideoArchiveController', () {
+    testWidgets('영상이 완성되면 그날 경로로 한 번만 보관한다', (tester) async {
+      final archive = _Archive();
+      final repository = _Repository(pollsUntilDone: 1);
+      final container = _container(repository, text: '일기', archive: archive);
+      addTearDown(container.dispose);
+      container.read(viewingDateProvider.notifier).set(DateTime(2026, 10, 7));
+
+      await container.read(videoJobControllerProvider.notifier).start();
+      await tester.pump(VideoJobController.pollInterval);
+      await tester.pump(VideoJobController.pollInterval);
+
+      expect(archive.uploads, [
+        (DateTime(2026, 10, 7), 'http://server/video/jobs/job/file'),
+      ]);
+      expect(
+        await container.read(videoArchiveControllerProvider.notifier).latest(),
+        'users/u1/videos/2026-10-07.mp4',
+      );
+    });
+
+    testWidgets('보관에 실패하면 경로 없이 넘어간다', (tester) async {
+      final archive = _Archive(fail: true);
+      final container = _container(
+        _Repository(pollsUntilDone: 1),
+        text: '일기',
+        archive: archive,
+      );
+      addTearDown(container.dispose);
+
+      await container.read(videoJobControllerProvider.notifier).start();
+      await tester.pump(VideoJobController.pollInterval);
+
+      expect(archive.uploads, hasLength(1));
+      expect(
+        await container.read(videoArchiveControllerProvider.notifier).latest(),
+        isNull,
+      );
+      expect(container.read(videoArchiveControllerProvider).hasError, isTrue);
+    });
+
+    test('아무것도 보관하지 않았으면 null', () async {
+      final container = _container(_Repository());
+      addTearDown(container.dispose);
+      expect(
+        await container.read(videoArchiveControllerProvider.notifier).latest(),
+        isNull,
+      );
     });
   });
 }

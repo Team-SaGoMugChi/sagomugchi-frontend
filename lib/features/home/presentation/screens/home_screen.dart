@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../../data/dummy/records_dummy.dart';
 import '../../../../features/baseline/application/baseline_face_frames_provider.dart';
 import '../../../../features/baseline/application/baseline_face_image_provider.dart';
 import '../../../../features/baseline/application/baseline_recording_provider.dart';
+import '../../../../features/diary/data/diary_providers.dart';
 import '../../../../features/onboarding/application/onboarding_controller.dart';
 import '../../../../features/records/application/recorded_days_provider.dart';
 import '../../../../features/records/application/viewing_date_provider.dart';
@@ -276,14 +279,21 @@ class _WriteContent extends StatelessWidget {
 
 /// Written state — recorded-day card content with the generated video +
 /// read button.
-class _WrittenContent extends StatelessWidget {
+class _WrittenContent extends ConsumerWidget {
   const _WrittenContent({required this.date, required this.onReadDiary});
 
   final DateTime date;
   final VoidCallback onReadDiary;
 
+  /// 그날 보관된 영상(Firebase Storage)을 재생한다. 없으면 플레이어가 안내한다.
+  Future<void> _openVideo(BuildContext context, WidgetRef ref) async {
+    final url = await ref.read(savedVideoUrlProvider(date).future);
+    if (!context.mounted) return;
+    unawaited(context.pushNamed(AppRoute.shortformPlayer, extra: url));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -299,7 +309,7 @@ class _WrittenContent extends StatelessWidget {
         ),
         Gap.h16,
         GestureDetector(
-          onTap: () => context.pushNamed(AppRoute.shortformPlayer),
+          onTap: () => _openVideo(context, ref),
           child: ClipRRect(
             borderRadius: AppRadius.card,
             child: AspectRatio(
