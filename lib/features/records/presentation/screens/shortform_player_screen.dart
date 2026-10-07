@@ -1,326 +1,418 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/diary_flow_dummy.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/mascot_image.dart';
+import '../../application/viewing_date_provider.dart';
 
-/// Auxiliary — 숏폼 전체화면 플레이어. Full-screen player for the generated
-/// short-form clip.
+/// Auxiliary — 숏폼 전체화면 플레이어.
 ///
-/// [videoUrl]이 있으면(Step3 완료 화면에서 방금 만든 영상) 실제로 재생한다.
-/// 없으면(홈 등 — 지난 영상은 아직 저장되지 않음) 기존 플레이스홀더 프레임과
-/// 더미 시간을 보여준다.
-class ShortformPlayerScreen extends StatefulWidget {
+/// [videoUrl]이 있으면(Step3 완료 화면에서 방금 만든 영상) 재생한다. 화면을
+/// 누르면 조작부(재생/일시정지·재생바·시간)가 나타나고, 재생 중에는
+/// [controlsTimeout] 뒤 사라진다. 끝까지 보면 다시 보기 버튼이 남는다.
+/// [videoUrl]이 없으면(홈 등 — 지난 영상은 아직 저장되지 않음) 가짜 재생 화면 대신
+/// 볼 수 있는 영상이 없다고 알린다.
+class ShortformPlayerScreen extends ConsumerStatefulWidget {
   const ShortformPlayerScreen({super.key, this.videoUrl});
 
   final String? videoUrl;
 
+  static const controlsTimeout = Duration(seconds: 3);
+
   @override
-  State<ShortformPlayerScreen> createState() => _ShortformPlayerScreenState();
+  ConsumerState<ShortformPlayerScreen> createState() =>
+      _ShortformPlayerScreenState();
 }
 
-class _ShortformPlayerScreenState extends State<ShortformPlayerScreen> {
-  // Dummy playback position (00:03 of 01:32 ≈ 0.03) — 영상이 없을 때만.
-  static const double _dummyProgress = 0.03;
-  bool _dummyPlaying = true;
-
+class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
   VideoPlayerController? _controller;
   bool _loadFailed = false;
+  bool _controlsVisible = true;
+  Timer? _hideTimer;
+
+  /// 재생바를 끄는 동안의 위치(0~1). 손을 뗄 때 그 위치로 이동한다.
+  double? _dragValue;
 
   @override
   void initState() {
     super.initState();
-    final url = widget.videoUrl;
-    if (url != null) _load(url);
+    _load();
   }
 
-  Future<void> _load(String url) async {
+  /// 실패 후 "다시 시도" — 이전 컨트롤러를 버리고 새로 불러온다.
+  Future<void> _retry() async {
+    final old = _controller;
+    setState(() {
+      _controller = null;
+      _loadFailed = false;
+    });
+    old?.removeListener(_onTick);
+    await old?.dispose();
+    await _load();
+  }
+
+  Future<void> _load() async {
+    final url = widget.videoUrl;
+    if (url == null) return;
     final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    // initState에서도 불리므로 setState 없이 넣는다(첫 build가 곧 읽는다).
     _controller = controller;
     controller.addListener(_onTick);
     try {
       await controller.initialize();
       await controller.play();
+      _scheduleHide();
     } catch (_) {
-      if (mounted) setState(() => _loadFailed = true);
+      if (mounted && _controller == controller) {
+        setState(() => _loadFailed = true);
+      }
     }
   }
 
   void _onTick() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // 끝까지 보면 다시 보기 버튼을 계속 보여준다.
+    if (_ended) {
+      _hideTimer?.cancel();
+      _controlsVisible = true;
+    }
+    setState(() {});
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _controller
       ?..removeListener(_onTick)
       ..dispose();
     super.dispose();
   }
 
-  bool get _hasVideo => _controller?.value.isInitialized ?? false;
+  bool get _ready => _controller?.value.isInitialized ?? false;
 
-  bool get _playing =>
-      _hasVideo ? _controller!.value.isPlaying : _dummyPlaying;
+  bool get _playing => _controller?.value.isPlaying ?? false;
+
+  bool get _ended {
+    final value = _controller?.value;
+    if (value == null || !value.isInitialized) return false;
+    return !value.isPlaying &&
+        value.duration > Duration.zero &&
+        value.position >= value.duration;
+  }
 
   double get _progress {
-    if (!_hasVideo) return _dummyProgress;
-    final total = _controller!.value.duration.inMilliseconds;
+    final value = _controller!.value;
+    final total = value.duration.inMilliseconds;
     if (total == 0) return 0;
-    return (_controller!.value.position.inMilliseconds / total).clamp(0, 1);
+    return (value.position.inMilliseconds / total).clamp(0.0, 1.0);
+  }
+
+  void _scheduleHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(ShortformPlayerScreen.controlsTimeout, () {
+      if (mounted && _playing && _dragValue == null) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  void _toggleControls() {
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible && _playing) _scheduleHide();
   }
 
   void _togglePlay() {
     final controller = _controller;
-    if (!_hasVideo || controller == null) {
-      setState(() => _dummyPlaying = !_dummyPlaying);
+    if (!_ready || controller == null) return;
+    if (controller.value.isPlaying) {
+      controller.pause();
+      _hideTimer?.cancel();
+      setState(() => _controlsVisible = true);
       return;
     }
-    final value = controller.value;
-    if (value.isPlaying) {
-      controller.pause();
-    } else {
-      // 끝까지 본 뒤 누르면 처음부터 다시 재생한다.
-      if (value.position >= value.duration) controller.seekTo(Duration.zero);
-      controller.play();
-    }
+    if (_ended) controller.seekTo(Duration.zero);
+    controller.play();
+    _scheduleHide();
+  }
+
+  void _seekTo(double fraction) {
+    final controller = _controller!;
+    final total = controller.value.duration.inMilliseconds;
+    controller.seekTo(Duration(milliseconds: (total * fraction).round()));
   }
 
   static String _format(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  Widget _surface() {
-    final controller = _controller;
-    if (_hasVideo && controller != null) {
-      return Center(
-        child: AspectRatio(
-          aspectRatio: controller.value.aspectRatio,
-          child: VideoPlayer(controller),
-        ),
-      );
-    }
-    if (controller != null && !_loadFailed) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-    // TODO: 지난 날짜 숏폼은 Storage 저장 후 재생 예정
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const MascotImage(pose: MascotPose.front, size: 200, onDark: true),
-          if (_loadFailed) ...[
-            Gap.h12,
-            Text(
-              '영상을 불러오지 못했어요.',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.callTextSecondary,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+    return '${d.inMinutes}:$seconds';
   }
 
   @override
   Widget build(BuildContext context) {
+    final date = ref.watch(viewingDateProvider);
     return Scaffold(
       backgroundColor: AppColors.callBackground,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── The video surface (or placeholder frame), centered ───────────
-          _surface(),
-
-          // ── Bottom scrim so controls stay legible over the frame ──────────
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 220,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Color(0xCC000000)],
+          if (_ready)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleControls,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio,
+                  child: VideoPlayer(_controller!),
                 ),
+              ),
+            )
+          else
+            _status(),
+          if (_ready)
+            IgnorePointer(
+              ignoring: !_controlsVisible,
+              child: AnimatedOpacity(
+                opacity: _controlsVisible ? 1 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: _controls(),
+              ),
+            ),
+          // 뒤로가기·제목은 상태와 상관없이 항상 누를 수 있어야 한다.
+          AnimatedOpacity(
+            opacity: !_ready || _controlsVisible ? 1 : 0,
+            duration: const Duration(milliseconds: 200),
+            child: _TopBar(title: '${DateFormatter.monthDay(date)}의 이야기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 영상이 없거나·불러오는 중이거나·실패했을 때.
+  Widget _status() {
+    if (widget.videoUrl == null) {
+      return const _StatusMessage(
+        title: '아직 볼 수 있는 영상이 없어요',
+        body: '지난 날의 영상은 아직 다시 볼 수 없어요.',
+      );
+    }
+    if (_loadFailed) {
+      return _StatusMessage(
+        title: '영상을 불러오지 못했어요',
+        body: '네트워크를 확인하고 다시 시도해주세요.',
+        action: TextButton(
+          onPressed: _retry,
+          child: const Text('다시 시도'),
+        ),
+      );
+    }
+    return const Center(
+      child: CircularProgressIndicator(color: AppColors.primary),
+    );
+  }
+
+  Widget _controls() {
+    final value = _controller!.value;
+    final progress = _dragValue ?? _progress;
+    final shown = _dragValue == null
+        ? value.position
+        : value.duration * _dragValue!;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 조작부가 영상 위에서도 읽히도록 위·아래를 어둡게 한다.
+        const IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.overlayDim,
+                  Colors.transparent,
+                  Colors.transparent,
+                  AppColors.overlayDim,
+                ],
+                stops: [0, 0.18, 0.72, 1],
               ),
             ),
           ),
-
-          // ── Center play / pause control ───────────────────────────────────
-          Center(
-            child: GestureDetector(
-              onTap: _togglePlay,
-              child: Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: Color(0x55000000),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  size: 44,
-                  color: Colors.white,
-                ),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _toggleControls,
+        ),
+        Center(
+          child: IconButton(
+            iconSize: 64,
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.overlayDim,
+              foregroundColor: AppColors.callTextPrimary,
+            ),
+            tooltip: _ended ? '다시 보기' : (_playing ? '일시정지' : '재생'),
+            onPressed: _togglePlay,
+            icon: Icon(
+              _ended
+                  ? Icons.replay_rounded
+                  : (_playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
-            ),
-          ),
-
-          // ── Top bar: back + title ─────────────────────────────────────────
-          SafeArea(
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    size: 20,
-                    color: AppColors.callTextPrimary,
-                  ),
-                  onPressed: () {
-                    if (context.canPop()) context.pop();
-                  },
-                ),
-                const Expanded(
-                  child: Text(
-                    '숏폼 플레이어',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.callTextPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-          ),
-
-          // ── Bottom controls: caption + scrubber + times ───────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '오늘의 이야기를 담은 영상',
-                      style: TextStyle(
-                        color: AppColors.callTextPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 4,
+                      activeTrackColor: AppColors.primary,
+                      inactiveTrackColor: AppColors.callSurface,
+                      thumbColor: AppColors.callTextPrimary,
+                      overlayColor: AppColors.overlayDim,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 7,
                       ),
                     ),
-                    Gap.h12,
-                    _Scrubber(progress: _progress),
-                    Gap.h8,
-                    Row(
+                    child: Slider(
+                      value: progress,
+                      onChangeStart: (v) {
+                        _hideTimer?.cancel();
+                        setState(() => _dragValue = v);
+                      },
+                      onChanged: (v) => setState(() => _dragValue = v),
+                      onChangeEnd: (v) {
+                        _seekTo(v);
+                        setState(() => _dragValue = null);
+                        if (_playing) _scheduleHide();
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: Row(
                       children: [
                         Text(
-                          _hasVideo
-                              ? _format(_controller!.value.position)
-                              : DiaryFlowDummy.videoPosition,
+                          _format(shown),
                           style: AppTypography.caption.copyWith(
                             color: AppColors.callTextPrimary,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          _hasVideo
-                              ? _format(_controller!.value.duration)
-                              : DiaryFlowDummy.videoDuration,
+                          _format(value.duration),
                           style: AppTypography.caption.copyWith(
                             color: AppColors.callTextSecondary,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(
-                          Icons.fullscreen_rounded,
-                          size: 18,
-                          color: AppColors.callTextPrimary,
-                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: SafeArea(
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: '뒤로',
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: AppColors.callTextPrimary,
+              ),
+              onPressed: () {
+                if (context.canPop()) context.pop();
+              },
+            ),
+            Expanded(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTypography.subtitle.copyWith(
+                  color: AppColors.callTextPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 48),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// A static progress scrubber: filled track up to [progress] with a round thumb.
-class _Scrubber extends StatelessWidget {
-  const _Scrubber({required this.progress});
-  final double progress;
+class _StatusMessage extends StatelessWidget {
+  const _StatusMessage({required this.title, required this.body, this.action});
+
+  final String title;
+  final String body;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 14,
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          // Background track.
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-          ),
-          // Filled portion.
-          FractionallySizedBox(
-            widthFactor: progress,
-            child: Container(
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MascotImage(pose: MascotPose.front, size: 160, onDark: true),
+            Gap.h16,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppTypography.subtitle.copyWith(
+                color: AppColors.callTextPrimary,
               ),
             ),
-          ),
-          // Thumb (centered on the playhead position).
-          Align(
-            alignment: Alignment(progress * 2 - 1, 0),
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
+            Gap.h8,
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.callTextSecondary,
               ),
             ),
-          ),
-        ],
+            if (action != null) ...[Gap.h12, action!],
+          ],
+        ),
       ),
     );
   }
