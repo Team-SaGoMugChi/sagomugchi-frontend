@@ -15,6 +15,13 @@ flutter pub get
 flutter run        # 에뮬레이터/기기
 ```
 
+## Firebase 요금제·Storage (2026-10-07~)
+
+- Firebase 프로젝트는 **Blaze(종량제)** — 생성된 숏폼을 Storage에 보관하기 위해 전환. 무료 범위(저장 5GB, 다운로드 월 100GB) 안이라 비용 0
+- 버킷 `oddo-emotion-diary.firebasestorage.app` (`us-central1`), 영상 경로·규칙은 [FIRESTORE_SCHEMA.md](FIRESTORE_SCHEMA.md) §3
+- 보안 규칙을 바꾸면 배포: `firebase deploy --only storage` (Firestore 규칙은 `--only firestore:rules`)
+- 유료 기능(전화번호 인증 SMS 등)은 팀 논의 없이 켜지 않는다
+
 ## 작업 규칙 (요약 — 상세는 CLAUDE.md §10·§11)
 
 - `main` 직접 푸시 금지 → `feature/<영역>-<요약>` 브랜치 + PR

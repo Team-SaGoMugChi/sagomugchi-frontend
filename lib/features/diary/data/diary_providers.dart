@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config_provider.dart';
+import '../../../core/error/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import 'datasources/counsel_data_source.dart';
 import 'datasources/counsel_dummy_data_source.dart';
@@ -18,6 +19,9 @@ import 'datasources/diary_interview_data_source.dart';
 import 'datasources/diary_interview_dummy_data_source.dart';
 import 'datasources/diary_interview_remote_data_source.dart';
 import 'datasources/diary_remote_data_source.dart';
+import 'datasources/video_archive_data_source.dart';
+import 'datasources/video_archive_dummy_data_source.dart';
+import 'datasources/video_archive_firebase_data_source.dart';
 import 'datasources/video_data_source.dart';
 import 'datasources/video_dummy_data_source.dart';
 import 'datasources/video_remote_data_source.dart';
@@ -34,6 +38,8 @@ import 'repositories/diary_interview_repository.dart';
 import 'repositories/diary_interview_repository_impl.dart';
 import 'repositories/diary_repository.dart';
 import 'repositories/diary_repository_impl.dart';
+import 'repositories/video_archive_repository.dart';
+import 'repositories/video_archive_repository_impl.dart';
 import 'repositories/video_repository.dart';
 import 'repositories/video_repository_impl.dart';
 
@@ -162,4 +168,32 @@ final videoDataSourceProvider = Provider<VideoDataSource>((ref) {
 
 final videoRepositoryProvider = Provider<VideoRepository>((ref) {
   return VideoRepositoryImpl(ref.watch(videoDataSourceProvider));
+});
+
+/// Swap point for 생성된 숏폼 보관(Firebase Storage `users/{uid}/videos/`).
+final videoArchiveDataSourceProvider = Provider<VideoArchiveDataSource>((ref) {
+  final config = ref.watch(appConfigProvider);
+  if (config.useDummyData) {
+    return VideoArchiveDummyDataSource();
+  }
+  return VideoArchiveFirebaseDataSource();
+});
+
+final videoArchiveRepositoryProvider = Provider<VideoArchiveRepository>((ref) {
+  return VideoArchiveRepositoryImpl(ref.watch(videoArchiveDataSourceProvider));
+});
+
+/// 그날 일기에 보관된 영상을 재생할 주소. 영상이 없거나 불러오지 못하면 null.
+final savedVideoUrlProvider = FutureProvider.family<String?, DateTime>((
+  ref,
+  date,
+) async {
+  final entry = await ref.watch(diaryEntryProvider(date).future);
+  final path = entry?.videoUrl;
+  if (path == null || path.isEmpty) return null;
+  try {
+    return await ref.read(videoArchiveRepositoryProvider).playableUrl(path);
+  } on AppException {
+    return null;
+  }
 });

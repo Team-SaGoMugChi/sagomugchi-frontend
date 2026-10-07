@@ -7,6 +7,7 @@ import 'package:oddo/core/config/app_config.dart';
 import 'package:oddo/core/config/app_config_provider.dart';
 import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/diary/application/diary_draft_provider.dart';
+import 'package:oddo/features/diary/application/video_archive_controller.dart';
 import 'package:oddo/features/diary/data/diary_providers.dart';
 import 'package:oddo/features/diary/data/models/counsel_session.dart';
 import 'package:oddo/features/diary/data/models/diary_entry.dart';
@@ -14,6 +15,7 @@ import 'package:oddo/features/diary/data/models/emotion_report.dart';
 import 'package:oddo/features/diary/data/models/fusion_result.dart';
 import 'package:oddo/features/diary/data/models/video_rating.dart';
 import 'package:oddo/features/diary/data/repositories/diary_repository.dart';
+import 'package:oddo/features/diary/data/repositories/video_archive_repository.dart';
 import 'package:oddo/features/diary/presentation/screens/report_guide_screen.dart';
 import 'package:oddo/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,6 +85,7 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
   String? diaryText,
   String? summary,
   VideoRating? videoRating,
+  String? archivedVideo,
 }) async {
   final repository = await _pumpReportGuide(
     tester,
@@ -92,6 +95,7 @@ Future<_CapturingDiaryRepository> _tapCompleteRecord(
     diaryText: diaryText,
     summary: summary,
     videoRating: videoRating,
+    archivedVideo: archivedVideo,
   );
 
   if (!config.useDummyData) {
@@ -114,6 +118,7 @@ Future<_CapturingDiaryRepository> _pumpReportGuide(
   String? diaryText,
   String? summary,
   VideoRating? videoRating,
+  String? archivedVideo,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -123,6 +128,7 @@ Future<_CapturingDiaryRepository> _pumpReportGuide(
       appConfigProvider.overrideWithValue(config),
       localStoreProvider.overrideWithValue(LocalStore(prefs)),
       diaryRepositoryProvider.overrideWithValue(repository),
+      videoArchiveRepositoryProvider.overrideWithValue(_Archive()),
     ],
   );
   addTearDown(container.dispose);
@@ -141,6 +147,11 @@ Future<_CapturingDiaryRepository> _pumpReportGuide(
   }
   if (videoRating != null) {
     container.read(diaryDraftProvider.notifier).setVideoRating(videoRating);
+  }
+  if (archivedVideo != null) {
+    container
+        .read(videoArchiveControllerProvider.notifier)
+        .archive(archivedVideo);
   }
 
   final router = GoRouter(
@@ -281,6 +292,37 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
+  testWidgets('saves the archived video path with the diary', (tester) async {
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: true,
+      config: _realDataConfig,
+      transcript: '발표를 마쳤어요.',
+      archivedVideo: 'http://server/video/jobs/abc/file',
+    );
+
+    expect(repository.savedEntry!.videoUrl, 'users/u1/videos/abc.mp4');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('saves without a video when nothing was archived', (
+    tester,
+  ) async {
+    final repository = await _tapCompleteRecord(
+      tester,
+      withFusion: true,
+      config: _realDataConfig,
+      transcript: '발표를 마쳤어요.',
+    );
+
+    expect(repository.savedEntry!.videoUrl, isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   testWidgets('real mode blocks saving when analysis is missing', (
     tester,
   ) async {
@@ -365,4 +407,16 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
   });
+}
+
+/// Firebase Storage 대신 — 원래 주소에서 작업 ID를 따 경로를 만든다.
+class _Archive implements VideoArchiveRepository {
+  @override
+  Future<String> archive({
+    required DateTime date,
+    required String sourceUrl,
+  }) async => 'users/u1/videos/${sourceUrl.split('/').reversed.elementAt(1)}.mp4';
+
+  @override
+  Future<String> playableUrl(String storagePath) async => storagePath;
 }

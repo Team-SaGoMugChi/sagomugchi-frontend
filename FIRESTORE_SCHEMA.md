@@ -62,7 +62,7 @@ users/{uid}                              ← AppUser        (계정 프로필)
 | `diaryText` | string? | 탄카츄와의 대화를 일기 한 편으로 정제하고 Step2에서 사용자가 고친 글 — 일기 상세 본문 (2026-09-30 추가, 구 문서엔 없음) |
 | `summary` | string | AI 요약(한두 문장). 요약이 없으면 `diaryText` → `transcript` 순으로 대신 저장 |
 | `emotionKeywords` | string[] | 감정 키워드 |
-| `videoUrl` | string? | 생성된 숏폼 Storage URL (Step3 전엔 없음) |
+| `videoUrl` | string? | 생성된 숏폼의 Firebase Storage **경로** `users/{uid}/videos/{yyyy-MM-dd}.mp4` (Step3에서 보관에 실패했거나 2026-10 이전 기록엔 없음). 재생할 때 다운로드 URL로 바꾼다 |
 | `videoRating` | string? | Step3 완료 화면 "이 영상은 어땠나요?" 응답 — `good`(좋았어요) / `okay`(보통이에요) / `bad`(별로였어요). 고르지 않았으면 필드 없음 (2026-10-07 추가) |
 | `emotionIntensity` | int 0–100 | |
 | `emotionStability` | int 0–100 | |
@@ -145,12 +145,13 @@ users/{uid}                              ← AppUser        (계정 프로필)
 ## 3. Firebase Storage 경로
 
 ```
-users/{uid}/recordings/{yyyy-MM-dd}/step1.m4a     ← Step1 음성 녹음
-users/{uid}/recordings/baseline.m4a               ← baseline 음성
-users/{uid}/videos/{yyyy-MM-dd}.mp4               ← 생성된 숏폼 (Phase 8)
+users/{uid}/videos/{yyyy-MM-dd}.mp4               ← 생성된 숏폼 (2026-10-07부터 사용)
 ```
 
-규칙: 본인 경로만 접근 (`request.auth.uid == uid`), Firestore 규칙과 동일한 패턴.
+- 버킷 `oddo-emotion-diary.firebasestorage.app` (`us-central1`, Blaze 요금제 — ROADMAP Phase 3 갱신 참고)
+- 앱이 Step3 영상 완성 시 AI 서버에서 받아 올리고, 기록 완료 때 경로를 `diaries/{date}.videoUrl`에 저장한다. 탈퇴 시 삭제
+- 규칙(`storage.rules`): 본인 경로만 읽기·쓰기·삭제(`request.auth.uid == uid`), 쓰기는 `video/mp4`·50MB 미만만. 그 밖의 경로는 모두 막힘
+- 녹음(Step1·baseline)은 Storage에 올리지 않고 AI 서버로 직접 보낸다
 
 ## 4. 버전 관리
 

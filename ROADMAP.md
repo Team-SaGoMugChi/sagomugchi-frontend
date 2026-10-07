@@ -48,7 +48,10 @@
 - [x] 카메라/마이크 실제 OS 권한 요청 + 거부 UX (설정 열기/건너뛰기)
 - [x] 통화형 화면 4곳 전면 카메라 셀프 프리뷰 (`CameraSelfView`)
 - [x] 마이크 녹음 → 로컬 파일 보관 (Step1 → `diaryDraft.recordingPath` / baseline → `baselineRecordingProvider`)
-- 결정: Firebase Storage 미사용 (신규 프로젝트는 유료 요금제 요구) — 녹음 파일은 Phase 4에서 AI 서버로 직접 업로드
+- 결정: ~~Firebase Storage 미사용 (신규 프로젝트는 유료 요금제 요구)~~ — 녹음 파일은 Phase 4에서 AI 서버로 직접 업로드
+- **갱신(2026-10-07)**: 생성된 숏폼을 다시 보려고 Firebase 프로젝트를 **Blaze 요금제로 전환**하고 Storage를 켬
+  (구글 정책상 2026-02부터 Storage는 Blaze 필수). 버킷 `oddo-emotion-diary.firebasestorage.app`, 위치 **`us-central1`**
+  — 무료 범위(저장 5GB, 다운로드 월 100GB) 안에서 비용 0. 영상만 저장(`users/{uid}/videos/`), 녹음은 계속 서버로 직접 업로드
 
 ---
 

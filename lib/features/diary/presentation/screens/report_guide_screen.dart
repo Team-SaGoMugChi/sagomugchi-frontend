@@ -25,6 +25,7 @@ import '../../../../widgets/primary_button.dart';
 import '../../application/counsel_controller.dart';
 import '../../application/counsel_report_controller.dart';
 import '../../application/diary_draft_provider.dart';
+import '../../application/video_archive_controller.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/counsel_report.dart';
 import '../../data/models/counsel_session.dart';
@@ -79,6 +80,12 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     // Step2에서 확인·수정한 정제 일기. 대화형 말하기 이전 흐름엔 없다.
     final diaryText = _nonEmpty(draft.diaryText);
 
+    // Step3에서 보관한 영상 경로. 올리지 못했으면 영상 없이 저장한다.
+    final videoPath = await ref
+        .read(videoArchiveControllerProvider.notifier)
+        .latest();
+    if (!mounted) return;
+
     final entry = DiaryEntry(
       id: DateFormatter.dateKey(writtenDate),
       date: writtenDate,
@@ -93,6 +100,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
           fusion?.emotionIntensity ?? sampleEntry.emotionIntensity,
       // 아직 서버가 계산하지 않는 지표를 예시 숫자로 꾸미지 않는다.
       emotionStability: useSampleContent ? sampleEntry.emotionStability : 0,
+      videoUrl: videoPath,
       videoRating: draft.videoRating,
       writtenAt: now,
     );
@@ -135,6 +143,8 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       ref.invalidate(counselControllerProvider);
       // 다음 상담이 끝나면 리포트를 새로 만든다.
       ref.invalidate(counselReportControllerProvider);
+      // 다음 일기의 영상은 새로 보관한다.
+      ref.invalidate(videoArchiveControllerProvider);
       // 방금 저장한 날짜의 기록 화면들이 새 데이터를 읽도록 캐시 무효화.
       ref.invalidate(diaryEntryProvider(writtenDate));
       ref.invalidate(emotionReportProvider(writtenDate));
