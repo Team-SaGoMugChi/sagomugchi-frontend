@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
@@ -22,13 +23,16 @@ class AuthFirebaseDataSource implements AuthDataSource {
   AuthFirebaseDataSource({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
     GoogleSignIn? googleSignIn,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
+        _storage = storage,
         _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final FirebaseStorage? _storage;
   final GoogleSignIn _googleSignIn;
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
@@ -240,9 +244,24 @@ class AuthFirebaseDataSource implements AuthDataSource {
     return _guard(() async {
       final user = _auth.currentUser;
       if (user == null) return;
+      await _deleteVideos(user.uid);
       await _userDoc(user.uid).delete();
       await user.delete();
     });
+  }
+
+  /// 탈퇴하면 Storage에 보관한 영상(`users/{uid}/videos/`)도 지운다. 지우지 못해도
+  /// 탈퇴는 막지 않는다 — 계정이 지워지면 본인 경로 규칙상 아무도 읽을 수 없다.
+  Future<void> _deleteVideos(String uid) async {
+    try {
+      final storage = _storage ?? FirebaseStorage.instance;
+      final listed = await storage.ref('users/$uid/videos').listAll();
+      for (final item in listed.items) {
+        await item.delete();
+      }
+    } on FirebaseException {
+      // 영상이 없거나 이미 지워진 경우 등.
+    }
   }
 
   /// Reads the `users/{uid}` profile; creates it from the auth account when
