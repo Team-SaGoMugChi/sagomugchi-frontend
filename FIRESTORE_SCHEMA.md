@@ -146,11 +146,13 @@ users/{uid}                              ← AppUser        (계정 프로필)
 
 ```
 users/{uid}/videos/{yyyy-MM-dd}.mp4               ← 생성된 숏폼 (2026-10-07부터 사용)
+users/{uid}/videos/{yyyy-MM-dd}.jpg               ← 그 영상의 대표 장면 썸네일(가로 16:9, 홈 카드용). 없을 수 있음
 ```
 
 - 버킷 `oddo-emotion-diary.firebasestorage.app` (`us-central1`, Blaze 요금제 — ROADMAP Phase 3 갱신 참고)
 - 앱이 Step3 영상 완성 시 AI 서버에서 받아 올리고, 기록 완료 때 경로를 `diaries/{date}.videoUrl`에 저장한다. 탈퇴 시 삭제
-- 규칙(`storage.rules`): 본인 경로만 읽기·쓰기·삭제(`request.auth.uid == uid`), 쓰기는 `video/mp4`·50MB 미만만. 그 밖의 경로는 모두 막힘
+- 썸네일은 AI 서버가 대표 감정 컷을 가로로 다시 그린 것(`thumbnail_url`). 영상 경로에서 `.mp4`→`.jpg`로 찾는다 — 일기 문서에 따로 저장하지 않는다
+- 규칙(`storage.rules`): 본인 경로만 읽기·쓰기·삭제(`request.auth.uid == uid`), 쓰기는 `video/mp4` 50MB 미만 또는 `image/jpeg` 2MB 미만만. 그 밖의 경로는 모두 막힘
 - 녹음(Step1·baseline)은 Storage에 올리지 않고 AI 서버로 직접 보낸다
 
 ## 4. 버전 관리
