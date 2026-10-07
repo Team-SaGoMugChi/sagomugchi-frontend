@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/counsel_session.dart';
 import '../data/models/diary_interview.dart';
 import '../data/models/fusion_result.dart';
+import '../data/models/video_rating.dart';
 
 /// The in-progress diary run, carried across the write-flow steps until the
 /// final "기록 완료하기" save.
@@ -23,6 +24,8 @@ import '../data/models/fusion_result.dart';
 /// - [fusionResult]: 그 둘 + baseline을 서버(`/diary/step2/analyze`)에 보내서
 ///   받은 감정 키워드/점수/Δ. 아직 없으면(분석 전/실패) null — Step2 확인
 ///   화면은 이 경우 더미 콘텐츠로 폴백한다.
+/// - [videoRating]: Step 3 완료 화면 "이 영상은 어땠나요?" 응답. 기록 완료 때
+///   일기 문서와 함께 저장한다(Step 3 시점엔 일기 문서가 아직 없다).
 /// - [counselMessages] / [counselStartedAt]: Step 4 상담에서 주고받은 대화와
 ///   시작 시각. 46번 화면의 "기록 완료하기"가 이걸 그대로 Firestore
 ///   `counsel_sessions/{yyyy-MM-dd}`에 저장한다.
@@ -38,6 +41,7 @@ class DiaryDraftState {
     this.faceImagePaths = const [],
     this.faceTimestampsMs = const [],
     this.fusionResult,
+    this.videoRating,
     this.counselMessages = const [],
     this.counselStartedAt,
   });
@@ -52,6 +56,7 @@ class DiaryDraftState {
   final List<String> faceImagePaths;
   final List<int> faceTimestampsMs;
   final FusionResult? fusionResult;
+  final VideoRating? videoRating;
   final List<CounselMessage> counselMessages;
   final DateTime? counselStartedAt;
 
@@ -66,6 +71,7 @@ class DiaryDraftState {
     List<String>? faceImagePaths,
     List<int>? faceTimestampsMs,
     FusionResult? fusionResult,
+    VideoRating? videoRating,
     List<CounselMessage>? counselMessages,
     DateTime? counselStartedAt,
   }) => DiaryDraftState(
@@ -79,6 +85,7 @@ class DiaryDraftState {
     faceImagePaths: faceImagePaths ?? this.faceImagePaths,
     faceTimestampsMs: faceTimestampsMs ?? this.faceTimestampsMs,
     fusionResult: fusionResult ?? this.fusionResult,
+    videoRating: videoRating ?? this.videoRating,
     counselMessages: counselMessages ?? this.counselMessages,
     counselStartedAt: counselStartedAt ?? this.counselStartedAt,
   );
@@ -126,6 +133,7 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
     summary: state.summary,
     recordingPath: state.recordingPath,
     fusionResult: state.fusionResult,
+    videoRating: state.videoRating,
     counselMessages: state.counselMessages,
     counselStartedAt: state.counselStartedAt,
   );
@@ -143,6 +151,9 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
 
   void setFusionResult(FusionResult result) =>
       state = state.copyWith(fusionResult: result);
+
+  void setVideoRating(VideoRating rating) =>
+      state = state.copyWith(videoRating: rating);
 
   /// Step4 상담 종료 시 호출 — 대화 전체와 시작 시각을 draft에 싣는다.
   void setCounsel({

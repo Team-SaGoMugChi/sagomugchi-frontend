@@ -93,6 +93,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
           fusion?.emotionIntensity ?? sampleEntry.emotionIntensity,
       // 아직 서버가 계산하지 않는 지표를 예시 숫자로 꾸미지 않는다.
       emotionStability: useSampleContent ? sampleEntry.emotionStability : 0,
+      videoRating: draft.videoRating,
       writtenAt: now,
     );
     // 화면에 보여준 것과 같은 값으로 저장한다.
