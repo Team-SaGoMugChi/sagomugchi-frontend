@@ -415,8 +415,12 @@ class _Archive implements VideoArchiveRepository {
   Future<String> archive({
     required DateTime date,
     required String sourceUrl,
+    String? thumbnailUrl,
   }) async => 'users/u1/videos/${sourceUrl.split('/').reversed.elementAt(1)}.mp4';
 
   @override
   Future<String> playableUrl(String storagePath) async => storagePath;
+
+  @override
+  Future<String?> thumbnailUrl(String storagePath) async => null;
 }

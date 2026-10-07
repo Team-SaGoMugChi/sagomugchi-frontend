@@ -183,6 +183,20 @@ final videoArchiveRepositoryProvider = Provider<VideoArchiveRepository>((ref) {
   return VideoArchiveRepositoryImpl(ref.watch(videoArchiveDataSourceProvider));
 });
 
+/// 그날 일기에 보관된 영상의 대표 장면 썸네일 주소(홈 카드). 없으면 null —
+/// 카드는 마스코트 그림을 보여준다.
+final savedVideoThumbnailUrlProvider =
+    FutureProvider.family<String?, DateTime>((ref, date) async {
+      final entry = await ref.watch(diaryEntryProvider(date).future);
+      final path = entry?.videoUrl;
+      if (path == null || path.isEmpty) return null;
+      try {
+        return await ref.read(videoArchiveRepositoryProvider).thumbnailUrl(path);
+      } on AppException {
+        return null;
+      }
+    });
+
 /// 그날 일기에 보관된 영상을 재생할 주소. 영상이 없거나 불러오지 못하면 null.
 final savedVideoUrlProvider = FutureProvider.family<String?, DateTime>((
   ref,

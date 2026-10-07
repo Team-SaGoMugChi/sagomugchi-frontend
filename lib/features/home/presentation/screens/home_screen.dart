@@ -277,6 +277,30 @@ class _WriteContent extends StatelessWidget {
   }
 }
 
+/// 홈 영상 카드의 그림 — 대표 장면 썸네일, 없으면 마스코트.
+class _VideoThumbnail extends StatelessWidget {
+  const _VideoThumbnail({required this.url});
+
+  final String? url;
+
+  static const _mascot = Center(
+    child: MascotImage(pose: MascotPose.writing, size: 96, onDark: true),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final url = this.url;
+    if (url == null) return _mascot;
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _mascot,
+      frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
+          wasSynchronouslyLoaded || frame != null ? child : _mascot,
+    );
+  }
+}
+
 /// Written state — recorded-day card content with the generated video +
 /// read button.
 class _WrittenContent extends ConsumerWidget {
@@ -318,13 +342,9 @@ class _WrittenContent extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   Container(color: AppColors.callBackground),
-                  // TODO: 일기 쓰는 장면 영상 썸네일로 교체 예정
-                  const Center(
-                    child: MascotImage(
-                      pose: MascotPose.writing,
-                      size: 96,
-                      onDark: true,
-                    ),
+                  // 그날 영상의 대표 장면 썸네일(가로 16:9). 없거나 못 불러오면 마스코트.
+                  _VideoThumbnail(
+                    url: ref.watch(savedVideoThumbnailUrlProvider(date)).value,
                   ),
                   const Center(
                     child: Icon(

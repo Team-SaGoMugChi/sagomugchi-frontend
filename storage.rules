@@ -1,13 +1,15 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // 생성된 숏폼 — 본인만 읽고 쓴다(FIRESTORE_SCHEMA.md §3).
-    // 앱이 Step3 영상을 users/{uid}/videos/{yyyy-MM-dd}.mp4로 올리고, 탈퇴 시 지운다.
+    // 생성된 숏폼과 대표 장면 썸네일 — 본인만 읽고 쓴다(FIRESTORE_SCHEMA.md §3).
+    // 앱이 Step3 영상을 users/{uid}/videos/{yyyy-MM-dd}.mp4(+ 같은 이름 .jpg)로 올리고, 탈퇴 시 지운다.
     match /users/{uid}/videos/{file} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
-        && request.resource.contentType == 'video/mp4'
-        && request.resource.size < 50 * 1024 * 1024;
+        && ((request.resource.contentType == 'video/mp4'
+              && request.resource.size < 50 * 1024 * 1024)
+          || (request.resource.contentType == 'image/jpeg'
+              && request.resource.size < 2 * 1024 * 1024));
     }
     // 그 밖의 경로는 모두 막는다(기본값).
   }
