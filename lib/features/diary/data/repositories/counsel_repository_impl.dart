@@ -19,6 +19,8 @@ class CounselRepositoryImpl implements CounselRepository {
     bool incongruent = false,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   }) {
     return _dataSource.sendTurn(
       userText: userText,
@@ -29,6 +31,8 @@ class CounselRepositoryImpl implements CounselRepository {
       incongruent: incongruent,
       persona: persona,
       psychProfile: psychProfile,
+      slots: slots,
+      emotionArc: emotionArc,
     );
   }
 
@@ -37,11 +41,13 @@ class CounselRepositoryImpl implements CounselRepository {
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   }) {
     return _dataSource.fetchReport(
       messages: messages,
       emotions: emotions,
       diarySummary: diarySummary,
+      slots: slots,
     );
   }
 }
