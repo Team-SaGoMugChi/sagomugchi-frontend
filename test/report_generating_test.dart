@@ -22,6 +22,7 @@ class _PendingCounselRepository implements CounselRepository {
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   }) => report.future;
 
   @override

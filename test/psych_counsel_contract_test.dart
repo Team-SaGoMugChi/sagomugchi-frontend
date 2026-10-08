@@ -82,6 +82,8 @@ class _CounselRepository implements CounselRepository {
     bool incongruent = false,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   }) async {
     this.psychProfile = psychProfile;
     this.persona = persona;
@@ -93,6 +95,7 @@ class _CounselRepository implements CounselRepository {
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   }) => throw UnimplementedError();
 }
 
