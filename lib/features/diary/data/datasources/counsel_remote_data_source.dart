@@ -5,6 +5,18 @@ import '../models/counsel_session.dart';
 import '../models/counsel_turn_result.dart';
 import 'counsel_data_source.dart';
 
+/// 일기 대화 칸에서 내용이 있는 것만 남긴다. 하나도 없으면 null —
+/// 요청 본문에서 `slots` 키 자체를 뺀다.
+Map<String, String>? filledCounselSlots(Map<String, String?>? slots) {
+  if (slots == null) return null;
+  final filled = <String, String>{
+    for (final entry in slots.entries)
+      if ((entry.value ?? '').trim().isNotEmpty)
+        entry.key: entry.value!.trim(),
+  };
+  return filled.isEmpty ? null : filled;
+}
+
 /// 실제 AI 서버 호출.
 class CounselRemoteDataSource implements CounselDataSource {
   CounselRemoteDataSource(this._apiClient);
@@ -21,7 +33,11 @@ class CounselRemoteDataSource implements CounselDataSource {
     bool incongruent = false,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   }) async {
+    final filledSlots = filledCounselSlots(slots);
+    final arc = emotionArc?.trim();
     // 서버(JSON)는 snake_case, 앱은 camelCase — 변환은 여기서만 한다.
     final json = await _apiClient.post(
       '/counsel/turn',
@@ -36,6 +52,8 @@ class CounselRemoteDataSource implements CounselDataSource {
         if (persona != null && persona.isNotEmpty) 'persona': persona,
         if (psychProfile != null && psychProfile.isNotEmpty)
           'psych_profile': psychProfile,
+        if (filledSlots != null) 'slots': filledSlots,
+        if (arc != null && arc.isNotEmpty) 'emotion_arc': arc,
       },
     );
     if (json['reply'] is! String) {
@@ -53,7 +71,9 @@ class CounselRemoteDataSource implements CounselDataSource {
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   }) async {
+    final filledSlots = filledCounselSlots(slots);
     final json = await _apiClient.post(
       '/counsel/report',
       body: {
@@ -61,6 +81,7 @@ class CounselRemoteDataSource implements CounselDataSource {
         if (emotions != null && emotions.isNotEmpty) 'emotions': emotions,
         if (diarySummary != null && diarySummary.isNotEmpty)
           'diary_summary': diarySummary,
+        if (filledSlots != null) 'slots': filledSlots,
       },
     );
     if (json['summary'] is! String) {

@@ -8,7 +8,13 @@ abstract interface class CounselDataSource {
   ///
   /// [history]는 이번 턴 이전까지의 대화(오래된 순), [emotions]는 Step2 분석의
   /// 감정 라벨별 점수, [persona]는 `meta/persona` 설정, [psychProfile]은
-  /// 검증된 심리검사 결과다. 모두 없어도 상담은 동작한다.
+  /// 검증된 심리검사 결과다.
+  ///
+  /// [slots]는 일기 대화에서 사용자가 직접 말한 칸(육하원칙·기분),
+  /// [emotionArc]는 일기 전달 JSON(handoff)의 감정 흐름 한 줄이다. 상담봇이
+  /// 사용자가 실제로 한 말에만 근거해 대화하게 하는 재료다.
+  ///
+  /// 모두 없어도 상담은 동작한다.
   Future<CounselTurnResult> sendTurn({
     required String userText,
     List<CounselMessage> history,
@@ -18,15 +24,19 @@ abstract interface class CounselDataSource {
     bool incongruent,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   });
 
   /// 상담이 끝난 뒤 대화를 보내 리포트를 받는다.
   ///
   /// [messages]는 주고받은 대화 전체, [emotions]는 Step2 분석 점수,
-  /// [diarySummary]는 오늘 일기 내용이다. 대화만 있으면 동작한다.
+  /// [diarySummary]는 오늘 일기 내용, [slots]는 일기 대화 칸이다(서버가
+  /// 리포트 문장의 근거 확인에도 쓴다). 대화만 있으면 동작한다.
   Future<CounselReport> fetchReport({
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   });
 }
