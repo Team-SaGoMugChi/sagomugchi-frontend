@@ -16,6 +16,8 @@ class CounselDummyDataSource implements CounselDataSource {
     bool incongruent = false,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return const CounselTurnResult(reply: '그랬군요. 조금 더 이야기해줄래요?');
@@ -26,6 +28,7 @@ class CounselDummyDataSource implements CounselDataSource {
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return const CounselReport(

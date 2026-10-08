@@ -13,11 +13,14 @@ abstract interface class CounselRepository {
     bool incongruent,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   });
 
   Future<CounselReport> fetchReport({
     required List<CounselMessage> messages,
     Map<String, double>? emotions,
     String? diarySummary,
+    Map<String, String?>? slots,
   });
 }

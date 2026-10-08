@@ -5,6 +5,7 @@ import '../../psych_test/data/psych_providers.dart';
 import '../data/diary_providers.dart';
 import '../data/models/counsel_session.dart';
 import 'diary_draft_provider.dart';
+import 'diary_handoff_controller.dart';
 
 /// 상담·리포트에 넘길 오늘 일기 맥락.
 ///
@@ -17,6 +18,18 @@ String? counselDiaryContext(DiaryDraftState draft) {
   final transcript = draft.transcript?.trim();
   if (transcript != null && transcript.isNotEmpty) return transcript;
   return null;
+}
+
+/// 일기 전달 JSON(handoff `oddo.counsel_context.v1`)의 감정 흐름 한 줄.
+///
+/// Step2 확인 때 만들어 두므로 보통 상담 전에 준비돼 있다. 아직 만들고 있거나
+/// 실패했으면 null — 감정 흐름 없이 상담한다.
+String? counselEmotionArc(Ref ref) {
+  final counsel = ref.read(diaryHandoffControllerProvider).value?.counsel;
+  final arc = counsel?['emotion_arc'];
+  if (arc is! String) return null;
+  final trimmed = arc.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }
 
 /// Step4 상담 대화 상태 — 메시지 목록, 전송 중 여부, 위기 감지 여부.
@@ -100,6 +113,10 @@ class CounselController extends Notifier<CounselState> {
             incongruent: fusion?.incongruent ?? false,
             persona: await _loadPersona(),
             psychProfile: await _loadPsychProfile(),
+            // 일기 대화에서 사용자가 직접 말한 사실 — 상담봇이 지어내지 않고
+            // 이미 들은 것을 다시 묻지 않게 하는 근거.
+            slots: draft.interviewSlots,
+            emotionArc: counselEmotionArc(ref),
           );
       state = state.copyWith(
         messages: [
