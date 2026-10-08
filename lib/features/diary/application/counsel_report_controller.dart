@@ -52,6 +52,8 @@ class CounselReportController extends Notifier<CounselReportState> {
             emotions: draft.fusionResult?.emotionScores,
             // 상담 턴과 같은 기준 — 요약 우선, 없으면 원문.
             diarySummary: counselDiaryContext(draft),
+            // 서버가 리포트 문장이 사용자 말에 근거했는지 확인할 때도 쓴다.
+            slots: draft.interviewSlots,
           )
           .timeout(_timeout);
       state = CounselReportState(report: report);
