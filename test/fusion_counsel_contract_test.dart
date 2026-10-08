@@ -58,6 +58,8 @@ class _CounselRepository implements CounselRepository {
     bool incongruent = false,
     Map<String, dynamic>? persona,
     Map<String, dynamic>? psychProfile,
+    Map<String, String?>? slots,
+    String? emotionArc,
   }) async {
     sent = {
       'userText': userText,
@@ -68,6 +70,8 @@ class _CounselRepository implements CounselRepository {
       'incongruent': incongruent,
       'persona': persona,
       'psychProfile': psychProfile,
+      'slots': slots,
+      'emotionArc': emotionArc,
     };
     return const CounselTurnResult(reply: '응답');
   }
