@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../core/media/audio_recorder_service.dart';
+import '../../../../core/media/korean_lip_sync.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../core/media/wav_merger.dart';
 import '../../../../core/permissions/app_permissions.dart';
@@ -19,13 +20,14 @@ import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/camera_self_view.dart';
 import '../../../../widgets/help_sheet.dart';
-import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/video_call_widgets.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../application/diary_interview_controller.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/diary_interview.dart';
+import '../widgets/call_room_background.dart';
 import '../widgets/diary_interview_copy.dart';
+import '../widgets/talking_tankachu.dart';
 
 /// Screen 37 — Step 1. 말하기. 탄카츄와 영상통화처럼 주고받으며 오늘을 기록한다.
 ///
@@ -54,8 +56,22 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Stopwatch? _turnClock;
   bool _handedToDraft = false;
 
+  /// 통화를 시작한 시각 — 낮/밤 배경을 고른다.
+  final _startedAt = DateTime.now();
+
+  /// 탄카츄 입이 따라갈 문장 — 소리로 읽을 땐 TTS가 알려주고, 소리를 끄면
+  /// 말풍선 문장을 그대로 넣어 입만 움직인다.
+  final _speech = ValueNotifier<TtsUtterance?>(null);
+  late final TtsService _tts;
+  int _mutedSerial = 0;
+  Timer? _mutedTimer;
+  Completer<void>? _mutedDone;
+
   @override
   void dispose() {
+    _tts.utterance.removeListener(_mirrorTts);
+    _stopMouthOnly();
+    _speech.dispose();
     _faceTimer?.cancel();
     if (!_handedToDraft) {
       for (final face in [
@@ -116,6 +132,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   @override
   void initState() {
     super.initState();
+    _tts = ref.read(ttsServiceProvider)..utterance.addListener(_mirrorTts);
     // 첫 인사는 대화 기록에 들어가야 서버가 무엇을 물었는지 안다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -145,6 +162,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
   Future<void> _startRecording() async {
     // 탄카츄가 말하는 중이면 멈춘다 — 스피커 소리가 녹음에 섞인다.
+    _stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     final recorder = ref.read(audioRecorderProvider);
@@ -229,6 +247,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Future<void> _endCall() async {
     if (_ending || _transcribing) return;
     setState(() => _ending = true);
+    _stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     // 정지 이미지 캡처를 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이
@@ -341,11 +360,43 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Future<void> _say(String text, {required bool thenEnd}) async {
     if (!_speakerOff && !_recording) {
       await ref.read(ttsServiceProvider).speak(text);
+    } else if (!_recording) {
+      // 소리를 껐으면 입만 움직인다 — 그동안 말풍선을 읽을 시간도 된다.
+      await _mouthOnly(text);
     } else if (thenEnd) {
-      // 소리를 껐으면 말풍선을 읽을 시간을 준다.
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     if (thenEnd && mounted) await _endCall();
+  }
+
+  void _mirrorTts() {
+    if (_mutedDone != null) return;
+    _speech.value = _tts.utterance.value;
+  }
+
+  /// 소리 없이 [text]를 읽는 시간만큼 입을 움직인다.
+  Future<void> _mouthOnly(String text) {
+    _stopMouthOnly();
+    final seconds =
+        KoreanLipSync(text).totalBeats / KoreanLipSync.syllablesPerSecond;
+    final done = _mutedDone = Completer<void>();
+    // TTS 발화 번호와 겹치지 않게 음수로 센다.
+    _speech.value = TtsUtterance(text: text, serial: --_mutedSerial);
+    _mutedTimer = Timer(
+      Duration(milliseconds: (seconds * 1000).round()),
+      _stopMouthOnly,
+    );
+    return done.future;
+  }
+
+  void _stopMouthOnly() {
+    _mutedTimer?.cancel();
+    _mutedTimer = null;
+    final done = _mutedDone;
+    if (done == null) return;
+    _mutedDone = null;
+    _speech.value = null;
+    done.complete();
   }
 
   @override
@@ -382,149 +433,201 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.callBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    size: 20,
-                    color: AppColors.callTextPrimary,
-                  ),
-                  onPressed: () {
-                    if (context.canPop()) context.pop();
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    'Step 1. 말하기',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.help_outline_rounded,
-                    size: 20,
-                    color: AppColors.callTextPrimary,
-                  ),
-                  onPressed: () => showHelpSheet(
-                    context,
-                    title: '말하기 도움말',
-                    items: const [
-                      '탄카츄가 묻는 말에 통화하듯 편하게 답해주세요.',
-                      '마이크를 누르고 말한 뒤, 다 말했으면 다시 눌러주세요.',
-                      '탄카츄가 빠진 내용을 몇 가지 더 물어볼 수 있어요.',
-                      '통화 종료를 누르면 대화가 끝나고 분석이 시작돼요.',
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            CallStatusRow(
-              label: DiaryInterviewCopy.callStatus(
-                recording: _recording,
-                transcribing: _transcribing,
-                waiting: interview.waiting,
-                ending: _ending,
-                done: interview.done,
-                crisis: interview.crisis,
-              ),
-              dotColor: _recording ? AppColors.error : AppColors.success,
-            ),
-            Expanded(
-              child: Stack(
+      body: CallRoomBackground(
+        startedAt: _startedAt,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  // TODO: 큰 상담 상대처럼 손 흔드는 포즈로 교체 예정
-                  const Center(
-                    child: MascotImage(
-                      pose: MascotPose.waving,
-                      size: 200,
-                      onDark: true,
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                      color: AppColors.callTextPrimary,
                     ),
+                    onPressed: () {
+                      if (context.canPop()) context.pop();
+                    },
                   ),
-                  if (_recording)
-                    const Positioned(
-                      top: 8,
-                      left: AppSpacing.screenH,
-                      child: CallChip(
-                        icon: Icons.graphic_eq_rounded,
-                        label: '음성 인식 중',
+                  Expanded(
+                    child: Text(
+                      'Step 1. 말하기',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyLarge.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  const Positioned(
-                    top: 8,
-                    right: AppSpacing.screenH,
-                    child: CallAnalysisChip(),
                   ),
-                  // 우상단(실시간 감정 분석 칩 아래) — 하단 버튼과 겹치지 않게.
-                  Positioned(
-                    top: 76,
-                    right: AppSpacing.screenH,
-                    child: CallUserPreview(cameraKey: _cameraKey),
-                  ),
-                  // 위기 발화가 감지되면 대화를 멈추고 전문 기관 안내를 띄운다.
-                  if (interview.crisis)
-                    const Positioned(
-                      left: AppSpacing.screenH,
-                      right: AppSpacing.screenH,
-                      bottom: 176,
-                      child: _CrisisBanner(),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.help_outline_rounded,
+                      size: 20,
+                      color: AppColors.callTextPrimary,
                     ),
-                  // 말풍선 — 컨트롤 버튼 위로 띄운다.
-                  Positioned(
-                    left: AppSpacing.screenH,
-                    right: AppSpacing.screenH,
-                    bottom: 104,
-                    child: _OddoBubble(text: bubbleText),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 12,
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CallControlButton(
-                            icon: _recording
-                                ? Icons.stop_rounded
-                                : Icons.mic_rounded,
-                            label: _recording
-                                ? '다 말했어요'
-                                : _transcribing
-                                ? '옮기는 중'
-                                : '말하기',
-                            onTap: micLocked ? null : _toggleRecording,
-                          ),
-                          const SizedBox(width: 20),
-                          CallControlButton(
-                            icon: Icons.call_end_rounded,
-                            label: '통화 종료',
-                            danger: true,
-                            onTap: _ending || _transcribing ? null : _endCall,
-                          ),
-                          const SizedBox(width: 20),
-                          CallControlButton(
-                            icon: _speakerOff
-                                ? Icons.volume_off_rounded
-                                : Icons.volume_up_rounded,
-                            label: _speakerOff ? '소리 꺼짐' : '스피커',
-                            onTap: _toggleSpeaker,
-                          ),
-                        ],
-                      ),
+                    onPressed: () => showHelpSheet(
+                      context,
+                      title: '말하기 도움말',
+                      items: const [
+                        '탄카츄가 묻는 말에 통화하듯 편하게 답해주세요.',
+                        '마이크를 누르고 말한 뒤, 다 말했으면 다시 눌러주세요.',
+                        '탄카츄가 빠진 내용을 몇 가지 더 물어볼 수 있어요.',
+                        '통화 종료를 누르면 대화가 끝나고 분석이 시작돼요.',
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              CallStatusRow(
+                label: DiaryInterviewCopy.callStatus(
+                  recording: _recording,
+                  transcribing: _transcribing,
+                  waiting: interview.waiting,
+                  ending: _ending,
+                  done: interview.done,
+                  crisis: interview.crisis,
+                ),
+                dotColor: _recording ? AppColors.error : AppColors.success,
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    // 탄카츄 — 영상통화 상대처럼 상반신을 크게. 입이 말풍선 바로 위에
+                    // 오도록 맞추고, 몸통은 화면 아래 끝 밖까지 이어져 테두리에서 잘린다.
+                    Positioned.fill(
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          const mouthGap = 186.0; // 화면 아래 ~ 입 (말풍선·버튼 높이)
+                          const earGap = 56.0; // 화면 위 ~ 귀 끝 (상단 칩)
+                          final width = min(
+                            box.maxWidth * 1.22,
+                            (box.maxHeight - mouthGap - earGap) /
+                                (TalkingTankachu.mouthBottomFactor -
+                                    TalkingTankachu.earTopFactor),
+                          );
+                          return Stack(
+                            children: [
+                              Positioned(
+                                left: (box.maxWidth - width) / 2,
+                                top:
+                                    box.maxHeight -
+                                    mouthGap -
+                                    width * TalkingTankachu.mouthBottomFactor,
+                                child: TalkingTankachu(
+                                  speech: _speech,
+                                  mood: _recording
+                                      ? TankachuMood.listening
+                                      : interview.waiting || _transcribing
+                                      ? TankachuMood.thinking
+                                      : TankachuMood.idle,
+                                  width: width,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    // 아래쪽을 어둡게 — 말풍선·버튼이 잘 보이고 몸통이 화면 끝으로 이어진다.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 220,
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.callBackground.withValues(alpha: 0),
+                                AppColors.callBackground.withValues(alpha: 0.85),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_recording)
+                      const Positioned(
+                        top: 8,
+                        left: AppSpacing.screenH,
+                        child: CallChip(
+                          icon: Icons.graphic_eq_rounded,
+                          label: '음성 인식 중',
+                        ),
+                      ),
+                    const Positioned(
+                      top: 8,
+                      right: AppSpacing.screenH,
+                      child: CallAnalysisChip(),
+                    ),
+                    // 우상단(실시간 감정 분석 칩 아래) — 하단 버튼과 겹치지 않게.
+                    Positioned(
+                      top: 76,
+                      right: AppSpacing.screenH,
+                      child: CallUserPreview(cameraKey: _cameraKey),
+                    ),
+                    // 위기 발화가 감지되면 대화를 멈추고 전문 기관 안내를 띄운다.
+                    if (interview.crisis)
+                      const Positioned(
+                        left: AppSpacing.screenH,
+                        right: AppSpacing.screenH,
+                        bottom: 176,
+                        child: _CrisisBanner(),
+                      ),
+                    // 말풍선 — 컨트롤 버튼 위로 띄운다.
+                    Positioned(
+                      left: AppSpacing.screenH,
+                      right: AppSpacing.screenH,
+                      bottom: 104,
+                      child: _OddoBubble(text: bubbleText),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 12,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CallControlButton(
+                              icon: _recording
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_rounded,
+                              label: _recording
+                                  ? '다 말했어요'
+                                  : _transcribing
+                                  ? '옮기는 중'
+                                  : '말하기',
+                              onTap: micLocked ? null : _toggleRecording,
+                            ),
+                            const SizedBox(width: 20),
+                            CallControlButton(
+                              icon: Icons.call_end_rounded,
+                              label: '통화 종료',
+                              danger: true,
+                              onTap: _ending || _transcribing ? null : _endCall,
+                            ),
+                            const SizedBox(width: 20),
+                            CallControlButton(
+                              icon: _speakerOff
+                                  ? Icons.volume_off_rounded
+                                  : Icons.volume_up_rounded,
+                              label: _speakerOff ? '소리 꺼짐' : '스피커',
+                              onTap: _toggleSpeaker,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
