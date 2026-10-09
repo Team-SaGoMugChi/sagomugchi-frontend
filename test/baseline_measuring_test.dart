@@ -50,6 +50,9 @@ class _Tts implements TtsService {
   final speaking = Completer<void>();
 
   @override
+  final utterance = ValueNotifier<TtsUtterance?>(null);
+
+  @override
   Future<void> speak(String line) => speaking.future;
 
   @override

@@ -9,6 +9,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/media/amplitude_paced_conversation_controller.dart';
 import '../../../../core/media/audio_recorder_service.dart';
+import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
@@ -18,6 +19,8 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/camera_self_view.dart';
 import '../../../../widgets/elapsed_timer_text.dart';
 import '../../../../widgets/mascot_image.dart';
+import '../../../../widgets/talking_tankachu.dart';
+import '../../../../widgets/tankachu_avatar.dart';
 import '../../../../widgets/tip_card.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
@@ -58,9 +61,13 @@ class _BaselineMeasuringScreenState
 
   AmplitudePacedConversationController? _conversation;
 
+  /// 안내 자막 옆 탄카츄 얼굴의 입이 따라갈 문장.
+  late final MascotSpeech _speech;
+
   @override
   void initState() {
     super.initState();
+    _speech = MascotSpeech(ref.read(ttsServiceProvider));
     Future.microtask(() {
       if (!mounted) return;
       ref.read(baselineUploadControllerProvider.notifier).startMeasurement();
@@ -172,6 +179,7 @@ class _BaselineMeasuringScreenState
     // 대화 대기 루프를 여기서 끊어준다.
     _conversation?.stop();
     _faceCaptureTimer?.cancel();
+    _speech.dispose();
     super.dispose();
   }
 
@@ -280,7 +288,11 @@ class _BaselineMeasuringScreenState
                     _PreviewCard(cameraKey: _cameraKey, recording: _recording),
                     if (_turn != null) ...[
                       Gap.h12,
-                      _GuideCaption(text: _turn!.caption),
+                      _GuideCaption(
+                        text: _turn!.caption,
+                        speech: _speech,
+                        listening: _recording && !_turn!.speaking,
+                      ),
                     ],
                     Gap.h24,
                     const Text(
@@ -331,11 +343,18 @@ class _BaselineMeasuringScreenState
 }
 
 /// 탄카츄가 음성(TTS)으로 읽어주는 안내 문장의 자막 — 소리를 못 듣는 상황에서도
-/// 무슨 말을 하라는 건지 알 수 있게 화면에 남겨둔다.
+/// 무슨 말을 하라는 건지 알 수 있게 화면에 남겨둔다. 옆의 탄카츄 얼굴은 안내
+/// 음성에 맞춰 입을 움직이고, 사용자가 말하는 동안은 듣는 자세를 한다.
 class _GuideCaption extends StatelessWidget {
-  const _GuideCaption({required this.text});
+  const _GuideCaption({
+    required this.text,
+    required this.speech,
+    required this.listening,
+  });
 
   final String text;
+  final MascotSpeech speech;
+  final bool listening;
 
   @override
   Widget build(BuildContext context) {
@@ -351,10 +370,10 @@ class _GuideCaption extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.record_voice_over_rounded,
-            size: 18,
-            color: AppColors.primary,
+          TankachuAvatar(
+            speech: speech,
+            mood: listening ? TankachuMood.listening : TankachuMood.idle,
+            size: 48,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../core/media/audio_recorder_service.dart';
-import '../../../../core/media/korean_lip_sync.dart';
+import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../core/media/wav_merger.dart';
 import '../../../../core/permissions/app_permissions.dart';
@@ -18,16 +17,17 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
+import '../../../../widgets/call_room_background.dart';
 import '../../../../widgets/camera_self_view.dart';
 import '../../../../widgets/help_sheet.dart';
+import '../../../../widgets/talking_tankachu.dart';
+import '../../../../widgets/tankachu_call_stage.dart';
 import '../../../../widgets/video_call_widgets.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../application/diary_interview_controller.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/diary_interview.dart';
-import '../widgets/call_room_background.dart';
 import '../widgets/diary_interview_copy.dart';
-import '../widgets/talking_tankachu.dart';
 
 /// Screen 37 — Step 1. 말하기. 탄카츄와 영상통화처럼 주고받으며 오늘을 기록한다.
 ///
@@ -61,16 +61,10 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
   /// 탄카츄 입이 따라갈 문장 — 소리로 읽을 땐 TTS가 알려주고, 소리를 끄면
   /// 말풍선 문장을 그대로 넣어 입만 움직인다.
-  final _speech = ValueNotifier<TtsUtterance?>(null);
-  late final TtsService _tts;
-  int _mutedSerial = 0;
-  Timer? _mutedTimer;
-  Completer<void>? _mutedDone;
+  late final MascotSpeech _speech;
 
   @override
   void dispose() {
-    _tts.utterance.removeListener(_mirrorTts);
-    _stopMouthOnly();
     _speech.dispose();
     _faceTimer?.cancel();
     if (!_handedToDraft) {
@@ -132,7 +126,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   @override
   void initState() {
     super.initState();
-    _tts = ref.read(ttsServiceProvider)..utterance.addListener(_mirrorTts);
+    _speech = MascotSpeech(ref.read(ttsServiceProvider));
     // 첫 인사는 대화 기록에 들어가야 서버가 무엇을 물었는지 안다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -162,7 +156,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
 
   Future<void> _startRecording() async {
     // 탄카츄가 말하는 중이면 멈춘다 — 스피커 소리가 녹음에 섞인다.
-    _stopMouthOnly();
+    _speech.stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     final recorder = ref.read(audioRecorderProvider);
@@ -247,7 +241,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Future<void> _endCall() async {
     if (_ending || _transcribing) return;
     setState(() => _ending = true);
-    _stopMouthOnly();
+    _speech.stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     // 정지 이미지 캡처를 녹음 정지보다 먼저 — 녹음을 멈추는 사이 프레임이
@@ -362,41 +356,11 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
       await ref.read(ttsServiceProvider).speak(text);
     } else if (!_recording) {
       // 소리를 껐으면 입만 움직인다 — 그동안 말풍선을 읽을 시간도 된다.
-      await _mouthOnly(text);
+      await _speech.mouthOnly(text);
     } else if (thenEnd) {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     if (thenEnd && mounted) await _endCall();
-  }
-
-  void _mirrorTts() {
-    if (_mutedDone != null) return;
-    _speech.value = _tts.utterance.value;
-  }
-
-  /// 소리 없이 [text]를 읽는 시간만큼 입을 움직인다.
-  Future<void> _mouthOnly(String text) {
-    _stopMouthOnly();
-    final seconds =
-        KoreanLipSync(text).totalBeats / KoreanLipSync.syllablesPerSecond;
-    final done = _mutedDone = Completer<void>();
-    // TTS 발화 번호와 겹치지 않게 음수로 센다.
-    _speech.value = TtsUtterance(text: text, serial: --_mutedSerial);
-    _mutedTimer = Timer(
-      Duration(milliseconds: (seconds * 1000).round()),
-      _stopMouthOnly,
-    );
-    return done.future;
-  }
-
-  void _stopMouthOnly() {
-    _mutedTimer?.cancel();
-    _mutedTimer = null;
-    final done = _mutedDone;
-    if (done == null) return;
-    _mutedDone = null;
-    _speech.value = null;
-    done.complete();
   }
 
   @override
@@ -493,61 +457,15 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
               Expanded(
                 child: Stack(
                   children: [
-                    // 탄카츄 — 영상통화 상대처럼 상반신을 크게. 입이 말풍선 바로 위에
-                    // 오도록 맞추고, 몸통은 화면 아래 끝 밖까지 이어져 테두리에서 잘린다.
+                    // 탄카츄 — 영상통화 상대처럼 상반신을 크게(입은 말풍선 바로 위).
                     Positioned.fill(
-                      child: LayoutBuilder(
-                        builder: (context, box) {
-                          const mouthGap = 186.0; // 화면 아래 ~ 입 (말풍선·버튼 높이)
-                          const earGap = 56.0; // 화면 위 ~ 귀 끝 (상단 칩)
-                          final width = min(
-                            box.maxWidth * 1.22,
-                            (box.maxHeight - mouthGap - earGap) /
-                                (TalkingTankachu.mouthBottomFactor -
-                                    TalkingTankachu.earTopFactor),
-                          );
-                          return Stack(
-                            children: [
-                              Positioned(
-                                left: (box.maxWidth - width) / 2,
-                                top:
-                                    box.maxHeight -
-                                    mouthGap -
-                                    width * TalkingTankachu.mouthBottomFactor,
-                                child: TalkingTankachu(
-                                  speech: _speech,
-                                  mood: _recording
-                                      ? TankachuMood.listening
-                                      : interview.waiting || _transcribing
-                                      ? TankachuMood.thinking
-                                      : TankachuMood.idle,
-                                  width: width,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                    // 아래쪽을 어둡게 — 말풍선·버튼이 잘 보이고 몸통이 화면 끝으로 이어진다.
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: 220,
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                AppColors.callBackground.withValues(alpha: 0),
-                                AppColors.callBackground.withValues(alpha: 0.85),
-                              ],
-                            ),
-                          ),
-                        ),
+                      child: TankachuCallStage(
+                        speech: _speech,
+                        mood: _recording
+                            ? TankachuMood.listening
+                            : interview.waiting || _transcribing
+                            ? TankachuMood.thinking
+                            : TankachuMood.idle,
                       ),
                     ),
                     if (_recording)

@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../../../core/media/korean_lip_sync.dart';
-import '../../../../core/media/tts_service.dart';
+import '../core/media/korean_lip_sync.dart';
+import '../core/media/tts_service.dart';
 
 /// 통화 중 탄카츄가 지금 무엇을 하고 있나 — 표정과 자세가 바뀐다.
 enum TankachuMood {

@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../core/media/audio_recorder_service.dart';
+import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../core/permissions/app_permissions.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -13,8 +13,10 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
+import '../../../../widgets/call_room_background.dart';
 import '../../../../widgets/help_sheet.dart';
-import '../../../../widgets/mascot_image.dart';
+import '../../../../widgets/talking_tankachu.dart';
+import '../../../../widgets/tankachu_call_stage.dart';
 import '../../../../widgets/video_call_widgets.dart';
 import '../../../records/application/viewing_date_provider.dart';
 import '../../application/counsel_controller.dart';
@@ -52,9 +54,16 @@ class _DiaryStep4CounselCallScreenState
   /// 상담봇 응답을 소리로 읽을지. 끄면 자막만 남는다.
   bool _speakerOff = false;
 
+  /// 통화를 시작한 시각 — 낮/밤 배경을 고른다.
+  final _startedAt = DateTime.now();
+
+  /// 탄카츄 입이 따라갈 문장 — 소리를 끄면 말풍선 문장으로 입만 움직인다.
+  late final MascotSpeech _speech;
+
   @override
   void initState() {
     super.initState();
+    _speech = MascotSpeech(ref.read(ttsServiceProvider));
     // 같은 날 저장된 상담이 있으면 불러와 이어서 대화한다.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -64,11 +73,18 @@ class _DiaryStep4CounselCallScreenState
     });
   }
 
+  @override
+  void dispose() {
+    _speech.dispose();
+    super.dispose();
+  }
+
   /// 상담 종료 — 대화를 draft에 넘기고 리포트 생성으로 넘어간다.
   /// 실제 저장은 46번 화면의 "기록 완료하기"에서 한 번에 이뤄진다.
   Future<void> _endCounsel() async {
     // 말하던 중에 눌러도 마이크와 스피커가 살아남지 않게 먼저 정리한다.
     if (_recording) await ref.read(audioRecorderProvider).stop();
+    _speech.stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     final counsel = ref.read(counselControllerProvider);
@@ -90,6 +106,7 @@ class _DiaryStep4CounselCallScreenState
 
   Future<void> _startRecording() async {
     // 상담봇이 말하는 중이면 멈춘다 — 스피커 소리가 마이크로 다시 들어간다.
+    _speech.stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
     final recorder = ref.read(audioRecorderProvider);
@@ -162,13 +179,16 @@ class _DiaryStep4CounselCallScreenState
   }
 
   /// 새로 도착한 상담봇 응답만 읽는다 — 화면이 다시 그려질 때마다 반복해서
-  /// 읽지 않도록 메시지가 늘어난 순간에만 부른다.
+  /// 읽지 않도록 메시지가 늘어난 순간에만 부른다. 소리를 껐으면 입만 움직인다.
   void _speakIfNew(CounselState? previous, CounselState next) {
-    if (_speakerOff) return;
     if (next.messages.length <= (previous?.messages.length ?? 0)) return;
     final last = next.messages.last;
     if (last.speaker != CounselSpeaker.oddo) return;
-    ref.read(ttsServiceProvider).speak(last.text);
+    if (_speakerOff) {
+      _speech.mouthOnly(last.text);
+    } else {
+      ref.read(ttsServiceProvider).speak(last.text);
+    }
   }
 
   @override
@@ -195,137 +215,144 @@ class _DiaryStep4CounselCallScreenState
     return Scaffold(
       backgroundColor: AppColors.callBackground,
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: AppColors.callTextPrimary,
-                  ),
-                  onPressed: () {
-                    if (context.canPop()) context.pop();
-                  },
-                ),
-                const Expanded(
-                  child: Text(
-                    'Step 4. 상담하기',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+      body: CallRoomBackground(
+        startedAt: _startedAt,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
                       color: AppColors.callTextPrimary,
                     ),
+                    onPressed: () {
+                      if (context.canPop()) context.pop();
+                    },
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.help_outline_rounded,
-                    color: AppColors.callTextPrimary,
-                  ),
-                  onPressed: () => showHelpSheet(
-                    context,
-                    title: '상담하기 도움말',
-                    items: const [
-                      '탄카츄가 오늘의 감정을 함께 돌아봐줘요.',
-                      '마이크를 누르고 말한 뒤, 다 말했으면 다시 눌러주세요.',
-                      '떠오르는 대로 편하게 답하면 돼요. 정답은 없어요.',
-                      '상담 종료를 누르면 감정 리포트가 만들어져요.',
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            CallStatusRow(
-              label: CounselCopy.callStatus(
-                recording: _recording,
-                transcribing: _transcribing,
-                sending: counsel.sending,
-                crisis: counsel.crisis,
-              ),
-              dotColor: _recording ? AppColors.error : AppColors.success,
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  const Center(
-                    child: MascotImage(
-                      pose: MascotPose.counselor,
-                      size: 200,
-                      onDark: true,
-                    ),
-                  ),
-                  const Positioned(
-                    top: 8,
-                    right: AppSpacing.screenH,
-                    child: CallAnalysisChip(),
-                  ),
-                  const Positioned(
-                    top: 76,
-                    right: AppSpacing.screenH,
-                    child: CallUserPreview(width: 80, height: 106),
-                  ),
-                  // 위기 발화가 감지되면 상담을 멈추고 전문 기관 안내를 띄운다.
-                  if (counsel.crisis)
-                    const Positioned(
-                      left: AppSpacing.screenH,
-                      right: AppSpacing.screenH,
-                      bottom: 176,
-                      child: _CrisisBanner(),
-                    ),
-                  // 말풍선 — 컨트롤 버튼 위로 띄운다.
-                  Positioned(
-                    left: AppSpacing.screenH,
-                    right: AppSpacing.screenH,
-                    bottom: 104,
-                    child: _OddoBubble(text: bubbleText),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 12,
-                    child: Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CallControlButton(
-                            icon: _recording
-                                ? Icons.stop_rounded
-                                : Icons.mic_rounded,
-                            label: _recording
-                                ? '다 말했어요'
-                                : _transcribing
-                                ? '옮기는 중'
-                                : '말하기',
-                            onTap: counsel.crisis || _transcribing
-                                ? null
-                                : _toggleRecording,
-                          ),
-                          const SizedBox(width: 20),
-                          CallControlButton(
-                            icon: Icons.call_end_rounded,
-                            label: '상담 종료',
-                            danger: true,
-                            onTap: _endCounsel,
-                          ),
-                          const SizedBox(width: 20),
-                          CallControlButton(
-                            icon: _speakerOff
-                                ? Icons.volume_off_rounded
-                                : Icons.volume_up_rounded,
-                            label: _speakerOff ? '소리 꺼짐' : '스피커',
-                            onTap: _toggleSpeaker,
-                          ),
-                        ],
+                  const Expanded(
+                    child: Text(
+                      'Step 4. 상담하기',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.callTextPrimary,
                       ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.help_outline_rounded,
+                      color: AppColors.callTextPrimary,
+                    ),
+                    onPressed: () => showHelpSheet(
+                      context,
+                      title: '상담하기 도움말',
+                      items: const [
+                        '탄카츄가 오늘의 감정을 함께 돌아봐줘요.',
+                        '마이크를 누르고 말한 뒤, 다 말했으면 다시 눌러주세요.',
+                        '떠오르는 대로 편하게 답하면 돼요. 정답은 없어요.',
+                        '상담 종료를 누르면 감정 리포트가 만들어져요.',
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              CallStatusRow(
+                label: CounselCopy.callStatus(
+                  recording: _recording,
+                  transcribing: _transcribing,
+                  sending: counsel.sending,
+                  crisis: counsel.crisis,
+                ),
+                dotColor: _recording ? AppColors.error : AppColors.success,
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    // 탄카츄 — 영상통화 상대처럼 상반신을 크게(입은 말풍선 바로 위).
+                    Positioned.fill(
+                      child: TankachuCallStage(
+                        speech: _speech,
+                        mood: _recording
+                            ? TankachuMood.listening
+                            : counsel.sending || _transcribing
+                            ? TankachuMood.thinking
+                            : TankachuMood.idle,
+                      ),
+                    ),
+                    const Positioned(
+                      top: 8,
+                      right: AppSpacing.screenH,
+                      child: CallAnalysisChip(),
+                    ),
+                    const Positioned(
+                      top: 76,
+                      right: AppSpacing.screenH,
+                      child: CallUserPreview(width: 80, height: 106),
+                    ),
+                    // 위기 발화가 감지되면 상담을 멈추고 전문 기관 안내를 띄운다.
+                    if (counsel.crisis)
+                      const Positioned(
+                        left: AppSpacing.screenH,
+                        right: AppSpacing.screenH,
+                        bottom: 176,
+                        child: _CrisisBanner(),
+                      ),
+                    // 말풍선 — 컨트롤 버튼 위로 띄운다.
+                    Positioned(
+                      left: AppSpacing.screenH,
+                      right: AppSpacing.screenH,
+                      bottom: 104,
+                      child: _OddoBubble(text: bubbleText),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 12,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CallControlButton(
+                              icon: _recording
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_rounded,
+                              label: _recording
+                                  ? '다 말했어요'
+                                  : _transcribing
+                                  ? '옮기는 중'
+                                  : '말하기',
+                              onTap: counsel.crisis || _transcribing
+                                  ? null
+                                  : _toggleRecording,
+                            ),
+                            const SizedBox(width: 20),
+                            CallControlButton(
+                              icon: Icons.call_end_rounded,
+                              label: '상담 종료',
+                              danger: true,
+                              onTap: _endCounsel,
+                            ),
+                            const SizedBox(width: 20),
+                            CallControlButton(
+                              icon: _speakerOff
+                                  ? Icons.volume_off_rounded
+                                  : Icons.volume_up_rounded,
+                              label: _speakerOff ? '소리 꺼짐' : '스피커',
+                              onTap: _toggleSpeaker,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

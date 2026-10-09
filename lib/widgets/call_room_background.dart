@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../theme/app_colors.dart';
+import '../theme/app_colors.dart';
 
 /// 통화 화면 배경 — 일기를 쓰기 시작한 시각에 따라 낮 방 / 밤 방을 깐다.
 ///
