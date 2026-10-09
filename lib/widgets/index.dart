@@ -27,6 +27,7 @@ export 'step_indicator.dart';
 export 'step_progress_bar.dart';
 export 'talking_mascot_guide.dart';
 export 'talking_tankachu.dart';
+export 'tankachu_avatar.dart';
 export 'tankachu_call_stage.dart';
 export 'tip_card.dart';
 export 'video_call_widgets.dart';
