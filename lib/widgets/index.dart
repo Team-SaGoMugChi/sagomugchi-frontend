@@ -1,5 +1,6 @@
 // Barrel for shared/common widgets.
 export 'app_background.dart';
+export 'call_room_background.dart';
 export 'camera_self_view.dart';
 export 'card_section_header.dart';
 export 'chat_bubble.dart';
@@ -25,5 +26,7 @@ export 'speech_bubble.dart';
 export 'step_indicator.dart';
 export 'step_progress_bar.dart';
 export 'talking_mascot_guide.dart';
+export 'talking_tankachu.dart';
+export 'tankachu_call_stage.dart';
 export 'tip_card.dart';
 export 'video_call_widgets.dart';
