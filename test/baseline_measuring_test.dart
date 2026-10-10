@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _Recorder implements AudioRecorderService {
   final started = Completer<bool>();
   final stopped = Completer<String?>();
+  final amplitude = StreamController<double>.broadcast();
   int stops = 0;
   int pauses = 0;
   int resumes = 0;
@@ -40,7 +41,7 @@ class _Recorder implements AudioRecorderService {
   @override
   Stream<double> amplitudeStream({
     Duration interval = const Duration(milliseconds: 300),
-  }) => const Stream.empty();
+  }) => amplitude.stream;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -83,24 +84,33 @@ void main() {
     await tester.pump();
     expect(find.text('60%'), findsNothing);
     expect(find.text('45%'), findsNothing);
-    expect(find.text('녹음 중'), findsNothing);
-    await tester.tap(find.text('측정을 준비하고 있어요'));
+    expect(find.text('듣고 있어요 · 녹음 중'), findsNothing);
+    expect(find.text('통화를 준비하고 있어요'), findsOneWidget);
+    await tester.tap(find.byTooltip('측정 마치기'));
     expect(recorder.stops, 0);
 
     recorder.started.complete(true);
     await tester.pump();
-    expect(find.text('녹음 중'), findsOneWidget);
+    expect(find.text('탄카츄가 안내하고 있어요'), findsOneWidget);
     expect(recorder.pauses, 1);
-    await tester.tap(find.text('측정 마치고 분석하기'));
+    tts.speaking.complete();
     await tester.pump();
-    expect(find.text('녹음 중'), findsNothing);
+    recorder.amplitude.add(-10);
+    await tester.pump();
+    expect(recorder.resumes, 1);
+    expect(find.text('듣고 있어요 · 녹음 중'), findsOneWidget);
+    await tester.tap(find.byTooltip('측정 마치기'));
+    await tester.pump();
+    recorder.amplitude.add(-10);
+    await tester.pump();
+    expect(find.text('듣고 있어요 · 녹음 중'), findsNothing);
     expect(find.text('측정을 마무리하고 있어요'), findsOneWidget);
-    await tester.tap(find.text('측정을 마무리하고 있어요'));
+    await tester.tap(find.byTooltip('측정 마치기'));
     expect(recorder.stops, 1);
 
     await tester.pumpWidget(const SizedBox());
     recorder.stopped.complete(null);
-    tts.speaking.complete();
+    await recorder.amplitude.close();
     await tester.pump();
     expect(tester.takeException(), isNull);
   });

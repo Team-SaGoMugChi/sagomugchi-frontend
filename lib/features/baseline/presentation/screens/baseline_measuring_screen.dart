@@ -6,27 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/media/amplitude_paced_conversation_controller.dart';
 import '../../../../core/media/audio_recorder_service.dart';
 import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
+import '../../../../widgets/call_room_background.dart';
 import '../../../../widgets/camera_self_view.dart';
-import '../../../../widgets/elapsed_timer_text.dart';
-import '../../../../widgets/mascot_image.dart';
+import '../../../../widgets/speech_bubble.dart';
 import '../../../../widgets/talking_tankachu.dart';
-import '../../../../widgets/tankachu_avatar.dart';
-import '../../../../widgets/tip_card.dart';
+import '../../../../widgets/tankachu_call_stage.dart';
+import '../../../../widgets/video_call_widgets.dart';
+import '../../application/baseline_camera_guidance.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
 import '../../application/baseline_upload_controller.dart';
-import '../widgets/baseline_header.dart';
 
 /// Screen 19 — 얼굴·음성 Baseline 측정 중. Video-call style: live front camera
 /// + mic recording. Uploads only the files captured in this measurement.
@@ -41,6 +39,11 @@ class BaselineMeasuringScreen extends ConsumerStatefulWidget {
 class _BaselineMeasuringScreenState
     extends ConsumerState<BaselineMeasuringScreen> {
   final _cameraKey = GlobalKey<CameraSelfViewState>();
+  final _startedAt = DateTime.now();
+  final _cameraHints = CameraHintStabilizer();
+  CameraHint? _cameraHint;
+  bool _checkingCamera = false;
+  DateTime? _lastCameraCheck;
   bool _advanced = false;
   bool _aborted = false;
   bool _recording = false;
@@ -61,7 +64,7 @@ class _BaselineMeasuringScreenState
 
   AmplitudePacedConversationController? _conversation;
 
-  /// 안내 자막 옆 탄카츄 얼굴의 입이 따라갈 문장.
+  /// 튜토리얼과 같은 통화 무대에서 탄카츄 입이 따라갈 문장.
   late final MascotSpeech _speech;
 
   @override
@@ -92,10 +95,17 @@ class _BaselineMeasuringScreenState
     }
     setState(() => _recording = true);
     _recordingClock = Stopwatch()..start();
-    _faceCaptureTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => _captureFace(),
-    );
+    _faceCaptureTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_lastCameraCheck != null &&
+          DateTime.now().difference(_lastCameraCheck!) >
+              const Duration(seconds: 6)) {
+        _cameraHints.reset();
+        if (mounted && _cameraHint != null) {
+          setState(() => _cameraHint = null);
+        }
+      }
+      _captureFace();
+    });
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
@@ -210,6 +220,25 @@ class _BaselineMeasuringScreenState
           promptSpeaking: _turn?.speaking ?? false,
         );
     ref.read(baselineFaceImageProvider.notifier).set(photo.path);
+    if (!_advanced && !_checkingCamera) {
+      unawaited(_checkCamera(photo.path));
+    }
+  }
+
+  Future<void> _checkCamera(String path) async {
+    _checkingCamera = true;
+    try {
+      final hint = await ref.read(baselineCameraGuidanceProvider).inspect(path);
+      if (!mounted || _advanced) return;
+      _lastCameraCheck = DateTime.now();
+      setState(() => _cameraHint = _cameraHints.update(hint));
+    } catch (_) {
+      // 가이드 실패는 녹음/얼굴 수집/업로드를 막지 않는다.
+      _cameraHints.reset();
+      if (mounted && !_advanced) setState(() => _cameraHint = null);
+    } finally {
+      _checkingCamera = false;
+    }
   }
 
   Future<void> _advance() async {
@@ -237,306 +266,151 @@ class _BaselineMeasuringScreenState
 
   @override
   Widget build(BuildContext context) {
-    // autoDispose 프로바이더라 아무도 watch하지 않으면 start()~stop() 사이에
-    // 폐기될 수 있다 — 이 화면이 살아있는 동안은 붙잡아 둔다.
+    // 화면이 살아있는 동안 녹음·TTS 서비스를 붙잡아 둔다.
     ref.watch(audioRecorderProvider);
     ref.watch(ttsServiceProvider);
+    final listening = _recording && !_advanced && !(_turn?.speaking ?? true);
+    final status = _advanced
+        ? '측정을 마무리하고 있어요'
+        : !_recording
+        ? '통화를 준비하고 있어요'
+        : listening
+        ? '듣고 있어요 · 녹음 중'
+        : '탄카츄가 안내하고 있어요';
 
     return Scaffold(
       backgroundColor: AppColors.callBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              child: BaselineHeader(
-                title: '베이스라인 측정 2/2',
-                stepLabels: ['안내 진행', '측정 진행'],
-                activeStep: 1,
-                dark: true,
-                leadingIcon: Icons.close_rounded,
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
+      body: CallRoomBackground(
+        startedAt: _startedAt,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
-                  AppSpacing.md,
+                  AppSpacing.lg,
                   AppSpacing.screenH,
-                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      '측정 중이에요!',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.callTextPrimary,
-                      ),
-                    ),
-                    Gap.h8,
-                    const Text(
-                      '안내에 따라 편하게 이야기해주세요.\n얼굴 사진은 측정 중에 자동으로 촬영해요.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.callTextSecondary,
-                      ),
-                    ),
-                    Gap.h16,
-                    _PreviewCard(cameraKey: _cameraKey, recording: _recording),
-                    if (_turn != null) ...[
-                      Gap.h12,
-                      _GuideCaption(
-                        text: _turn!.caption,
-                        speech: _speech,
-                        listening: _recording && !_turn!.speaking,
-                      ),
-                    ],
-                    Gap.h24,
-                    const Text(
-                      '진행 상황',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.callTextPrimary,
-                      ),
-                    ),
-                    Gap.h12,
                     Text(
-                      _advanced
-                          ? '녹음과 얼굴 사진을 준비하고 있어요.'
-                          : _recording
-                          ? '목소리를 녹음하고 있어요.'
-                          : '마이크를 준비하고 있어요.',
-                      style: AppTypography.bodySecondary.copyWith(
-                        color: AppColors.callTextSecondary,
+                      '탄카츄',
+                      style: AppTypography.subtitle.copyWith(
+                        color: AppColors.callTextPrimary,
                       ),
                     ),
-                    Gap.h16,
-                    const TipCard(
-                      tips: BaselineDummy.measuringTips,
-                      dark: true,
+                    Gap.h4,
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        status,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.callTextSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.xs,
-                AppSpacing.screenH,
-                AppSpacing.xs,
-              ),
-              child: _StatusBar(
-                onTap: _recording && !_advanced ? _advance : null,
-                finishing: _advanced,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 탄카츄가 음성(TTS)으로 읽어주는 안내 문장의 자막 — 소리를 못 듣는 상황에서도
-/// 무슨 말을 하라는 건지 알 수 있게 화면에 남겨둔다. 옆의 탄카츄 얼굴은 안내
-/// 음성에 맞춰 입을 움직이고, 사용자가 말하는 동안은 듣는 자세를 한다.
-class _GuideCaption extends StatelessWidget {
-  const _GuideCaption({
-    required this.text,
-    required this.speech,
-    required this.listening,
-  });
-
-  final String text;
-  final MascotSpeech speech;
-  final bool listening;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.callSurface,
-        borderRadius: AppRadius.card,
-      ),
-      child: Row(
-        children: [
-          TankachuAvatar(
-            speech: speech,
-            mood: listening ? TankachuMood.listening : TankachuMood.idle,
-            size: 48,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.callTextPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({required this.cameraKey, required this.recording});
-  final bool recording;
-
-  final GlobalKey<CameraSelfViewState> cameraKey;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 220,
-      decoration: const BoxDecoration(
-        color: AppColors.callSurface,
-        borderRadius: AppRadius.card,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 측정 대상인 사용자 본인 얼굴 — 전면 카메라 라이브 뷰.
-          // (카메라 불가 시 마스코트 플레이스홀더로 폴백)
-          CameraSelfView(
-            key: cameraKey,
-            fallback: const Center(
-              // TODO: 손 흔드는 측정용 정면 포즈로 교체 예정 (character_sheet 10.인사)
-              child: MascotImage(
-                pose: MascotPose.waving,
-                size: 150,
-                onDark: true,
-              ),
-            ),
-          ),
-          if (recording)
-            const Positioned(top: 12, left: 12, child: _LiveChip()),
-          if (recording)
-            const Positioned(top: 12, right: 12, child: _TimerChip()),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveChip extends StatelessWidget {
-  const _LiveChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.callBackground,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: AppColors.error,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            '녹음 중',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.callTextPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimerChip extends StatelessWidget {
-  const _TimerChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.callBackground,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.schedule_rounded,
-            size: 13,
-            color: AppColors.callTextSecondary,
-          ),
-          const SizedBox(width: 4),
-          // 측정 시작부터 실제 경과 시간.
-          ElapsedTimerText(
-            showHours: false,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.callTextPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.onTap, required this.finishing});
-  final VoidCallback? onTap;
-  final bool finishing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.callSurface,
-      borderRadius: AppRadius.button,
-      child: InkWell(
-        borderRadius: AppRadius.button,
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (onTap == null)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.callTextSecondary,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, box) => Stack(
+                    children: [
+                      Positioned.fill(
+                        child: TankachuCallStage(
+                          speech: _speech,
+                          mood: listening
+                              ? TankachuMood.listening
+                              : TankachuMood.idle,
+                        ),
+                      ),
+                      Positioned(
+                        top: AppSpacing.sm,
+                        right: AppSpacing.screenH,
+                        child: Semantics(
+                          label: '내 카메라',
+                          child: CallUserPreview(cameraKey: _cameraKey),
+                        ),
+                      ),
+                      Positioned(
+                        left: AppSpacing.screenH,
+                        right: AppSpacing.screenH,
+                        bottom: AppSpacing.sm,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: box.maxHeight * 0.3,
+                              ),
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SpeechBubble(
+                                      text: _advanced
+                                          ? '고마워요. 방금 나눈 대화를 정리할게요.'
+                                          : _turn?.caption ??
+                                                '잠시만요, 곧 이야기 나눠요.',
+                                    ),
+                                    if (listening && _cameraHint != null) ...[
+                                      Gap.h8,
+                                      SpeechBubble(text: _cameraHint!.caption),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Gap.h20,
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton.filled(
+                                    tooltip: '측정 마치기',
+                                    onPressed: _recording && !_advanced
+                                        ? _advance
+                                        : null,
+                                    style: IconButton.styleFrom(
+                                      fixedSize: const Size.square(
+                                        AppSpacing.xxxl + AppSpacing.md,
+                                      ),
+                                      backgroundColor: AppColors.error,
+                                      foregroundColor:
+                                          AppColors.callTextPrimary,
+                                      disabledBackgroundColor:
+                                          AppColors.callSurface,
+                                      disabledForegroundColor:
+                                          AppColors.callTextSecondary,
+                                    ),
+                                    icon: _advanced
+                                        ? const SizedBox.square(
+                                            dimension: AppSpacing.xl,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AppColors.callTextPrimary,
+                                            ),
+                                          )
+                                        : const Icon(Icons.call_end_rounded),
+                                  ),
+                                  Gap.h8,
+                                  Text(
+                                    _advanced ? '마무리 중' : '측정 마치기',
+                                    style: AppTypography.caption.copyWith(
+                                      color: AppColors.callTextPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              const SizedBox(width: 10),
-              Text(
-                finishing
-                    ? '측정을 마무리하고 있어요'
-                    : onTap == null
-                    ? '측정을 준비하고 있어요'
-                    : '측정 마치고 분석하기',
-                style: AppTypography.button.copyWith(
-                  color: AppColors.callTextSecondary,
                 ),
               ),
             ],
