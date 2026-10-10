@@ -15,7 +15,7 @@
 - 자막은 제한된 높이 안에서 스크롤되며 종료 버튼과 같은 세로 흐름으로 배치해 큰 글자에서도 겹치지 않게 했다. 개인 촬영 원본 대신 카메라 자리표시자를 사용하는 렌더링으로 일반 화면과 작은 화면/큰 글자 배치를 검토했다. 원본 참조 자료와 다른 통화 화면은 수정하지 않았다.
 - 작업 [이슈 #74](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/74), 최신 팀 `develop` `0122172` 기반 `74-baseline-call-ui`. 필수 자동 수정에서 기존 상담 코드의 nullable 슬롯 표기 2건도 정리했다(기존 검증 PR #73과 동일한 수정). 앞선 실측 저장·재조회 결과는 [초안 PR #73](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/73)에 있으며 아직 병합되지 않았다.
 - 검증: 정적 분석 문제 없음, Flutter 전체 221개 테스트 통과, 실기기용 Android 디버그 APK 빌드·기존 데이터 유지 설치 성공. 준비 화면을 열어 사용자가 새 통화 화면을 확인할 수 있도록 했다. 새 레이아웃에서 전체 측정을 다시 완료하는 사용자 확인은 남아 있다.
-- 게시: [프론트 초안 PR #75](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/75), base `develop`. **PR은 게시했으며 develop에는 병합하지 않았다.**
+- 게시: 사용자 요청으로 카메라 자막 안내 후속까지 포함한 [프론트 PR #75](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/75)를 리뷰 가능 상태로 전환했다(초안 해제). base `develop`. 전체 223개 테스트·정적 분석·Android 빌드 및 기존 데이터 유지 실기기 설치를 확인했다. **PR은 게시했으며 develop에는 병합하지 않았다.**
 
 ### 2026-10-02 베이스라인 그룹값 → 일기 분석 연결
 
