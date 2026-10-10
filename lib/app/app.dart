@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/app_config.dart';
 import '../core/config/app_config_provider.dart';
 import '../core/storage/local_store.dart';
+import '../features/notifications/application/diary_reminder_controller.dart';
 import '../firebase_options.dart';
 import '../theme/app_theme.dart';
 import 'router/app_router.dart';
@@ -15,9 +16,7 @@ import 'router/app_router.dart';
 /// [AppConfig.dev]; `main_prod.dart` passes [AppConfig.prod].
 Future<void> bootstrap(AppConfig config) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await KakaoSdk.init(nativeAppKey: AppConfig.kakaoNativeAppKey);
   final prefs = await SharedPreferences.getInstance();
   runApp(
@@ -32,13 +31,39 @@ Future<void> bootstrap(AppConfig config) async {
 }
 
 /// Root widget: wires the router + theme into [MaterialApp.router].
-class OddoApp extends ConsumerWidget {
+class OddoApp extends ConsumerStatefulWidget {
   const OddoApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OddoApp> createState() => _OddoAppState();
+}
+
+class _OddoAppState extends ConsumerState<OddoApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        !ref.read(diaryReminderControllerProvider).busy) {
+      ref.invalidate(diaryReminderControllerProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
     final config = ref.watch(appConfigProvider);
+    ref.watch(diaryReminderControllerProvider);
 
     return MaterialApp.router(
       title: config.appName,

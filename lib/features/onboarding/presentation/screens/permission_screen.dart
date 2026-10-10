@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -16,18 +17,29 @@ import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../../widgets/security_note.dart';
+import '../../application/onboarding_controller.dart';
 
 /// Screen 9 — 권한 요청 안내. Explains why each OS permission is needed, then
 /// fires the real camera/mic prompts. → 튜토리얼 1/5.
-class PermissionScreen extends StatefulWidget {
+class PermissionScreen extends ConsumerStatefulWidget {
   const PermissionScreen({super.key});
 
   @override
-  State<PermissionScreen> createState() => _PermissionScreenState();
+  ConsumerState<PermissionScreen> createState() => _PermissionScreenState();
 }
 
-class _PermissionScreenState extends State<PermissionScreen> {
+class _PermissionScreenState extends ConsumerState<PermissionScreen> {
   bool _requesting = false;
+
+  void _continue() {
+    unawaited(
+      context.pushNamed(
+        ref.read(onboardingCompleteProvider)
+            ? AppRoute.baselineIntro
+            : AppRoute.tutorialIntro,
+      ),
+    );
+  }
 
   Future<void> _requestAndContinue() async {
     setState(() => _requesting = true);
@@ -36,7 +48,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
     setState(() => _requesting = false);
 
     if (granted) {
-      unawaited(context.pushNamed(AppRoute.tutorialIntro));
+      _continue();
       return;
     }
 
@@ -66,7 +78,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              context.pushNamed(AppRoute.tutorialIntro);
+              _continue();
             },
             child: const Text('건너뛰고 계속'),
           ),
@@ -85,7 +97,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
+                    AppSpacing.screenH,
+                    0,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -94,20 +110,25 @@ class _PermissionScreenState extends State<PermissionScreen> {
                       OddoCard(
                         child: Column(
                           children: [
-                            for (var i = 0;
-                                i < BaselineDummy.permissions.length;
-                                i++) ...[
+                            for (
+                              var i = 0;
+                              i < BaselineDummy.permissions.length;
+                              i++
+                            ) ...[
                               if (i > 0)
                                 const Divider(
-                                    color: AppColors.divider, height: 1),
+                                  color: AppColors.divider,
+                                  height: 1,
+                                ),
                               IconInfoTile(
                                 icon: BaselineDummy.permissions[i].icon,
                                 title: BaselineDummy.permissions[i].title,
                                 description:
                                     BaselineDummy.permissions[i].description,
                                 trailing: const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: AppColors.textTertiary),
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ],
                           ],
@@ -123,7 +144,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '권한 허용하기',
                   loading: _requesting,
@@ -160,8 +185,10 @@ class _PermissionScreenState extends State<PermissionScreen> {
                 children: [
                   Text('권한 안내', style: AppTypography.display),
                   Gap.h8,
-                  Text('Oddo가 정확하게 기록하고 분석할 수 있도록\n다음 권한이 필요해요.',
-                      style: AppTypography.bodySecondary),
+                  Text(
+                    'Oddo가 정확하게 기록하고 분석할 수 있도록\n다음 권한이 필요해요.',
+                    style: AppTypography.bodySecondary,
+                  ),
                 ],
               ),
             ),

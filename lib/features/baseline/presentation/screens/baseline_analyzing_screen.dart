@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/error/app_exception.dart';
-import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
@@ -97,12 +96,12 @@ class _LoadingContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       children: [
         // TODO: 노트북을 보며 분석하는 포즈로 교체 예정 (character_sheet 15.노트북)
-        const MascotImage(pose: MascotPose.thinking, size: 150),
+        MascotImage(pose: MascotPose.thinking, size: 150),
         Gap.h20,
-        const SizedBox(
+        SizedBox(
           width: 30,
           height: 30,
           child: CircularProgressIndicator(
@@ -111,34 +110,23 @@ class _LoadingContent extends StatelessWidget {
           ),
         ),
         Gap.h20,
-        const Text(
-          '첫 감정 기준을 정리하고 있어요',
+        Text(
+          '방금 나눈 이야기를 정리하고 있어요',
           textAlign: TextAlign.center,
           style: AppTypography.title,
         ),
         Gap.h8,
-        const Text('잠시만 기다려주세요.', style: AppTypography.bodySecondary),
+        Text(
+          '목소리와 얼굴의 비교 기준을 저장하고 있어요.\n조금만 기다려주세요.',
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySecondary,
+        ),
         Gap.h24,
         OddoCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final item in BaselineDummy.analysisItems)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.hourglass_top_rounded,
-                        size: 18,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(item, style: AppTypography.body),
-                    ],
-                  ),
-                ),
-            ],
+          child: Text(
+            '연결 상태에 따라 시간이 조금 걸릴 수 있어요.\n저장에 실패해도 같은 측정으로 다시 시도할 수 있어요.',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodySecondary,
           ),
         ),
       ],
