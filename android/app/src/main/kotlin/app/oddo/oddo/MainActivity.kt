@@ -17,6 +17,21 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
+            "app.oddo.oddo/diary_reminder").setMethodCallHandler { call, result ->
+            if (call.method != "configure") {
+                result.notImplemented()
+            } else {
+                try {
+                    result.success(DiaryReminder.configure(this,
+                        call.argument<Boolean>("enabled") ?: false,
+                        call.argument<Int>("hour") ?: 21,
+                        call.argument<Int>("minute") ?: 0))
+                } catch (_: Exception) {
+                    result.error("unavailable", "Reminder configuration unavailable", null)
+                }
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger,
             "app.oddo.oddo/camera_guidance").setMethodCallHandler { call, result ->
             val path = call.arguments as? String
             if (call.method != "inspect") {

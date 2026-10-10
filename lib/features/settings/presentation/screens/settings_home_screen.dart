@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/storage/local_store.dart';
+import '../../../../core/permissions/app_permissions.dart';
 import '../../../../features/auth/application/auth_controller.dart';
 import '../../../../features/persona/data/persona_providers.dart';
 import '../../../../theme/app_colors.dart';
@@ -13,6 +13,7 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/oddo_app_bar.dart';
 import '../../../../widgets/oddo_card.dart';
+import '../../../notifications/application/diary_reminder_controller.dart';
 
 /// 실제 앱 버전 문자열 (테스트 등 플랫폼 채널이 없으면 '-').
 final appVersionProvider = FutureProvider<String>((ref) async {
@@ -29,20 +30,46 @@ class SettingsHomeScreen extends ConsumerStatefulWidget {
   const SettingsHomeScreen({super.key});
 
   @override
-  ConsumerState<SettingsHomeScreen> createState() =>
-      _SettingsHomeScreenState();
+  ConsumerState<SettingsHomeScreen> createState() => _SettingsHomeScreenState();
 }
 
 class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
-  late bool _reminderEnabled = ref
-      .read(localStoreProvider)
-      .getBool(LocalStore.kReminderEnabled, fallback: true);
-
   Future<void> _toggleReminder(bool value) async {
-    setState(() => _reminderEnabled = value);
-    await ref
-        .read(localStoreProvider)
-        .setBool(LocalStore.kReminderEnabled, value);
+    final success = await ref
+        .read(diaryReminderControllerProvider.notifier)
+        .update(enabled: value);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('알림을 설정하지 못했어요. 휴대폰 설정에서 알림 권한을 확인해주세요.'),
+          action: SnackBarAction(
+            label: '설정 열기',
+            onPressed: AppPermissions.openSettings,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _chooseReminderTime() async {
+    final settings = ref.read(diaryReminderControllerProvider);
+    final chosen = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: settings.hour, minute: settings.minute),
+    );
+    if (chosen == null || !mounted) return;
+    final success = await ref
+        .read(diaryReminderControllerProvider.notifier)
+        .update(
+          enabled: settings.enabled,
+          hour: chosen.hour,
+          minute: chosen.minute,
+        );
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('알림 시간을 저장하지 못했어요. 다시 시도해주세요.')),
+      );
+    }
   }
 
   Future<void> _logout() async {
@@ -51,8 +78,10 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('로그아웃할까요?', style: AppTypography.subtitle),
-        content: const Text('다시 로그인하면 기록을 이어서 볼 수 있어요.',
-            style: AppTypography.bodySecondary),
+        content: const Text(
+          '다시 로그인하면 기록을 이어서 볼 수 있어요.',
+          style: AppTypography.bodySecondary,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -60,8 +89,10 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('로그아웃',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              '로그아웃',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -100,24 +131,33 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
                             color: AppColors.primarySoft,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.person_rounded,
-                              size: 26, color: AppColors.primary),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            size: 26,
+                            color: AppColors.primary,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(user?.nickname ?? '로그인이 필요해요',
-                                  style: AppTypography.subtitle),
+                              Text(
+                                user?.nickname ?? '로그인이 필요해요',
+                                style: AppTypography.subtitle,
+                              ),
                               const SizedBox(height: 2),
-                              Text(user?.email ?? '-',
-                                  style: AppTypography.caption),
+                              Text(
+                                user?.email ?? '-',
+                                style: AppTypography.caption,
+                              ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.textTertiary),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textTertiary,
+                        ),
                       ],
                     ),
                   ),
@@ -134,12 +174,10 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
                       subtitle: persona != null
                           ? '${persona.name} · ${persona.tone}'
                           : null,
-                      onTap: () =>
-                          context.pushNamed(AppRoute.chatbotSettings),
+                      onTap: () => context.pushNamed(AppRoute.chatbotSettings),
                     ),
                     const Divider(color: AppColors.divider, height: 1),
-                    // 홈 팝업(Screen 8)의 "시작하기"와 같은 진입점 — 권한 안내부터
-                    // 페르소나 설정까지 첫 측정과 똑같은 순서로 다시 진행한다.
+                    // 권한 확인 후 기존 사용자는 튜토리얼을 건너뛰고 재측정한다.
                     _MenuRow(
                       icon: Icons.face_retouching_natural_rounded,
                       label: '베이스라인 다시 측정하기',
@@ -149,12 +187,31 @@ class _SettingsHomeScreenState extends ConsumerState<SettingsHomeScreen> {
                     _MenuRow(
                       icon: Icons.notifications_none_rounded,
                       label: '일기 리마인더 알림',
+                      subtitle: '매일 선택한 시간에 알려드려요',
                       trailing: Switch(
-                        value: _reminderEnabled,
+                        value: ref
+                            .watch(diaryReminderControllerProvider)
+                            .enabled,
                         activeThumbColor: AppColors.surface,
                         activeTrackColor: AppColors.primary,
-                        onChanged: _toggleReminder,
+                        onChanged:
+                            ref.watch(diaryReminderControllerProvider).busy
+                            ? null
+                            : _toggleReminder,
                       ),
+                    ),
+                    _MenuRow(
+                      icon: Icons.schedule_rounded,
+                      label: '리마인더 시간',
+                      subtitle: TimeOfDay(
+                        hour: ref.watch(diaryReminderControllerProvider).hour,
+                        minute: ref
+                            .watch(diaryReminderControllerProvider)
+                            .minute,
+                      ).format(context),
+                      onTap: ref.watch(diaryReminderControllerProvider).busy
+                          ? null
+                          : _chooseReminderTime,
                     ),
                   ],
                 ),
@@ -203,8 +260,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, AppSpacing.lg, 4, AppSpacing.xs),
-      child: Text(label,
-          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700)),
+      child: Text(
+        label,
+        style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
@@ -230,7 +289,9 @@ class _MenuRow extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
             Container(
@@ -247,9 +308,12 @@ class _MenuRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: AppTypography.body
-                          .copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    label,
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 1),
                     Text(subtitle!, style: AppTypography.caption),
@@ -259,8 +323,10 @@ class _MenuRow extends StatelessWidget {
             ),
             trailing ??
                 (onTap != null
-                    ? const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textTertiary)
+                    ? const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textTertiary,
+                      )
                     : const SizedBox.shrink()),
           ],
         ),

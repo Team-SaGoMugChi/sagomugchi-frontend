@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Vision
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -14,6 +15,45 @@ import Vision
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "OddoCameraGuidance")!
+    let reminders = FlutterMethodChannel(name: "app.oddo.oddo/diary_reminder",
+                                        binaryMessenger: registrar.messenger())
+    reminders.setMethodCallHandler { call, result in
+      let center = UNUserNotificationCenter.current()
+      if call.method == "requestPermission" {
+        center.requestAuthorization(options: [.alert, .sound]) { allowed, _ in
+          DispatchQueue.main.async { result(allowed) }
+        }
+      } else if call.method == "configure", let args = call.arguments as? [String: Any],
+                let enabled = args["enabled"] as? Bool,
+                let hour = args["hour"] as? Int, let minute = args["minute"] as? Int,
+                (0...23).contains(hour), (0...59).contains(minute) {
+        let id = "oddo_diary_reminder"
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+        if !enabled {
+          center.removeDeliveredNotifications(withIdentifiers: [id])
+          result(true)
+          return
+        }
+        center.getNotificationSettings { settings in
+          guard settings.authorizationStatus == .authorized ||
+                  settings.authorizationStatus == .provisional else {
+            DispatchQueue.main.async { result(false) }
+            return
+          }
+          let content = UNMutableNotificationContent()
+          content.title = "오늘 이야기를 들려주세요"
+          content.body = "탄카츄와 오늘의 마음을 짧게 기록해볼까요?"
+          content.sound = .default
+          let trigger = UNCalendarNotificationTrigger(
+            dateMatching: DateComponents(hour: hour, minute: minute), repeats: true)
+          center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger)) { error in
+            DispatchQueue.main.async { result(error == nil) }
+          }
+        }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
     let channel = FlutterMethodChannel(name: "app.oddo.oddo/camera_guidance",
                                       binaryMessenger: registrar.messenger())
     channel.setMethodCallHandler { call, result in

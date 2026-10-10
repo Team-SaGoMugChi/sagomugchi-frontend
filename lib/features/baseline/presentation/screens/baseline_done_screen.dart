@@ -12,6 +12,7 @@ import '../../../../widgets/app_background.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../../onboarding/application/onboarding_controller.dart';
 import '../../application/baseline_profile_provider.dart';
 import '../../application/baseline_upload_controller.dart';
 import '../../data/models/baseline_profile.dart';
@@ -27,6 +28,7 @@ class BaselineDoneScreen extends ConsumerWidget {
     // Hide the previous account's value while loading another user's profile.
     final profile = result.isLoading ? null : result.asData?.value;
     final complete = profile?.isComplete ?? false;
+    final returningUser = ref.watch(onboardingCompleteProvider);
 
     void remeasure() {
       ref.read(baselineUploadControllerProvider.notifier).startMeasurement();
@@ -49,7 +51,10 @@ class BaselineDoneScreen extends ConsumerWidget {
                           description: '연결을 확인한 뒤 다시 시도해주세요.',
                         )
                       : complete
-                      ? _SavedProfile(profile: profile!)
+                      ? _SavedProfile(
+                          profile: profile!,
+                          returningUser: returningUser,
+                        )
                       : _Notice(
                           text: profile == null
                               ? '아직 저장된 측정 결과가 없어요'
@@ -65,12 +70,14 @@ class BaselineDoneScreen extends ConsumerWidget {
                     label: result.hasError
                         ? '다시 불러오기'
                         : complete
-                        ? '심리테스트 시작하기'
+                        ? (returningUser ? '홈으로 돌아가기' : '심리테스트 시작하기')
                         : '다시 측정하기',
                     onPressed: result.hasError
                         ? () => ref.invalidate(baselineProfileProvider)
                         : complete
-                        ? () => context.pushNamed(AppRoute.psychTestList)
+                        ? () => returningUser
+                              ? context.goNamed(AppRoute.home)
+                              : context.pushNamed(AppRoute.psychTestList)
                         : remeasure,
                   ),
                 ),
@@ -83,9 +90,10 @@ class BaselineDoneScreen extends ConsumerWidget {
 }
 
 class _SavedProfile extends StatelessWidget {
-  const _SavedProfile({required this.profile});
+  const _SavedProfile({required this.profile, required this.returningUser});
 
   final BaselineProfile profile;
+  final bool returningUser;
 
   @override
   Widget build(BuildContext context) {
@@ -96,8 +104,8 @@ class _SavedProfile extends StatelessWidget {
       children: [
         const Center(child: MascotImage(pose: MascotPose.check, size: 140)),
         Gap.h16,
-        const Text(
-          '첫 측정이 완료됐어요!',
+        Text(
+          returningUser ? '감정 기준을 새로 저장했어요!' : '첫 측정이 완료됐어요!',
           textAlign: TextAlign.center,
           style: AppTypography.display,
         ),

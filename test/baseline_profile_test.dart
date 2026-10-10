@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:oddo/app/router/app_routes.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/auth/application/auth_controller.dart';
@@ -17,6 +19,7 @@ import 'package:oddo/features/baseline/data/baseline_providers.dart';
 import 'package:oddo/features/baseline/data/models/baseline_profile.dart';
 import 'package:oddo/features/baseline/data/repositories/baseline_repository.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_done_screen.dart';
+import 'package:oddo/features/onboarding/application/onboarding_controller.dart';
 import 'package:oddo/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -53,6 +56,11 @@ class _AuthController extends AuthController {
   void enter(String id) => state = AuthState(
     user: AppUser(id: id, email: '$id@example.test', nickname: id),
   );
+}
+
+class _ReturningOnboarding extends OnboardingController {
+  @override
+  bool build() => true;
 }
 
 void main() {
@@ -321,6 +329,44 @@ void main() {
     late _Repository repository;
 
     setUp(() => repository = _Repository());
+
+    testWidgets(
+      'returning user returns home without repeating psychological test',
+      (tester) async {
+        final router = GoRouter(
+          initialLocation: AppPath.baselineDone,
+          routes: [
+            GoRoute(
+              path: AppPath.baselineDone,
+              name: AppRoute.baselineDone,
+              builder: (_, _) => const BaselineDoneScreen(),
+            ),
+            GoRoute(
+              path: AppPath.home,
+              name: AppRoute.home,
+              builder: (_, _) => const Scaffold(body: Text('home destination')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              baselineRepositoryProvider.overrideWithValue(repository),
+              localStoreProvider.overrideWithValue(localStore),
+              onboardingCompleteProvider.overrideWith(_ReturningOnboarding.new),
+            ],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('홈으로 돌아가기'), findsOneWidget);
+        expect(find.text('심리테스트 시작하기'), findsNothing);
+        await tester.tap(find.text('홈으로 돌아가기'));
+        await tester.pumpAndSettle();
+        expect(find.text('home destination'), findsOneWidget);
+      },
+    );
 
     Future<void> show(WidgetTester tester) async {
       tester.view.physicalSize = const Size(390, 844);

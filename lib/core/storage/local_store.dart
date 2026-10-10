@@ -29,6 +29,9 @@ class LocalStore {
 
   /// 일기 리마인더 알림 on/off (Phase 7 로컬 푸시의 스위치).
   static const String kReminderEnabled = 'reminder_enabled';
+  static const String kReminderOwner = 'reminder_owner';
+  static const String kReminderHour = 'reminder_hour';
+  static const String kReminderMinute = 'reminder_minute';
 
   bool getBool(String key, {bool fallback = false}) =>
       _prefs.getBool(key) ?? fallback;
