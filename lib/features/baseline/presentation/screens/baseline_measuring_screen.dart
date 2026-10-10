@@ -20,6 +20,7 @@ import '../../../../widgets/speech_bubble.dart';
 import '../../../../widgets/talking_tankachu.dart';
 import '../../../../widgets/tankachu_call_stage.dart';
 import '../../../../widgets/video_call_widgets.dart';
+import '../../application/baseline_camera_guidance.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
@@ -39,6 +40,10 @@ class _BaselineMeasuringScreenState
     extends ConsumerState<BaselineMeasuringScreen> {
   final _cameraKey = GlobalKey<CameraSelfViewState>();
   final _startedAt = DateTime.now();
+  final _cameraHints = CameraHintStabilizer();
+  CameraHint? _cameraHint;
+  bool _checkingCamera = false;
+  DateTime? _lastCameraCheck;
   bool _advanced = false;
   bool _aborted = false;
   bool _recording = false;
@@ -90,10 +95,17 @@ class _BaselineMeasuringScreenState
     }
     setState(() => _recording = true);
     _recordingClock = Stopwatch()..start();
-    _faceCaptureTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => _captureFace(),
-    );
+    _faceCaptureTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_lastCameraCheck != null &&
+          DateTime.now().difference(_lastCameraCheck!) >
+              const Duration(seconds: 6)) {
+        _cameraHints.reset();
+        if (mounted && _cameraHint != null) {
+          setState(() => _cameraHint = null);
+        }
+      }
+      _captureFace();
+    });
     final conversation = AmplitudePacedConversationController(
       ref.read(ttsServiceProvider),
       recorder.amplitudeStream(),
@@ -208,6 +220,25 @@ class _BaselineMeasuringScreenState
           promptSpeaking: _turn?.speaking ?? false,
         );
     ref.read(baselineFaceImageProvider.notifier).set(photo.path);
+    if (!_advanced && !_checkingCamera) {
+      unawaited(_checkCamera(photo.path));
+    }
+  }
+
+  Future<void> _checkCamera(String path) async {
+    _checkingCamera = true;
+    try {
+      final hint = await ref.read(baselineCameraGuidanceProvider).inspect(path);
+      if (!mounted || _advanced) return;
+      _lastCameraCheck = DateTime.now();
+      setState(() => _cameraHint = _cameraHints.update(hint));
+    } catch (_) {
+      // 가이드 실패는 녹음/얼굴 수집/업로드를 막지 않는다.
+      _cameraHints.reset();
+      if (mounted && !_advanced) setState(() => _cameraHint = null);
+    } finally {
+      _checkingCamera = false;
+    }
   }
 
   Future<void> _advance() async {
@@ -315,10 +346,21 @@ class _BaselineMeasuringScreenState
                                 maxHeight: box.maxHeight * 0.3,
                               ),
                               child: SingleChildScrollView(
-                                child: SpeechBubble(
-                                  text: _advanced
-                                      ? '고마워요. 방금 나눈 대화를 정리할게요.'
-                                      : _turn?.caption ?? '잠시만요, 곧 이야기 나눠요.',
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SpeechBubble(
+                                      text: _advanced
+                                          ? '고마워요. 방금 나눈 대화를 정리할게요.'
+                                          : _turn?.caption ??
+                                                '잠시만요, 곧 이야기 나눠요.',
+                                    ),
+                                    if (listening && _cameraHint != null) ...[
+                                      Gap.h8,
+                                      SpeechBubble(text: _cameraHint!.caption),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
