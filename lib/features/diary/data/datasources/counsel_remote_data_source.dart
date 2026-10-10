@@ -52,7 +52,7 @@ class CounselRemoteDataSource implements CounselDataSource {
         if (persona != null && persona.isNotEmpty) 'persona': persona,
         if (psychProfile != null && psychProfile.isNotEmpty)
           'psych_profile': psychProfile,
-        if (filledSlots != null) 'slots': filledSlots,
+        'slots': ?filledSlots,
         if (arc != null && arc.isNotEmpty) 'emotion_arc': arc,
       },
     );
@@ -81,7 +81,7 @@ class CounselRemoteDataSource implements CounselDataSource {
         if (emotions != null && emotions.isNotEmpty) 'emotions': emotions,
         if (diarySummary != null && diarySummary.isNotEmpty)
           'diary_summary': diarySummary,
-        if (filledSlots != null) 'slots': filledSlots,
+        'slots': ?filledSlots,
       },
     );
     if (json['summary'] is! String) {
