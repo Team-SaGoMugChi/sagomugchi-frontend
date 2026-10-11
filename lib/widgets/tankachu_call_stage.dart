@@ -29,6 +29,9 @@ class TankachuCallStage extends StatelessWidget {
   /// 화면 위 ~ 귀 끝 (상단 칩).
   static const _earGap = 56.0;
 
+  /// 이보다 작게 그려야 할 만큼 공간이 없으면 탄카츄를 잠깐 숨긴다.
+  static const _minWidth = 120.0;
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -42,6 +45,9 @@ class TankachuCallStage extends StatelessWidget {
                     (TalkingTankachu.mouthBottomFactor -
                         TalkingTankachu.earTopFactor),
               );
+              // 키보드가 올라오면 뒤에 깔린 통화 화면까지 세로로 줄어든다 —
+              // 공간이 거의 없으면 폭이 음수가 되어 레이아웃이 깨지므로 숨긴다.
+              if (!(width >= _minWidth)) return const SizedBox.shrink();
               return Stack(
                 children: [
                   Positioned(
