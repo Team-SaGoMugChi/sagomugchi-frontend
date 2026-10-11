@@ -174,6 +174,35 @@ void main() {
       expect(find.byType(TalkingTankachu), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('세로 공간이 거의 없으면 탄카츄를 숨기고 오류가 나지 않는다', (tester) async {
+      // 키보드가 올라와 뒤에 깔린 통화 화면이 줄어든 상황.
+      final speech = ValueNotifier<TtsUtterance?>(null);
+      addTearDown(speech.dispose);
+      Widget stage(double height) => MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              width: 360,
+              height: height,
+              child: TankachuCallStage(speech: speech),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(stage(150));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(TalkingTankachu), findsNothing);
+
+      // 공간이 다시 생기면 그대로 나타난다.
+      await tester.pumpWidget(stage(600));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(TalkingTankachu), findsOneWidget);
+    });
   });
 
   group('MascotSpeech', () {
