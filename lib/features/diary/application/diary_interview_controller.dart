@@ -1,15 +1,31 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/diary_providers.dart';
 import '../data/models/diary_interview.dart';
 
+/// 답변 하나의 감정 분석 진행 — 37번 좌상단 감정 게이지가 가장 최근 결과를 보여준다.
+class AnswerEmotionRecord {
+  const AnswerEmotionRecord.analyzing() : emotion = null, failed = false;
+  const AnswerEmotionRecord.done(AnswerEmotion this.emotion) : failed = false;
+  const AnswerEmotionRecord.failed() : emotion = null, failed = true;
+
+  /// 분석 결과. 아직 분석 중이거나 실패했으면 null.
+  final AnswerEmotion? emotion;
+  final bool failed;
+
+  bool get analyzing => emotion == null && !failed;
+}
+
 /// 37번 말하기 대화 상태 — 주고받은 말, 차례별 녹음, 채워진 육하원칙 칸,
-/// 질문 대기·마무리·위기 여부.
+/// 답변별 감정, 질문 대기·마무리·위기 여부.
 class DiaryInterviewState {
   const DiaryInterviewState({
     this.messages = const [],
     this.recordingPaths = const [],
     this.slots = const {},
+    this.answerEmotions = const [],
     this.summary,
     this.waiting = false,
     this.done = false,
@@ -17,6 +33,10 @@ class DiaryInterviewState {
   });
 
   final List<InterviewMessage> messages;
+
+  /// 질문을 받은 답변마다 하나씩, 답한 순서대로 — 통화 중 감정 패널용이고
+  /// 저장하지 않는다(기록에 남는 감정은 통화 뒤 Step2 분석).
+  final List<AnswerEmotionRecord> answerEmotions;
 
   /// 사용자 답변 녹음(차례별 WAV) — 통화가 끝나면 순서대로 이어 붙여 감정
   /// 분석에 넘긴다. 탄카츄가 말하는 동안은 녹음하지 않으므로 사용자 목소리만 있다.
@@ -50,6 +70,7 @@ class DiaryInterviewState {
     List<InterviewMessage>? messages,
     List<String>? recordingPaths,
     Map<String, String?>? slots,
+    List<AnswerEmotionRecord>? answerEmotions,
     String? summary,
     bool? waiting,
     bool? done,
@@ -58,6 +79,7 @@ class DiaryInterviewState {
     messages: messages ?? this.messages,
     recordingPaths: recordingPaths ?? this.recordingPaths,
     slots: slots ?? this.slots,
+    answerEmotions: answerEmotions ?? this.answerEmotions,
     summary: summary ?? this.summary,
     waiting: waiting ?? this.waiting,
     done: done ?? this.done,
@@ -82,6 +104,9 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
   /// [askNext]가 false면(통화를 끝내면서 마지막 답을 싣는 경우) 묻지 않는다.
   /// 마무리([DiaryInterviewState.done])나 위기 안내 뒤에도 묻지 않는다 — 답은
   /// 기록에 계속 쌓인다. 질문을 받지 못하면 [keepGoing]으로 이어간다.
+  ///
+  /// 질문을 받는 답변은 감정도 따로 분석한다 — 질문과 동시에 보내고 기다리지
+  /// 않아서, 분석이 늦거나 실패해도 다음 질문은 늦어지지 않는다.
   Future<void> addAnswer({
     required String recordingPath,
     required String text,
@@ -96,9 +121,13 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
         InterviewMessage(speaker: InterviewSpeaker.user, text: text),
       ],
       recordingPaths: [...state.recordingPaths, recordingPath],
+      answerEmotions: ask
+          ? [...state.answerEmotions, const AnswerEmotionRecord.analyzing()]
+          : null,
       waiting: ask,
     );
     if (!ask) return;
+    unawaited(_analyzeAnswer(state.answerEmotions.length - 1, text));
 
     InterviewMessage reply;
     var done = false;
@@ -125,6 +154,22 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
       waiting: false,
       done: done,
       crisis: crisis,
+    );
+  }
+
+  Future<void> _analyzeAnswer(int index, String text) async {
+    AnswerEmotionRecord record;
+    try {
+      final emotion = await ref
+          .read(diaryInterviewRepositoryProvider)
+          .analyzeAnswer(userText: text);
+      record = AnswerEmotionRecord.done(emotion);
+    } catch (_) {
+      record = const AnswerEmotionRecord.failed();
+    }
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      answerEmotions: [...state.answerEmotions]..[index] = record,
     );
   }
 }

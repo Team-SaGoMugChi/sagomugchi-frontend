@@ -6,5 +6,7 @@ abstract interface class DiaryInterviewRepository {
     List<InterviewMessage> history = const [],
   });
 
+  Future<AnswerEmotion> analyzeAnswer({required String userText});
+
   Future<String?> refine({required List<InterviewMessage> messages});
 }

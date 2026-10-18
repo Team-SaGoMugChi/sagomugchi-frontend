@@ -29,6 +29,18 @@ class DiaryInterviewRemoteDataSource implements DiaryInterviewDataSource {
   }
 
   @override
+  Future<AnswerEmotion> analyzeAnswer({required String userText}) async {
+    final json = await _apiClient.post(
+      '/diary/interview/emotion',
+      body: {'user_text': userText},
+    );
+    if (json['scores'] is! Map) {
+      throw const ServerException('감정 분석 결과를 받지 못했어요.');
+    }
+    return AnswerEmotion.fromJson(json);
+  }
+
+  @override
   Future<String?> refine({required List<InterviewMessage> messages}) async {
     final json = await _apiClient.post(
       '/diary/interview/refine',

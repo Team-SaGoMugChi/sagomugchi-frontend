@@ -27,4 +27,7 @@ abstract final class DiaryInterviewCopy {
     if (done) return '이야기를 다 들었어요. 정리하러 갈게요';
     return '마이크를 누르고 말해보세요';
   }
+
+  /// 좌상단 감정 게이지 아래 — 아직 인식된 감정이 없을 때.
+  static const String emotionUnknown = '—';
 }

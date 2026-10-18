@@ -47,6 +47,24 @@ class DiaryInterviewDummyDataSource implements DiaryInterviewDataSource {
     );
   }
 
+  /// 답변마다 같은 샘플 감정 — 패널이 그려지는지만 확인하는 용도.
+  @override
+  Future<AnswerEmotion> analyzeAnswer({required String userText}) async {
+    await Future<void>.delayed(AppDurations.dummyLatency);
+    return const AnswerEmotion(
+      scores: {
+        '기쁨': 0,
+        '슬픔': 0.3,
+        '분노': 0,
+        '불안': 0.2,
+        '상처': 0.5,
+        '당황': 0,
+      },
+      dominantEmotion: '상처',
+      confidence: 0.8,
+    );
+  }
+
   /// 사용자가 한 말만 이어 붙인다 — 정제 없이 화면 흐름만 확인하는 용도.
   @override
   Future<String?> refine({required List<InterviewMessage> messages}) async {

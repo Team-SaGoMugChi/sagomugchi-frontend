@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
@@ -13,10 +15,23 @@ import 'package:oddo/features/diary/data/repositories/diary_interview_repository
 const _greeting = '오늘 어떤 일이 있었어요?';
 const _keepGoing = '이어서 말해주세요.';
 
+const _hurt = AnswerEmotion(
+  scores: {'기쁨': 0, '슬픔': 0.25, '분노': 0, '불안': 0, '상처': 0.75, '당황': 0},
+  dominantEmotion: '상처',
+  confidence: 0.8,
+);
+
 class _Repository implements DiaryInterviewRepository {
   final calls = <({String userText, List<InterviewMessage> history})>[];
   InterviewTurnResult result = const InterviewTurnResult(reply: '언제 있었어요?');
   Object? error;
+
+  final emotionCalls = <String>[];
+  AnswerEmotion emotion = _hurt;
+  Object? emotionError;
+
+  /// 정해 두면 감정 분석이 이 Completer가 끝날 때까지 기다린다.
+  Completer<AnswerEmotion>? emotionGate;
 
   @override
   Future<InterviewTurnResult> sendTurn({
@@ -26,6 +41,14 @@ class _Repository implements DiaryInterviewRepository {
     calls.add((userText: userText, history: history));
     if (error != null) throw error!;
     return result;
+  }
+
+  @override
+  Future<AnswerEmotion> analyzeAnswer({required String userText}) async {
+    emotionCalls.add(userText);
+    if (emotionGate != null) return emotionGate!.future;
+    if (emotionError != null) throw emotionError!;
+    return emotion;
   }
 
   @override
@@ -175,6 +198,56 @@ void main() {
       expect(state().summary, '오늘은 팀 회의에서 의견이 무시당한 하루였어요.');
     });
 
+    test('analyzes each asked answer in order', () async {
+      await answer('친구가 약속을 잊었어요.');
+      await pumpEventQueue();
+      repository.emotion = const AnswerEmotion(
+        scores: {'불안': 1},
+        dominantEmotion: '불안',
+      );
+      await answer('또 그럴까 봐요.');
+      await pumpEventQueue();
+
+      expect(repository.emotionCalls, ['친구가 약속을 잊었어요.', '또 그럴까 봐요.']);
+      expect(
+        state().answerEmotions.map((r) => r.emotion?.dominantEmotion),
+        ['상처', '불안'],
+      );
+    });
+
+    test('the next question does not wait for the emotion', () async {
+      final gate = repository.emotionGate = Completer<AnswerEmotion>();
+      await answer('친구가 약속을 잊었어요.');
+
+      expect(state().messages.last.text, '언제 있었어요?');
+      expect(state().answerEmotions.single.analyzing, isTrue);
+
+      gate.complete(_hurt);
+      await pumpEventQueue();
+      expect(state().answerEmotions.single.emotion?.dominantEmotion, '상처');
+    });
+
+    test('a failed emotion keeps the conversation going', () async {
+      repository.emotionError = const NetworkException();
+      await answer('친구가 약속을 잊었어요.');
+      await pumpEventQueue();
+
+      expect(state().answerEmotions.single.failed, isTrue);
+      expect(state().messages.last.text, '언제 있었어요?');
+      expect(state().waiting, isFalse);
+    });
+
+    test('answers without a question are not analyzed', () async {
+      await answer('이제 끊을게요.', askNext: false);
+      repository.result = const InterviewTurnResult(reply: '고마워요.', done: true);
+      await answer('그날 일이요.');
+      await pumpEventQueue();
+      await answer('하나 더요.');
+
+      expect(repository.emotionCalls, ['그날 일이요.']);
+      expect(state().answerEmotions, hasLength(1));
+    });
+
     test('start does not reset an ongoing conversation', () async {
       await answer('팀 회의가 있었어요.');
       controller().start(_greeting);
@@ -205,6 +278,50 @@ void main() {
       expect(result.slots, {'무엇을': '팀 회의', '누가': null});
       expect(result.missing, ['누가']);
       expect(result.summary, '오늘은 팀 회의가 있었던 하루였어요.');
+    });
+
+    test('posts one answer to the emotion endpoint', () async {
+      final client = _Client()
+        ..response = {
+          'scores': {'분노': 1, '슬픔': 0},
+          'dominant_emotion': '분노',
+          'confidence': 0.9,
+          'keywords': ['짜증', '불평'],
+        };
+      final emotion = await DiaryInterviewRemoteDataSource(
+        client,
+      ).analyzeAnswer(userText: '말을 끊어서 짜증났어요.');
+
+      expect(client.path, '/diary/interview/emotion');
+      expect(client.body, {'user_text': '말을 끊어서 짜증났어요.'});
+      expect(emotion.scores, {'분노': 1.0, '슬픔': 0.0});
+      expect(emotion.dominantEmotion, '분노');
+      expect(emotion.confidence, 0.9);
+    });
+
+    test('reads an undetermined emotion with no confidence', () async {
+      final client = _Client()
+        ..response = {
+          'scores': {'기쁨': 0, '슬픔': 0},
+          'dominant_emotion': null,
+          'confidence': 0,
+        };
+      final emotion = await DiaryInterviewRemoteDataSource(
+        client,
+      ).analyzeAnswer(userText: '점심 먹었어요.');
+
+      expect(emotion.dominantEmotion, isNull);
+      expect(emotion.confidence, 0);
+    });
+
+    test('rejects an emotion response without scores', () async {
+      final client = _Client()..response = {};
+      await expectLater(
+        DiaryInterviewRemoteDataSource(
+          client,
+        ).analyzeAnswer(userText: '어제요.'),
+        throwsA(isA<ServerException>()),
+      );
     });
 
     test('refine posts the whole conversation and reads the diary', () async {
