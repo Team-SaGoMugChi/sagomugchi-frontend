@@ -27,6 +27,7 @@ import '../../application/diary_draft_provider.dart';
 import '../../application/diary_interview_controller.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/diary_interview.dart';
+import '../widgets/answer_emotion_gauge.dart';
 import '../widgets/diary_interview_copy.dart';
 
 /// Screen 37 — Step 1. 말하기. 탄카츄와 영상통화처럼 주고받으며 오늘을 기록한다.
@@ -477,6 +478,15 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                           label: '음성 인식 중',
                         ),
                       ),
+                    // 좌상단(음성 인식 중 칩 아래) — 답변마다 갱신되는 긍정/부정
+                    // 게이지와 감정 이름. 일기에 집중하도록 이것만 띄운다.
+                    Positioned(
+                      top: 44,
+                      left: AppSpacing.screenH,
+                      child: AnswerEmotionGauge(
+                        records: interview.answerEmotions,
+                      ),
+                    ),
                     const Positioned(
                       top: 8,
                       right: AppSpacing.screenH,
