@@ -12,6 +12,8 @@ abstract final class DiaryInterviewCopy {
 
   /// 37번 상단 상태 줄 — 지금 무엇을 하고 있는지 그대로 보여준다.
   static String callStatus({
+    required bool speaking,
+    required bool listenFailed,
     required bool recording,
     required bool transcribing,
     required bool waiting,
@@ -25,7 +27,10 @@ abstract final class DiaryInterviewCopy {
     if (transcribing) return '말을 옮기고 있어요';
     if (waiting) return '탄카츄가 질문을 고르고 있어요';
     if (done) return '이야기를 다 들었어요. 정리하러 갈게요';
-    return '마이크를 누르고 말해보세요';
+    if (speaking) return '탄카츄가 말하고 있어요';
+    if (listenFailed) return '말하기를 눌러 이어가세요';
+    // 탄카츄 말이 끝나고 녹음이 켜지기까지의 짧은 틈 — 곧 듣는다.
+    return '듣고 있어요';
   }
 
   /// 좌상단 감정 게이지 아래 — 아직 인식된 감정이 없을 때.

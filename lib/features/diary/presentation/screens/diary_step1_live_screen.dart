@@ -32,8 +32,8 @@ import '../widgets/diary_interview_copy.dart';
 
 /// Screen 37 — Step 1. 말하기. 탄카츄와 영상통화처럼 주고받으며 오늘을 기록한다.
 ///
-/// 차례 넘기기는 Step4 상담 통화와 같은 토글 버튼이다(말하기 → 다 말했어요).
-/// 한 차례가 끝나면 그 녹음을 STT로 옮기고, `POST /diary/interview/turn`이
+/// 버튼을 누르지 않는다 — 탄카츄 말이 끝나면 바로 듣기 시작하고, 말한 뒤 잠깐
+/// 조용하면 차례를 넘긴다("다 말했어요"로 바로 넘길 수도 있다). 한 차례가 끝나면 그 녹음을 STT로 옮기고, `POST /diary/interview/turn`이
 /// 일기에 빠진 사실(육하원칙·경과 시간)을 골라 다음 질문을 준다. 탄카츄가 말하는
 /// 동안은 녹음하지 않아서, 탄카츄 목소리가 감정 분석(음성·원문)에 섞이지 않는다.
 ///
@@ -68,6 +68,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   void dispose() {
     _speech.dispose();
     _faceTimer?.cancel();
+    _voiceWatch?.cancel();
     if (!_handedToDraft) {
       for (final face in [
         ..._currentFaces,
@@ -121,8 +122,9 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   /// 통화 종료 처리 중(캡처·녹음 합치기) — 버튼을 다시 못 누르게 한다.
   bool _ending = false;
 
-  /// 탄카츄의 말을 소리로 읽을지. 끄면 자막만 남는다.
-  bool _speakerOff = false;
+  /// 하단 버튼 줄의 양옆 칸 너비 — 통화 종료를 가운데에 두고, 오른쪽 칸에
+  /// 차례 넘기기 글자 버튼이 나타났다 사라진다.
+  static const double _sideSlotWidth = 120;
 
   @override
   void initState() {
@@ -137,15 +139,98 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
     });
   }
 
-  /// 마이크 버튼 — 녹음 시작/중지를 번갈아 한다. 중지하면 다음 질문을 받는다.
-  Future<void> _toggleRecording() async {
-    if (_transcribing || _ending) return;
-    if (!_recording) {
-      await _startRecording();
+  /// 말소리 판단 — 베이스라인 측정(`AmplitudePacedConversationController`)과
+  /// 같은 문턱. record 패키지 dBFS는 대략 -160(무음)~0(최대).
+  static const _voiceThreshold = -35.0;
+
+  /// 말을 시작한 뒤 이만큼 조용하면 다 말한 것으로 보고 다음 질문을 받는다.
+  /// 너무 짧으면 생각하며 쉬는 사이에 끊기고, 길면 다 말하고도 오래 기다린다
+  /// (실기기에서 4초는 길었음 — 2026-10-18).
+  static const _endOfTurnSilence = Duration(seconds: 2);
+
+  /// 진폭은 약 300ms마다 온다 — 문턱을 이만큼 연달아 넘어야(약 0.6초) 말로 본다.
+  static const _voiceFramesToStart = 2;
+
+  StreamSubscription<double>? _voiceWatch;
+  bool _heardVoice = false;
+  int _voiceFrames = 0;
+  DateTime? _silenceSince;
+
+  /// 탄카츄가 말하는 중 — 이때는 듣지 않는다.
+  bool _tankachuSpeaking = false;
+
+  /// 차례를 넘기는 중 — 침묵 감지와 "다 말했어요"가 겹쳐 두 번 넘기지 않게.
+  bool _submitting = false;
+
+  /// 자동으로 듣기 시작하지 못했다(마이크 권한 등) — 이때만 "말하기" 버튼을
+  /// 보여준다. 탄카츄 말이 끝나고 녹음이 켜지기까지의 짧은 틈에는 띄우지 않는다.
+  bool _listenFailed = false;
+
+  /// 탄카츄 말이 끝나면 자동으로 듣기 시작한다 — 마이크 버튼을 누를 필요가 없다.
+  /// 마무리·위기 안내 뒤나 통화를 끝내는 중이면 듣지 않는다.
+  Future<void> _listen() async {
+    final interview = ref.read(diaryInterviewControllerProvider);
+    if (!mounted ||
+        _recording ||
+        _transcribing ||
+        _ending ||
+        interview.waiting ||
+        interview.done ||
+        interview.crisis) {
       return;
     }
-    final turn = await _finishTurn();
-    if (turn == null || !mounted) return;
+    await _startRecording();
+    if (!mounted) return;
+    setState(() => _listenFailed = !_recording);
+    if (!_recording) return;
+    _heardVoice = false;
+    _voiceFrames = 0;
+    _silenceSince = null;
+    await _voiceWatch?.cancel();
+    _voiceWatch = ref
+        .read(audioRecorderProvider)
+        .amplitudeStream()
+        .listen(_onAmplitude);
+  }
+
+  /// 말을 시작하기 전에는 얼마든지 기다리고, 말한 뒤 [_endOfTurnSilence]만큼
+  /// 조용하면 그 차례를 보낸다.
+  void _onAmplitude(double db) {
+    if (!_recording) return;
+    if (db > _voiceThreshold) {
+      // 숨소리·물건 소리처럼 한 번 튄 소리로는 말을 시작한 것으로 보지 않는다 —
+      // 그러면 말하기 전에 차례가 넘어가 STT가 말소리를 못 찾는다(422).
+      _voiceFrames++;
+      if (_voiceFrames >= _voiceFramesToStart) _heardVoice = true;
+      _silenceSince = null;
+      return;
+    }
+    if (!_heardVoice) _voiceFrames = 0;
+    if (!_heardVoice) return;
+    _silenceSince ??= DateTime.now();
+    if (DateTime.now().difference(_silenceSince!) >= _endOfTurnSilence) {
+      unawaited(_submitTurn());
+    }
+  }
+
+  /// 차례를 끝내고 다음 질문을 받는다 — 말이 멈췄을 때 자동으로, 또는
+  /// "다 말했어요"를 눌렀을 때. 말을 옮기지 못했으면 다시 듣는다.
+  Future<void> _submitTurn() async {
+    if (_submitting || !_recording || _transcribing || _ending) return;
+    _submitting = true;
+    final ({String path, String text})? turn;
+    try {
+      await _voiceWatch?.cancel();
+      _voiceWatch = null;
+      turn = await _finishTurn();
+    } finally {
+      _submitting = false;
+    }
+    if (!mounted || _ending) return;
+    if (turn == null) {
+      await _listen();
+      return;
+    }
     await ref
         .read(diaryInterviewControllerProvider.notifier)
         .addAnswer(
@@ -242,6 +327,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Future<void> _endCall() async {
     if (_ending || _transcribing) return;
     setState(() => _ending = true);
+    await _voiceWatch?.cancel();
+    _voiceWatch = null;
     _speech.stopMouthOnly();
     await ref.read(ttsServiceProvider).stop();
 
@@ -325,12 +412,6 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
     if (mounted) context.pushReplacementNamed(AppRoute.diaryStep1Processing);
   }
 
-  Future<void> _toggleSpeaker() async {
-    final turningOff = !_speakerOff;
-    if (turningOff) await ref.read(ttsServiceProvider).stop();
-    if (mounted) setState(() => _speakerOff = turningOff);
-  }
-
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -352,16 +433,21 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
     _say(last.text, thenEnd: finished);
   }
 
+  /// 탄카츄의 말을 읽고, 다 읽으면 바로 사용자의 말을 듣기 시작한다.
   Future<void> _say(String text, {required bool thenEnd}) async {
-    if (!_speakerOff && !_recording) {
+    if (mounted) setState(() => _tankachuSpeaking = true);
+    if (!_recording) {
       await ref.read(ttsServiceProvider).speak(text);
-    } else if (!_recording) {
-      // 소리를 껐으면 입만 움직인다 — 그동안 말풍선을 읽을 시간도 된다.
-      await _speech.mouthOnly(text);
     } else if (thenEnd) {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
-    if (thenEnd && mounted) await _endCall();
+    if (!mounted) return;
+    setState(() => _tankachuSpeaking = false);
+    if (thenEnd) {
+      await _endCall();
+    } else {
+      await _listen();
+    }
   }
 
   @override
@@ -436,7 +522,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                       title: '말하기 도움말',
                       items: const [
                         '탄카츄가 묻는 말에 통화하듯 편하게 답해주세요.',
-                        '마이크를 누르고 말한 뒤, 다 말했으면 다시 눌러주세요.',
+                        '탄카츄 말이 끝나면 바로 말하면 돼요. 잠깐 조용하면 다음 질문으로 넘어가요.',
+                        '빨리 넘기고 싶으면 다 말했어요를 눌러주세요.',
                         '탄카츄가 빠진 내용을 몇 가지 더 물어볼 수 있어요.',
                         '통화 종료를 누르면 대화가 끝나고 분석이 시작돼요.',
                       ],
@@ -446,6 +533,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
               ),
               CallStatusRow(
                 label: DiaryInterviewCopy.callStatus(
+                  speaking: _tankachuSpeaking,
+                  listenFailed: _listenFailed,
                   recording: _recording,
                   transcribing: _transcribing,
                   waiting: interview.waiting,
@@ -478,8 +567,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                           label: '음성 인식 중',
                         ),
                       ),
-                    // 좌상단(음성 인식 중 칩 아래) — 답변마다 갱신되는 긍정/부정
-                    // 게이지와 감정 이름. 일기에 집중하도록 이것만 띄운다.
+                    // 좌상단(음성 인식 중 칩 아래) — 답변마다 갱신되는 감정
+                    // 인식 게이지와 감정 이름. 일기에 집중하도록 이것만 띄운다.
                     Positioned(
                       top: 44,
                       left: AppSpacing.screenH,
@@ -521,17 +610,9 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CallControlButton(
-                              icon: _recording
-                                  ? Icons.stop_rounded
-                                  : Icons.mic_rounded,
-                              label: _recording
-                                  ? '다 말했어요'
-                                  : _transcribing
-                                  ? '옮기는 중'
-                                  : '말하기',
-                              onTap: micLocked ? null : _toggleRecording,
-                            ),
+                            // 통화 종료는 가운데에 고정한다 — 옆 버튼이 나타났다
+                            // 사라져도 움직이지 않아야 잘못 눌러 끊지 않는다.
+                            const SizedBox(width: _sideSlotWidth),
                             const SizedBox(width: 20),
                             CallControlButton(
                               icon: Icons.call_end_rounded,
@@ -540,12 +621,24 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                               onTap: _ending || _transcribing ? null : _endCall,
                             ),
                             const SizedBox(width: 20),
-                            CallControlButton(
-                              icon: _speakerOff
-                                  ? Icons.volume_off_rounded
-                                  : Icons.volume_up_rounded,
-                              label: _speakerOff ? '소리 꺼짐' : '스피커',
-                              onTap: _toggleSpeaker,
+                            // 마이크 버튼 대신 글자 버튼 — 음소거와 헷갈리지 않게.
+                            // 듣는 중에는 빨리 넘기기, 자동으로 듣지 못했을 때만
+                            // 다시 듣기를 보여준다.
+                            SizedBox(
+                              width: _sideSlotWidth,
+                              child: Center(
+                                child: _recording
+                                    ? _TurnButton(
+                                        label: '다 말했어요',
+                                        onTap: _submitTurn,
+                                      )
+                                    : _listenFailed && !micLocked
+                                    ? _TurnButton(
+                                        label: '말하기',
+                                        onTap: _listen,
+                                      )
+                                    : null,
+                              ),
                             ),
                           ],
                         ),
@@ -555,6 +648,40 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 차례 넘기기 글자 버튼 — 아이콘 버튼(통화 종료)과 모양을 달리해
+/// 마이크 음소거로 오해하지 않게 한다.
+class _TurnButton extends StatelessWidget {
+  const _TurnButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: AppRadius.chip,
+      child: InkWell(
+        borderRadius: AppRadius.chip,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Text(
+            label,
+            style: AppTypography.bodySecondary.copyWith(
+              color: AppColors.textOnPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
