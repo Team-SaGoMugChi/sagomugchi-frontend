@@ -11,6 +11,36 @@ class InterviewMessage {
   Map<String, dynamic> toJson() => {'speaker': speaker.name, 'text': text};
 }
 
+/// `POST /diary/interview/emotion` 응답 — 통화 중 답변 하나의 텍스트 감정.
+///
+/// 37번 실시간 감정 분석 패널에 보여주기만 하고 저장하지 않는다. 기록에 남는
+/// 감정은 통화가 끝난 뒤의 Step2 분석 결과다. 6종 라벨은 Step2와 같다.
+class AnswerEmotion {
+  const AnswerEmotion({
+    required this.scores,
+    this.dominantEmotion,
+    this.confidence = 0,
+  });
+
+  /// 6종 감정(기쁨·슬픔·분노·불안·상처·당황) → 상대 점수(합 1). 판단 불가면 모두 0.
+  final Map<String, double> scores;
+
+  /// 대표 감정. 근거가 부족하면(판단 불가) null.
+  final String? dominantEmotion;
+
+  /// 대표 감정이 얼마나 뚜렷하게 인식됐는지(0~1, 모델 근거 점수) — 패널의
+  /// 세로 게이지. 보정된 정확도나 측정된 감정 세기가 아니다. 판단 불가면 0.
+  final double confidence;
+
+  factory AnswerEmotion.fromJson(Map<String, dynamic> json) => AnswerEmotion(
+    scores: (json['scores'] as Map<String, dynamic>? ?? const {}).map(
+      (key, value) => MapEntry(key, (value as num).toDouble()),
+    ),
+    dominantEmotion: json['dominant_emotion'] as String?,
+    confidence: ((json['confidence'] as num?)?.toDouble() ?? 0).clamp(0, 1),
+  );
+}
+
 /// `POST /diary/interview/turn` 응답 — 탄카츄가 할 말과 대화 상태.
 ///
 /// 서버는 대화에서 육하원칙 칸([slots])을 채우고 빈 칸([missing])만 묻는다.

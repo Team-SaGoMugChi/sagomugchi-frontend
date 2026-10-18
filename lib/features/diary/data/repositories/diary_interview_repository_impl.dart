@@ -16,6 +16,11 @@ class DiaryInterviewRepositoryImpl implements DiaryInterviewRepository {
   }
 
   @override
+  Future<AnswerEmotion> analyzeAnswer({required String userText}) {
+    return _dataSource.analyzeAnswer(userText: userText);
+  }
+
+  @override
   Future<String?> refine({required List<InterviewMessage> messages}) {
     return _dataSource.refine(messages: messages);
   }
