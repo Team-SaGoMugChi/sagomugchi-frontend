@@ -159,13 +159,11 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     }
   }
 
-  /// 화면에 보여주고 저장할 리포트를 만든다.
+   /// 화면에 보여주고 저장할 리포트를 만든다.
   ///
   /// 감정 분포·강도는 Step2 분석에서, 글은 상담 리포트에서 온다. 실제 모드에서
   /// 서버가 만들지 않은 값은 빈 값이나 0으로 두고, 더미 모드에서만 샘플을 쓴다.
-  ///
-  /// TODO(고도화): moments·reframe은 아직 화면에만 쓰고 저장하지 않는다.
-  /// EmotionReport에 자리를 만들면 같이 저장한다.
+  /// 알아차린 것·다르게 보기·한 줄 요약도 함께 저장해 49번에서 다시 보여준다.
   EmotionReport _composeReport({
     required CounselReport? counsel,
     required FusionResult? fusion,
@@ -198,6 +196,9 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       behaviorGuides: guides,
       recommendedActivities:
           useSampleContent ? sample.recommendedActivities : const [],
+      headline: counsel?.headline ?? '',
+      moments: counsel?.moments ?? const [],
+      reframe: counsel?.reframe ?? '',
     );
   }
 
