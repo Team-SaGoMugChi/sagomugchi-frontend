@@ -2,6 +2,9 @@
 /// (screens 46 / 49).
 ///
 /// Stored at `users/{uid}/reports/{yyyy-MM-dd}` — see FIRESTORE_SCHEMA.md.
+///
+/// [headline]·[moments]·[reframe]은 상담 리포트(`/counsel/report`)에서 온다.
+/// 이 필드가 생기기 전에 저장된 문서에는 값이 없으므로 빈 값으로 읽는다.
 class EmotionReport {
   const EmotionReport({
     required this.date,
@@ -11,6 +14,9 @@ class EmotionReport {
     required this.analysisComment,
     required this.behaviorGuides,
     required this.recommendedActivities,
+    this.headline = '',
+    this.moments = const [],
+    this.reframe = '',
   });
 
   final DateTime date;
@@ -24,6 +30,15 @@ class EmotionReport {
   final List<String> behaviorGuides;
   final List<String> recommendedActivities;
 
+  /// 오늘을 한 문장으로. 상담을 안 했으면 빈 문자열.
+  final String headline;
+
+  /// 상담 중 사용자가 스스로 알아차린 점. 서버가 근거를 확인한 문장만 온다.
+  final List<String> moments;
+
+  /// 같은 일을 달리 볼 수 있는 관점 한 문장. 없으면 빈 문자열.
+  final String reframe;
+
   factory EmotionReport.fromJson(Map<String, dynamic> json) => EmotionReport(
         date: DateTime.parse(json['date'] as String),
         emotionDistribution:
@@ -36,6 +51,12 @@ class EmotionReport {
             (json['behaviorGuides'] as List<dynamic>).cast<String>(),
         recommendedActivities:
             (json['recommendedActivities'] as List<dynamic>).cast<String>(),
+        headline: json['headline'] as String? ?? '',
+        moments: (json['moments'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        reframe: json['reframe'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -46,5 +67,8 @@ class EmotionReport {
         'analysisComment': analysisComment,
         'behaviorGuides': behaviorGuides,
         'recommendedActivities': recommendedActivities,
+        'headline': headline,
+        'moments': moments,
+        'reframe': reframe,
       };
 }
