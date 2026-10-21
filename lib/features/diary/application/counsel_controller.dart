@@ -38,6 +38,7 @@ class CounselState {
     this.messages = const [],
     this.sending = false,
     this.crisis = false,
+    this.riskAxis,
     this.startedAt,
   });
 
@@ -47,6 +48,10 @@ class CounselState {
   /// 서버가 위기 발화를 감지한 상태 — 상담을 멈추고 전문 기관 안내를 띄운다.
   final bool crisis;
 
+  /// 위험의 종류(suicide | danger | harm_others | psychosis | dependence).
+  /// 위기 안내 화면이 이 값으로 문구와 연락처를 고른다.
+  final String? riskAxis;
+
   /// 이 상담을 처음 시작한 시각. 이어하기면 저장돼 있던 시작 시각을 쓴다.
   final DateTime? startedAt;
 
@@ -54,11 +59,13 @@ class CounselState {
     List<CounselMessage>? messages,
     bool? sending,
     bool? crisis,
+    String? riskAxis,
     DateTime? startedAt,
   }) => CounselState(
     messages: messages ?? this.messages,
     sending: sending ?? this.sending,
     crisis: crisis ?? this.crisis,
+    riskAxis: riskAxis ?? this.riskAxis,
     startedAt: startedAt ?? this.startedAt,
   );
 }
@@ -125,6 +132,7 @@ class CounselController extends Notifier<CounselState> {
         ],
         sending: false,
         crisis: result.crisis,
+        riskAxis: result.riskAxis,
       );
     } catch (_) {
       state = state.copyWith(

@@ -14,6 +14,7 @@ import '../../application/counsel_controller.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../data/models/counsel_session.dart';
 import '../widgets/counsel_copy.dart';
+import '../widgets/counsel_crisis_banner.dart';
 
 /// Screen 44-B — Step 4. 채팅 상담.
 ///
@@ -154,7 +155,11 @@ class _DiaryStep4CounselChatScreenState
                     ),
                   if (counsel.sending) const _TypingBubble(),
                   // 위기 발화가 감지되면 상담을 멈추고 전문 기관 안내를 띄운다.
-                  if (counsel.crisis) const _CrisisCard(),
+                  if (counsel.crisis)
+                    CounselCrisisBanner(
+                      riskAxis: counsel.riskAxis,
+                      margin: const EdgeInsets.only(top: 4, bottom: 12),
+                    ),
                 ],
               ),
             ),
@@ -180,39 +185,6 @@ class _TypingBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const ChatBubble(fromOddo: true, text: '…');
-  }
-}
-
-/// 위기 발화 감지 시 안내 — 상담 응답 대신 전문 기관 연결을 먼저 보여준다.
-class _CrisisCard extends StatelessWidget {
-  const _CrisisCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 4, bottom: 12),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.error),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.favorite_rounded, size: 18, color: AppColors.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '지금은 전문가와 이야기하는 게 좋겠어요.\n'
-              '자살예방 상담전화 109 · 24시간 연결돼요.',
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

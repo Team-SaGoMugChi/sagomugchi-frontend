@@ -24,6 +24,7 @@ import '../../application/diary_draft_provider.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/counsel_session.dart';
 import '../widgets/counsel_copy.dart';
+import '../widgets/counsel_crisis_banner.dart';
 
 /// Screen 44 — Step 4. 영상통화 상담. 상담 종료 → 리포트 생성.
 ///
@@ -175,7 +176,9 @@ class _DiaryStep4CounselCallScreenState
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// 새로 도착한 상담봇 응답만 읽는다 — 화면이 다시 그려질 때마다 반복해서
@@ -295,11 +298,11 @@ class _DiaryStep4CounselCallScreenState
                     ),
                     // 위기 발화가 감지되면 상담을 멈추고 전문 기관 안내를 띄운다.
                     if (counsel.crisis)
-                      const Positioned(
+                      Positioned(
                         left: AppSpacing.screenH,
                         right: AppSpacing.screenH,
                         bottom: 176,
-                        child: _CrisisBanner(),
+                        child: CounselCrisisBanner(riskAxis: counsel.riskAxis),
                       ),
                     // 말풍선 — 컨트롤 버튼 위로 띄운다.
                     Positioned(
@@ -377,38 +380,6 @@ class _OddoBubble extends StatelessWidget {
         style: AppTypography.bodySecondary.copyWith(
           color: AppColors.textPrimary,
         ),
-      ),
-    );
-  }
-}
-
-/// 위기 발화 감지 시 안내 — 상담 응답 대신 전문 기관 연결을 먼저 보여준다.
-class _CrisisBanner extends StatelessWidget {
-  const _CrisisBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.error),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.favorite_rounded, size: 18, color: AppColors.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '지금은 전문가와 이야기하는 게 좋겠어요.\n'
-              '자살예방 상담전화 109 · 24시간 연결돼요.',
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
