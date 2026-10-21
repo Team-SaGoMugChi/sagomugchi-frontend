@@ -45,6 +45,10 @@ class EmotionReportScreen extends ConsumerWidget {
                     Gap.h4,
                     Text(RecordsDummy.reportPeriod(date),
                         style: AppTypography.caption),
+                    if (report.headline.isNotEmpty) ...[
+                      Gap.h8,
+                      Text(report.headline, style: AppTypography.subtitle),
+                    ],
                     Gap.h16,
                     _SummaryCard(report: report),
                     Gap.h12,
@@ -60,32 +64,61 @@ class EmotionReportScreen extends ConsumerWidget {
                         ],
                       ],
                     ),
-                    Gap.h12,
-                    OddoCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const CardSectionHeader(
-                              icon: Icons.auto_awesome_rounded,
-                              title: '분석 코멘트'),
-                          Gap.h8,
-                          Text(report.analysisComment,
-                              style: AppTypography.body),
-                        ],
+                    if (report.analysisComment.isNotEmpty) ...[
+                      Gap.h12,
+                      OddoCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const CardSectionHeader(
+                                icon: Icons.auto_awesome_rounded,
+                                title: '분석 코멘트'),
+                            Gap.h8,
+                            Text(report.analysisComment,
+                                style: AppTypography.body),
+                          ],
+                        ),
                       ),
-                    ),
-                    Gap.h12,
-                    _ListCard(
-                      icon: Icons.spa_outlined,
-                      title: '추천 활동',
-                      items: report.recommendedActivities,
-                    ),
-                    Gap.h12,
-                    _ListCard(
-                      icon: Icons.tips_and_updates_outlined,
-                      title: '맞춤 권고 사항',
-                      items: report.behaviorGuides,
-                    ),
+                    ],
+                    if (report.moments.isNotEmpty) ...[
+                      Gap.h12,
+                      _ListCard(
+                        icon: Icons.lightbulb_outline_rounded,
+                        title: '오늘 알아차린 것',
+                        items: report.moments,
+                      ),
+                    ],
+                    if (report.reframe.isNotEmpty) ...[
+                      Gap.h12,
+                      OddoCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const CardSectionHeader(
+                                icon: Icons.swap_horiz_rounded,
+                                title: '다르게 보기'),
+                            Gap.h8,
+                            Text(report.reframe, style: AppTypography.body),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (report.recommendedActivities.isNotEmpty) ...[
+                      Gap.h12,
+                      _ListCard(
+                        icon: Icons.spa_outlined,
+                        title: '추천 활동',
+                        items: report.recommendedActivities,
+                      ),
+                    ],
+                    if (report.behaviorGuides.isNotEmpty) ...[
+                      Gap.h12,
+                      _ListCard(
+                        icon: Icons.tips_and_updates_outlined,
+                        title: '맞춤 권고 사항',
+                        items: report.behaviorGuides,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -103,9 +136,11 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 대표 감정 = 분포에서 비중이 가장 큰 항목.
-    final top = report.emotionDistribution.entries
-        .reduce((a, b) => a.value >= b.value ? a : b);
+    // 대표 감정 = 분포에서 비중이 가장 큰 항목. 분석 결과가 없으면 빈 상태로 둔다.
+    final entries = report.emotionDistribution.entries.toList();
+    final top = entries.isEmpty
+        ? null
+        : entries.reduce((a, b) => a.value >= b.value ? a : b);
 
     return OddoCard(
       child: Row(
@@ -121,10 +156,10 @@ class _SummaryCard extends StatelessWidget {
                     size: 32, color: AppColors.primary),
               ),
               Gap.h8,
-              Text(top.key,
+              Text(top?.key ?? '분석 없음',
                   style: AppTypography.bodySecondary
                       .copyWith(fontWeight: FontWeight.w700)),
-              Text('${(top.value * 100).round()}%',
+              Text(top == null ? '-' : '${(top.value * 100).round()}%',
                   style:
                       AppTypography.title.copyWith(color: AppColors.primary)),
             ],
