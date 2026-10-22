@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../features/baseline/data/models/baseline_profile.dart';
 import '../../theme/app_colors.dart';
 
 /// One OS permission explained on the permission-rationale screen (09).
@@ -178,3 +179,26 @@ abstract final class BaselineDummy {
     ),
   ];
 }
+
+/// Synthetic preview values only; never represent a user's measurement.
+BaselineProfile sampleBaseline(DateTime measuredAt) => BaselineProfile(
+  voice: {
+    for (final key in BaselineProfile.requiredAnalysisVoiceKeys) key: 1,
+    'pitchMean': 180,
+    'energyMean': 0.3,
+    'speechRate': 3.5,
+    'voicedRatio': 0.8,
+    'durationSec': 60,
+    'windowCount': 20,
+    'windowUsedCount': 16,
+  },
+  face: {
+    for (final key in BaselineProfile.requiredAnalysisFaceKeys) key: 0.1,
+    'eyeAspectRatio': 0.28,
+    'mouthAspectRatio': 0.1,
+    'auFrameCount': 50,
+    'auTotalFrames': 60,
+  },
+  measuredAt: measuredAt,
+  featureVersion: BaselineProfile.currentFeatureVersion,
+);

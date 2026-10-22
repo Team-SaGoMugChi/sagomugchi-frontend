@@ -1,4 +1,5 @@
 import '../../../../core/constants/app_durations.dart';
+import '../../../../data/dummy/baseline_dummy.dart';
 import '../models/baseline_profile.dart';
 import 'baseline_data_source.dart';
 
@@ -13,20 +14,12 @@ class BaselineDummyDataSource implements BaselineDataSource {
     List<bool> facePromptFlags = const [],
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
-    return BaselineProfile(
-      voice: const {'pitchMean': 180.0, 'energyMean': 0.3, 'speechRate': 3.5},
-      face: const {'eyeAspectRatio': 0.28, 'mouthAspectRatio': 0.1},
-      measuredAt: DateTime.now(),
-    );
+    return sampleBaseline(DateTime.now());
   }
 
   @override
   Future<BaselineProfile?> fetchSaved() async {
     await Future<void>.delayed(AppDurations.dummyLatency);
-    return BaselineProfile(
-      voice: const {'pitchMean': 180.0, 'energyMean': 0.3, 'speechRate': 3.5},
-      face: const {'eyeAspectRatio': 0.28, 'mouthAspectRatio': 0.1},
-      measuredAt: DateTime.now().subtract(const Duration(days: 3)),
-    );
+    return sampleBaseline(DateTime.now());
   }
 }
