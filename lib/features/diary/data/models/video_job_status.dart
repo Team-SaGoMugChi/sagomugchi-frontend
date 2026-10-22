@@ -21,6 +21,7 @@ class VideoJobStatus {
     this.error,
     this.videoUrl,
     this.thumbnailUrl,
+    this.subtitlesUrl,
   });
 
   final String jobId;
@@ -43,6 +44,10 @@ class VideoJobStatus {
   /// 서버가 썸네일을 만들지 못했으면 null — 영상은 그대로 볼 수 있다.
   final String? thumbnailUrl;
 
+  /// [state]가 done일 때 WebVTT 자막의 절대 URL. 영상에 글자를 박지 않으므로
+  /// 플레이어가 켜고 끈다. 서버가 자막을 만들지 못했으면 null.
+  final String? subtitlesUrl;
+
   bool get isDone => state == VideoJobState.done;
   bool get isFailed => state == VideoJobState.failed;
 
@@ -52,6 +57,7 @@ class VideoJobStatus {
   }) {
     final path = json['video_url'] as String?;
     final thumbnail = json['thumbnail_url'] as String?;
+    final subtitles = json['subtitles_url'] as String?;
     return VideoJobStatus(
       jobId: json['job_id'] as String,
       state: VideoJobState.fromJson(json['status']),
@@ -64,6 +70,9 @@ class VideoJobStatus {
       thumbnailUrl: thumbnail == null
           ? null
           : Uri.parse(baseUrl).resolve(thumbnail).toString(),
+      subtitlesUrl: subtitles == null
+          ? null
+          : Uri.parse(baseUrl).resolve(subtitles).toString(),
     );
   }
 }

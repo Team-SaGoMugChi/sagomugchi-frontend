@@ -42,6 +42,7 @@ class _Client implements ApiClient {
       'progress': 1.0,
       'video_url': '/video/jobs/abc/file',
       'thumbnail_url': '/video/jobs/abc/thumbnail',
+      'subtitles_url': '/video/jobs/abc/subtitles',
     };
   }
 
@@ -88,6 +89,7 @@ class _Repository implements VideoRepository {
             progress: 1,
             videoUrl: 'http://server/video/jobs/job/file',
             thumbnailUrl: 'http://server/video/jobs/job/thumbnail',
+            subtitlesUrl: 'http://server/video/jobs/job/subtitles',
           )
         : _status(VideoJobState.running, polls / pollsUntilDone);
   }
@@ -117,15 +119,18 @@ class _Archive implements VideoArchiveRepository {
   final bool fail;
   final List<(DateTime, String)> uploads = [];
   final List<String?> thumbnails = [];
+  final List<String?> subtitles = [];
 
   @override
   Future<String> archive({
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
+    String? subtitlesUrl,
   }) async {
     uploads.add((date, sourceUrl));
     thumbnails.add(thumbnailUrl);
+    subtitles.add(subtitlesUrl);
     if (fail) throw const ServerException('영상을 보관하지 못했어요.');
     return 'users/u1/videos/2026-10-07.mp4';
   }
@@ -136,6 +141,9 @@ class _Archive implements VideoArchiveRepository {
 
   @override
   Future<String?> thumbnailUrl(String storagePath) async => null;
+
+  @override
+  Future<String?> subtitlesUrl(String storagePath) async => null;
 }
 
 ProviderContainer _container(
@@ -191,6 +199,11 @@ void main() {
         'http://10.0.2.2:8001/video/jobs/abc/thumbnail',
       );
       expect(created.thumbnailUrl, isNull);
+      expect(
+        done.subtitlesUrl,
+        'http://10.0.2.2:8001/video/jobs/abc/subtitles',
+      );
+      expect(created.subtitlesUrl, isNull);
     });
 
     test('감정 값이 없으면 원문만 보낸다', () async {
@@ -294,6 +307,7 @@ void main() {
         (DateTime(2026, 10, 7), 'http://server/video/jobs/job/file'),
       ]);
       expect(archive.thumbnails, ['http://server/video/jobs/job/thumbnail']);
+      expect(archive.subtitles, ['http://server/video/jobs/job/subtitles']);
       expect(
         await container.read(videoArchiveControllerProvider.notifier).latest(),
         'users/u1/videos/2026-10-07.mp4',

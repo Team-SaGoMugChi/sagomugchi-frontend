@@ -201,12 +201,14 @@ const _mixedFusion = FusionResult(
 
 void main() {
   setUp(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1170, 2532);
     view.devicePixelRatio = 3.0;
   });
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
@@ -254,26 +256,27 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('saves the refined diary and summary apart from the raw answers', (
-    tester,
-  ) async {
-    final repository = await _tapCompleteRecord(
-      tester,
-      withFusion: true,
-      config: _realDataConfig,
-      transcript: '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.',
-      diaryText: '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.',
-      summary: '발표를 마치고 긴장이 풀린 하루였어요.',
-    );
+  testWidgets(
+    'saves the refined diary and summary apart from the raw answers',
+    (tester) async {
+      final repository = await _tapCompleteRecord(
+        tester,
+        withFusion: true,
+        config: _realDataConfig,
+        transcript: '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.',
+        diaryText: '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.',
+        summary: '발표를 마치고 긴장이 풀린 하루였어요.',
+      );
 
-    final entry = repository.savedEntry!;
-    expect(entry.transcript, '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.');
-    expect(entry.diaryText, '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.');
-    expect(entry.summary, '발표를 마치고 긴장이 풀린 하루였어요.');
+      final entry = repository.savedEntry!;
+      expect(entry.transcript, '음 발표를 마쳤어요.\n긴장이 좀 풀렸어요.');
+      expect(entry.diaryText, '오늘 발표를 마쳤다. 긴장이 좀 풀렸다.');
+      expect(entry.summary, '발표를 마치고 긴장이 풀린 하루였어요.');
 
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump(const Duration(seconds: 2));
-  });
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 
   testWidgets('saves the Step3 video rating with the diary', (tester) async {
     final repository = await _tapCompleteRecord(
@@ -358,7 +361,9 @@ void main() {
     for (final name in ['슬픔', '분노', '당황']) {
       expect(find.text(name), findsNothing, reason: name);
     }
-    final rows = [for (final name in top) tester.getTopLeft(find.text(name)).dy];
+    final rows = [
+      for (final name in top) tester.getTopLeft(find.text(name)).dy,
+    ];
     expect(rows, orderedEquals([...rows]..sort()));
 
     await tester.tap(find.text('기록 완료하기'));
@@ -416,11 +421,16 @@ class _Archive implements VideoArchiveRepository {
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
-  }) async => 'users/u1/videos/${sourceUrl.split('/').reversed.elementAt(1)}.mp4';
+    String? subtitlesUrl,
+  }) async =>
+      'users/u1/videos/${sourceUrl.split('/').reversed.elementAt(1)}.mp4';
 
   @override
   Future<String> playableUrl(String storagePath) async => storagePath;
 
   @override
   Future<String?> thumbnailUrl(String storagePath) async => null;
+
+  @override
+  Future<String?> subtitlesUrl(String storagePath) async => null;
 }

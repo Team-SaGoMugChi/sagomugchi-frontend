@@ -11,10 +11,12 @@ class VideoArchiveRepositoryImpl implements VideoArchiveRepository {
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
+    String? subtitlesUrl,
   }) => _dataSource.archive(
     date: date,
     sourceUrl: sourceUrl,
     thumbnailUrl: thumbnailUrl,
+    subtitlesUrl: subtitlesUrl,
   );
 
   @override
@@ -24,4 +26,8 @@ class VideoArchiveRepositoryImpl implements VideoArchiveRepository {
   @override
   Future<String?> thumbnailUrl(String storagePath) =>
       _dataSource.thumbnailUrl(storagePath);
+
+  @override
+  Future<String?> subtitlesUrl(String storagePath) =>
+      _dataSource.subtitlesUrl(storagePath);
 }

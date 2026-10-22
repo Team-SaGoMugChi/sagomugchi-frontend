@@ -25,6 +25,9 @@ class VideoJobUiState {
 
   /// 재생할 영상 URL. 더미 모드나 완료 전이면 null.
   String? get videoUrl => isDone ? job?.videoUrl : null;
+
+  /// 영상의 자막(WebVTT) URL. 서버가 자막을 만들지 못했으면 null.
+  String? get subtitlesUrl => isDone ? job?.subtitlesUrl : null;
 }
 
 /// 일기 원문 + Step2 분석 결과로 영상 생성 작업을 등록하고, 끝날 때까지
@@ -109,7 +112,11 @@ class VideoJobController extends Notifier<VideoJobUiState> {
       if (url != null) {
         ref
             .read(videoArchiveControllerProvider.notifier)
-            .archive(url, thumbnailUrl: job.thumbnailUrl);
+            .archive(
+              url,
+              thumbnailUrl: job.thumbnailUrl,
+              subtitlesUrl: job.subtitlesUrl,
+            );
       }
     } else {
       _timer ??= Timer.periodic(pollInterval, (_) => _poll());

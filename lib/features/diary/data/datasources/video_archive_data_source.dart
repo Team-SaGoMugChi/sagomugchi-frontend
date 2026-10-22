@@ -3,12 +3,14 @@
 /// 지난 날짜의 영상은 여기서만 다시 볼 수 있다.
 abstract interface class VideoArchiveDataSource {
   /// 서버가 만든 영상([sourceUrl])을 받아 그날 경로로 올리고 Storage 경로를 돌려준다.
-  /// [thumbnailUrl]이 있으면 대표 장면 썸네일도 같은 이름의 `.jpg`로 올린다.
+  /// [thumbnailUrl]이 있으면 대표 장면 썸네일도 같은 이름의 `.jpg`로,
+  /// [subtitlesUrl]이 있으면 자막도 같은 이름의 `.vtt`로 올린다.
   /// 같은 날짜로 다시 올리면 덮어쓴다.
   Future<String> archive({
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
+    String? subtitlesUrl,
   });
 
   /// 일기 문서에 저장한 [storagePath] → 플레이어가 재생할 주소.
@@ -16,4 +18,7 @@ abstract interface class VideoArchiveDataSource {
 
   /// 영상 [storagePath]의 썸네일 주소. 썸네일이 없으면(예전 영상 등) null.
   Future<String?> thumbnailUrl(String storagePath);
+
+  /// 영상 [storagePath]의 자막(WebVTT) 주소. 자막이 없으면(예전 영상 등) null.
+  Future<String?> subtitlesUrl(String storagePath);
 }
