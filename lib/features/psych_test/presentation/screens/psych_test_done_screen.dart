@@ -175,9 +175,9 @@ class PsychTestDoneScreen extends ConsumerWidget {
                   AppSpacing.xs,
                 ),
                 child: PrimaryButton(
-                  label: '챗봇 페르소나 설정하기',
+                  label: '시작할 준비가 됐어요',
                   enabled: hasResult,
-                  onPressed: () => context.pushNamed(AppRoute.personaIntro),
+                  onPressed: () => context.pushNamed(AppRoute.onboardingDone),
                 ),
               ),
             ],

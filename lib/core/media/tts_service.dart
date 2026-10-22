@@ -2,6 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import '../../features/persona/data/persona_providers.dart';
+import '../config/app_config_provider.dart';
+import '../network/api_client.dart';
+import 'clova_voice_player.dart';
+
 /// 지금 소리로 읽고 있는 문장 — 탄카츄 입 모양이 이걸 따라 움직인다.
 ///
 /// [charIndex]는 TTS 엔진이 알려준 "지금 읽는 단어"의 시작 위치다. 엔진이
@@ -26,7 +31,7 @@ class TtsUtterance {
 /// Degrades silently: TTS 엔진이 없는 기기/테스트 환경에서도 화면이 죽지 않도록
 /// 모든 실패를 조용히 삼킨다.
 class TtsService {
-  TtsService() {
+  TtsService({this.remote, this.voice}) {
     try {
       _tts
         // 실제로 소리가 나기 시작한 순간 — 입 모양을 문장 처음으로 다시 맞춘다.
@@ -55,6 +60,8 @@ class TtsService {
   /// 읽는 중인 문장. 읽지 않을 땐 null.
   final ValueNotifier<TtsUtterance?> utterance = ValueNotifier(null);
 
+  final ClovaVoicePlayer? remote;
+  final Future<String> Function()? voice;
   int _serial = 0;
   bool _disposed = false;
 
@@ -65,14 +72,31 @@ class TtsService {
   void _clear() => _set(null);
 
   /// [line] 하나를 읽고, 다 읽을 때까지 기다린다.
-  Future<void> speak(String line) async {
-    _set(TtsUtterance(text: line, serial: ++_serial));
+  Future<void> speak(String line) => _speak(line);
+
+  Future<void> preview(String line, String speaker) =>
+      _speak(line, speaker: speaker);
+
+  Future<void> _speak(String line, {String? speaker}) async {
+    final serial = ++_serial;
+    _set(TtsUtterance(text: line, serial: serial));
     try {
+      if (remote != null) {
+        final selected = speaker ?? await voice?.call() ?? 'nara';
+        if (_disposed || serial != _serial) return;
+        try {
+          await remote!.speak(line, selected);
+          return;
+        } catch (_) {
+          // A device voice keeps guides accessible during server outages.
+          if (_disposed || serial != _serial) return;
+        }
+      }
       await _tts.speak(line);
     } catch (_) {
       // TTS unavailable — the on-screen caption still carries the guide.
     } finally {
-      _clear();
+      if (serial == _serial) _clear();
     }
   }
 
@@ -89,6 +113,8 @@ class TtsService {
   }
 
   Future<void> stop() async {
+    _serial++;
+    await remote?.stop();
     _clear();
     try {
       await _tts.stop();
@@ -97,6 +123,8 @@ class TtsService {
 
   Future<void> dispose() async {
     _disposed = true;
+    _serial++;
+    await remote?.stop();
     utterance.dispose();
     try {
       await _tts.stop();
@@ -107,7 +135,12 @@ class TtsService {
 /// One instance per consumer screen — screens start a sequence in initState
 /// and stop it in dispose, same lifecycle shape as [AudioRecorderService].
 final ttsServiceProvider = Provider.autoDispose<TtsService>((ref) {
-  final service = TtsService();
+  final dummy = ref.read(appConfigProvider).useDummyData;
+  final service = TtsService(
+    remote: dummy ? null : ClovaVoicePlayer(ref.read(apiClientProvider)),
+    voice: () async =>
+        (await ref.read(personaConfigProvider.future))?.clovaVoice ?? 'nara',
+  );
   ref.onDispose(service.dispose);
   return service;
 });

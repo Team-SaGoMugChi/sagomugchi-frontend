@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
+import 'package:oddo/core/media/tts_service.dart';
 import 'package:oddo/features/auth/application/auth_controller.dart';
 import 'package:oddo/features/auth/data/auth_providers.dart';
 import 'package:oddo/features/auth/data/models/app_user.dart';
@@ -259,11 +260,14 @@ void main() {
   ) async {
     String? lastName;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: PersonaForm(onChanged: (_, _, name) => lastName = name),
+      ProviderScope(
+        overrides: [ttsServiceProvider.overrideWithValue(TtsService())],
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PersonaForm(onChanged: (_, _, name) => lastName = name),
+            ),
           ),
         ),
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/media/tts_service.dart';
 import '../../../../data/dummy/persona_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
@@ -7,10 +9,11 @@ import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/oddo_chip.dart';
 import '../../../../widgets/oddo_text_field.dart';
+import '../../data/models/persona_config.dart';
 
 /// 페르소나 설정 3단 폼 (말투 / 성격 / 이름) — 온보딩(화면 30)과
 /// 챗봇 설정 화면이 공유한다. 값이 바뀔 때마다 [onChanged]로 통지.
-class PersonaForm extends StatefulWidget {
+class PersonaForm extends ConsumerStatefulWidget {
   const PersonaForm({
     super.key,
     this.initialToneIndex = 0,
@@ -28,17 +31,19 @@ class PersonaForm extends StatefulWidget {
   final void Function(int toneIndex, Set<int> traits, String name) onChanged;
 
   @override
-  State<PersonaForm> createState() => _PersonaFormState();
+  ConsumerState<PersonaForm> createState() => _PersonaFormState();
 }
 
-class _PersonaFormState extends State<PersonaForm> {
+class _PersonaFormState extends ConsumerState<PersonaForm> {
+  bool _previewing = false;
   late int _toneIndex = widget.initialToneIndex;
   late final Set<int> _traits =
-      widget.initialTraits ??
-      {
-        for (var i = 0; i < PersonaDummy.traits.length; i++)
-          if (PersonaDummy.defaultTraits.contains(PersonaDummy.traits[i])) i,
-      };
+      (widget.initialTraits == null || widget.initialTraits!.isEmpty)
+      ? {
+          for (var i = 0; i < PersonaDummy.traits.length; i++)
+            if (PersonaDummy.defaultTraits.contains(PersonaDummy.traits[i])) i,
+        }
+      : {widget.initialTraits!.first};
   late final TextEditingController _nameController = TextEditingController(
     text: widget.initialName,
   );
@@ -68,18 +73,21 @@ class _PersonaFormState extends State<PersonaForm> {
 
   void _toggleTrait(int i) {
     setState(() {
-      _traits.contains(i) ? _traits.remove(i) : _traits.add(i);
+      _traits
+        ..clear()
+        ..add(i);
     });
     _notify();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(ttsServiceProvider);
     final nameLength = _nameController.text.characters.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('1. 말투 선택', style: AppTypography.subtitle),
+        const Text('1. 말투와 목소리 선택', style: AppTypography.subtitle),
         Gap.h12,
         for (var i = 0; i < PersonaDummy.tones.length; i++) ...[
           if (i > 0) Gap.h8,
@@ -90,10 +98,36 @@ class _PersonaFormState extends State<PersonaForm> {
             onTap: () => _selectTone(i),
           ),
         ],
+        Gap.h8,
+        TextButton.icon(
+          onPressed: _previewing
+              ? null
+              : () async {
+                  setState(() => _previewing = true);
+                  try {
+                    await ref
+                        .read(ttsServiceProvider)
+                        .preview(
+                          '안녕하세요. 오늘 하루도 편안하게 들려주세요.',
+                          PersonaConfig.voiceForTone(
+                            PersonaDummy.tones[_toneIndex].title,
+                          ),
+                        );
+                  } finally {
+                    if (mounted) setState(() => _previewing = false);
+                  }
+                },
+          icon: const Icon(Icons.volume_up_outlined),
+          label: Text(_previewing ? '목소리를 들려드리고 있어요' : '선택한 목소리 들어보기'),
+        ),
+        const Text(
+          'CLOVA 목소리 4종 · 음성 서버 연결이 어려우면 기기 기본 음성으로 안내해요.',
+          style: AppTypography.caption,
+        ),
         Gap.h24,
         const Text('2. 성격 선택', style: AppTypography.subtitle),
         Gap.h4,
-        const Text('원하는 만큼 선택할 수 있어요.', style: AppTypography.caption),
+        const Text('가장 잘 맞는 성격 하나를 선택해주세요.', style: AppTypography.caption),
         Gap.h12,
         Wrap(
           spacing: 8,

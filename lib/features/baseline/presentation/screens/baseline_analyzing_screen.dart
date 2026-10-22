@@ -111,7 +111,7 @@ class _LoadingContent extends StatelessWidget {
         ),
         Gap.h20,
         Text(
-          '방금 나눈 이야기를 정리하고 있어요',
+          '읽어주신 목소리와 표정을 분석하고 있어요',
           textAlign: TextAlign.center,
           style: AppTypography.title,
         ),

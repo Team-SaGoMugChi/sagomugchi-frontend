@@ -19,7 +19,7 @@ abstract final class PersonaDummy {
     PersonaTone('간결하고 솔직한', '군더더기 없이 솔직하고 명확하게 이야기해요.'),
   ];
 
-  /// 성격 선택 (multi-select chips).
+  /// 성격 선택 (single-select chips).
   static const List<String> traits = [
     '공감 잘해주는',
     '조언을 잘해주는',
@@ -35,7 +35,7 @@ abstract final class PersonaDummy {
   // Default selections (also shown on the completion summary, screen 31).
   static const String defaultName = '오디';
   static const String defaultTone = '친근하고 따뜻한';
-  static const List<String> defaultTraits = ['공감 잘해주는', '따뜻한'];
+  static const List<String> defaultTraits = ['공감 잘해주는'];
 
   /// 32 — onboarding completion summary.
   static const List<String> onboardingSummary = [

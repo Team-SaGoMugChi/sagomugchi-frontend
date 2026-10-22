@@ -25,15 +25,20 @@ class PersonaIntroScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                     onPressed: () {
                       if (context.canPop()) context.pop();
                     },
                   ),
                   const Expanded(
-                    child: Text('페르소나 설정',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
+                    child: Text(
+                      '페르소나 설정',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.subtitle,
+                    ),
                   ),
                   const SizedBox(width: 48),
                 ],
@@ -42,16 +47,24 @@ class PersonaIntroScreen extends StatelessWidget {
               const ProgressDots(count: 3, current: 0),
               const Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.lg, AppSpacing.screenH, AppSpacing.md),
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.lg,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('어떤 챗봇과 함께하고 싶나요?\n챗봇 페르소나를 설정해볼게요',
-                          style: AppTypography.display),
+                      Text(
+                        '어떤 챗봇과 함께하고 싶나요?\n챗봇 페르소나를 설정해볼게요',
+                        style: AppTypography.display,
+                      ),
                       Gap.h8,
-                      Text('당신에게 가장 잘 맞는 챗봇을 만들기 위해\n외모, 말투, 성격을 선택해주세요.',
-                          style: AppTypography.bodySecondary),
+                      Text(
+                        '당신에게 가장 잘 맞는 챗봇을 만들기 위해\n말투와 목소리, 성격을 선택해주세요.',
+                        style: AppTypography.bodySecondary,
+                      ),
                       Gap.h20,
                       // TODO: 윙크하며 손 흔드는 포즈로 교체 예정
                       MascotSceneCard(
@@ -62,15 +75,20 @@ class PersonaIntroScreen extends StatelessWidget {
                       InfoCallout(
                         icon: Icons.psychology_outlined,
                         title: '페르소나란?',
-                        description: '챗봇의 외모, 말투, 성격을 설정하면 당신에게 더 잘 맞는 대화를 할 수 있어요.',
+                        description:
+                            '챗봇의 말투와 목소리, 성격을 설정하면 당신에게 더 잘 맞는 대화를 할 수 있어요.',
                       ),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '설정 시작하기',
                   onPressed: () => context.pushNamed(AppRoute.personaDetail),
