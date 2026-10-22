@@ -13,7 +13,7 @@
 - 실제 별도 백엔드에 `/tts`를 추가했다. 서버 전용 `CLOVA_VOICE_CLIENT_ID`, `CLOVA_VOICE_CLIENT_SECRET`이 필요하다. 현재 로컬 설정은 미등록이며 실음성 호출은 검증하지 않았다. 미설정/연결 실패 시 앱은 기기 기본 음성을 사용하고 설정 화면에 이를 설명한다. MP3는 재생 중 임시 파일로만 두고 정리한다.
 - 검증: 백엔드 전체 534개 테스트 통과(의존성 경고 6개), Android 디버그 APK 빌드 성공. 프론트 자동 수정 완료·정적 분석 문제 없음·전체 258개 테스트 통과. 음성 요청 취소 시 늦은 재생 방지와 최초 화면 이동을 포함한다. PR 상태는 후속 기록을 확인한다.
 - 남은 확인: CLOVA Voice 키 설정 및 API 배포 후 네 목소리 실기기 재생, 약 1~2분 문장 읽기에서 유효 음성 구간/얼굴 프레임 및 발화·무음 기준값 품질, iOS Mac 빌드·기기 검증. 실측이나 서버 배포는 실행하지 않았다. PR 게시와 develop 병합은 별도로 기록한다.
-
+- 게시: [프론트 초안 PR #90](https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/90), [백엔드 초안 PR #86](https://github.com/Team-SaGoMugChi/sagomugchi-backend/pull/86), 모두 base develop. **초안 PR은 게시했으며 develop에는 병합하지 않았다.**
 
 ### 2026-10-10 재측정 동선·분석 안내·일기 리마인더 후속
 
