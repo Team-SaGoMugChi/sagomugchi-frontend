@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,10 +9,19 @@ import 'package:video_player/video_player.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../application/viewing_date_provider.dart';
+
+/// 플레이어로 넘기는 영상 — 자막(WebVTT)이 있으면 같이 넘긴다.
+class ShortformVideo {
+  const ShortformVideo({required this.videoUrl, this.subtitlesUrl});
+
+  final String? videoUrl;
+  final String? subtitlesUrl;
+}
 
 /// Auxiliary — 숏폼 전체화면 플레이어.
 ///
@@ -20,10 +30,13 @@ import '../../application/viewing_date_provider.dart';
 /// [controlsTimeout] 뒤 사라진다. 끝까지 보면 다시 보기 버튼이 남는다.
 /// [videoUrl]이 없으면(그날 보관된 영상이 없을 때) 가짜 재생 화면 대신 볼 수 있는
 /// 영상이 없다고 알린다. 지난 날짜 영상은 홈이 Firebase Storage 주소를 넘겨준다.
+/// [subtitlesUrl]이 있으면 자막을 화면 아래에 띄우고, 위쪽 버튼으로 켜고 끈다
+/// (영상에는 글자를 박지 않는다).
 class ShortformPlayerScreen extends ConsumerStatefulWidget {
-  const ShortformPlayerScreen({super.key, this.videoUrl});
+  const ShortformPlayerScreen({super.key, this.videoUrl, this.subtitlesUrl});
 
   final String? videoUrl;
+  final String? subtitlesUrl;
 
   static const controlsTimeout = Duration(seconds: 3);
 
@@ -36,6 +49,7 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
   VideoPlayerController? _controller;
   bool _loadFailed = false;
   bool _controlsVisible = true;
+  bool _captionsOn = true;
   Timer? _hideTimer;
 
   /// 재생바를 끄는 동안의 위치(0~1). 손을 뗄 때 그 위치로 이동한다.
@@ -62,7 +76,11 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
   Future<void> _load() async {
     final url = widget.videoUrl;
     if (url == null) return;
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+    final subtitles = widget.subtitlesUrl;
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      closedCaptionFile: subtitles == null ? null : _loadCaptions(subtitles),
+    );
     // initState에서도 불리므로 setState 없이 넣는다(첫 build가 곧 읽는다).
     _controller = controller;
     controller.addListener(_onTick);
@@ -77,8 +95,26 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
     }
   }
 
+  /// 자막을 받지 못해도 영상은 그대로 재생한다(빈 자막).
+  static Future<ClosedCaptionFile> _loadCaptions(String url) async {
+    try {
+      final response = await Dio().get<String>(
+        url,
+        options: Options(responseType: ResponseType.plain),
+      );
+      return WebVTTCaptionFile(response.data ?? 'WEBVTT');
+    } on DioException {
+      return WebVTTCaptionFile('WEBVTT');
+    }
+  }
+
   void _onTick() {
     if (!mounted) return;
+    // 재생 중 오류(네트워크 끊김 등) — 로딩 표시만 계속 돌지 않게 다시 시도를 안내한다.
+    if (_controller?.value.hasError ?? false) {
+      if (!_loadFailed) setState(() => _loadFailed = true);
+      return;
+    }
     // 끝까지 보면 다시 보기 버튼을 계속 보여준다.
     if (_ended) {
       _hideTimer?.cancel();
@@ -96,7 +132,8 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
     super.dispose();
   }
 
-  bool get _ready => _controller?.value.isInitialized ?? false;
+  bool get _ready =>
+      !_loadFailed && (_controller?.value.isInitialized ?? false);
 
   bool get _playing => _controller?.value.isPlaying ?? false;
 
@@ -175,6 +212,7 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
             )
           else
             _status(),
+          if (_ready && _captionsOn) _caption(),
           if (_ready)
             IgnorePointer(
               ignoring: !_controlsVisible,
@@ -188,12 +226,54 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
           AnimatedOpacity(
             opacity: !_ready || _controlsVisible ? 1 : 0,
             duration: const Duration(milliseconds: 200),
-            child: _TopBar(title: '${DateFormatter.monthDay(date)}의 이야기'),
+            child: _TopBar(
+              title: '${DateFormatter.monthDay(date)}의 이야기',
+              captionsOn: widget.subtitlesUrl == null ? null : _captionsOn,
+              onToggleCaptions: () =>
+                  setState(() => _captionsOn = !_captionsOn),
+            ),
           ),
         ],
       ),
     );
   }
+
+  /// 지금 시각의 자막 한 줄. 조작부(재생바) 위에 띄워 가리지 않게 한다.
+  Widget _caption() {
+    final text = _controller!.value.caption.text;
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Positioned(
+      left: AppSpacing.screenH,
+      right: AppSpacing.screenH,
+      bottom: _captionBottom,
+      child: IgnorePointer(
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.overlayDim,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.callTextPrimary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 재생바·시간 표시가 차지하는 높이만큼 자막을 띄운다.
+  static const double _captionBottom = 120;
 
   /// 영상이 없거나·불러오는 중이거나·실패했을 때.
   Widget _status() {
@@ -207,10 +287,7 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
       return _StatusMessage(
         title: '영상을 불러오지 못했어요',
         body: '네트워크를 확인하고 다시 시도해주세요.',
-        action: TextButton(
-          onPressed: _retry,
-          child: const Text('다시 시도'),
-        ),
+        action: TextButton(onPressed: _retry, child: const Text('다시 시도')),
       );
     }
     return const Center(
@@ -339,9 +416,13 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title});
+  const _TopBar({required this.title, this.captionsOn, this.onToggleCaptions});
 
   final String title;
+
+  /// 자막이 없으면 null — 버튼을 숨긴다.
+  final bool? captionsOn;
+  final VoidCallback? onToggleCaptions;
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +451,19 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 48),
+            if (captionsOn == null)
+              const SizedBox(width: 48)
+            else
+              IconButton(
+                tooltip: captionsOn! ? '자막 끄기' : '자막 켜기',
+                icon: Icon(
+                  captionsOn!
+                      ? Icons.closed_caption_rounded
+                      : Icons.closed_caption_off_outlined,
+                  color: AppColors.callTextPrimary,
+                ),
+                onPressed: onToggleCaptions,
+              ),
           ],
         ),
       ),

@@ -4,9 +4,12 @@ abstract interface class VideoArchiveRepository {
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
+    String? subtitlesUrl,
   });
 
   Future<String> playableUrl(String storagePath);
 
   Future<String?> thumbnailUrl(String storagePath);
+
+  Future<String?> subtitlesUrl(String storagePath);
 }

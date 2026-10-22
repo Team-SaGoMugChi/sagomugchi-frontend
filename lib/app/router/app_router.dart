@@ -324,10 +324,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.shortformPlayer,
         name: AppRoute.shortformPlayer,
-        // extra로 영상 URL 전달(Step3 완료 화면); 없으면(홈 등) 플레이스홀더.
-        builder: (_, state) => ShortformPlayerScreen(
-          videoUrl: state.extra is String ? state.extra as String : null,
-        ),
+        // extra로 영상 URL(String) 또는 영상+자막(ShortformVideo) 전달; 없으면 플레이스홀더.
+        builder: (_, state) => switch (state.extra) {
+          final ShortformVideo video => ShortformPlayerScreen(
+            videoUrl: video.videoUrl,
+            subtitlesUrl: video.subtitlesUrl,
+          ),
+          final String url => ShortformPlayerScreen(videoUrl: url),
+          _ => const ShortformPlayerScreen(),
+        },
       ),
       GoRoute(
         path: AppPath.settings,
@@ -385,9 +390,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('경로를 찾을 수 없어요: ${state.uri}')),
-    ),
+    errorBuilder: (context, state) =>
+        Scaffold(body: Center(child: Text('경로를 찾을 수 없어요: ${state.uri}'))),
   );
 
   ref.onDispose(router.dispose);

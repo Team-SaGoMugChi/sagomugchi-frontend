@@ -57,6 +57,7 @@ class _Archive implements VideoArchiveRepository {
     required DateTime date,
     required String sourceUrl,
     String? thumbnailUrl,
+    String? subtitlesUrl,
   }) => throw UnimplementedError();
 
   @override
@@ -70,6 +71,9 @@ class _Archive implements VideoArchiveRepository {
     if (fail) throw const ServerException('썸네일을 불러오지 못했어요.');
     return 'https://firebasestorage/${storagePath.replaceAll('.mp4', '.jpg')}?token=t';
   }
+
+  @override
+  Future<String?> subtitlesUrl(String storagePath) async => null;
 }
 
 Future<String?> _savedThumbnail(String? path, {bool fail = false}) {
@@ -162,6 +166,23 @@ void main() {
         thumbnailUrl: 'http://server/b.jpg',
       );
       expect(await dummy.thumbnailUrl(withThumb), 'http://server/b.jpg');
+      expect(await dummy.subtitlesUrl(withThumb), isNull);
+
+      final withSubs = await dummy.archive(
+        date: _day,
+        sourceUrl: 'http://server/c.mp4',
+        subtitlesUrl: 'http://server/c.vtt',
+      );
+      expect(await dummy.subtitlesUrl(withSubs), 'http://server/c.vtt');
+    });
+
+    test('자막은 영상과 같은 이름의 .vtt로 보관한다', () {
+      expect(
+        VideoArchiveFirebaseDataSource.subtitlesPathFor(
+          'users/u1/videos/2026-10-07.mp4',
+        ),
+        'users/u1/videos/2026-10-07.vtt',
+      );
     });
   });
 }
