@@ -11,6 +11,7 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../../records/presentation/screens/shortform_player_screen.dart';
 import '../../../records/presentation/widgets/shortform_thumbnail.dart';
 import '../../application/diary_draft_provider.dart';
 import '../../application/video_job_controller.dart';
@@ -25,7 +26,8 @@ class DiaryStep3VideoDoneScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final videoUrl = ref.watch(videoJobControllerProvider).videoUrl;
+    final job = ref.watch(videoJobControllerProvider);
+    final videoUrl = job.videoUrl;
     final rating = ref.watch(diaryDraftProvider.select((d) => d.videoRating));
 
     return Scaffold(
@@ -51,7 +53,10 @@ class DiaryStep3VideoDoneScreen extends ConsumerWidget {
                         videoUrl: videoUrl,
                         onTap: () => context.pushNamed(
                           AppRoute.shortformPlayer,
-                          extra: videoUrl,
+                          extra: ShortformVideo(
+                            videoUrl: videoUrl,
+                            subtitlesUrl: job.subtitlesUrl,
+                          ),
                         ),
                       ),
                       // TODO: 영상 요약 카드 — 서버가 영상 내용 요약을 주면 다시 넣는다

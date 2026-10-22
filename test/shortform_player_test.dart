@@ -30,9 +30,7 @@ Future<ProviderContainer> _pump(WidgetTester tester, Widget screen) async {
     overrides: [appConfigProvider.overrideWithValue(_testConfig)],
   );
   addTearDown(container.dispose);
-  container
-      .read(viewingDateProvider.notifier)
-      .set(DateTime(2026, 10, 7));
+  container.read(viewingDateProvider.notifier).set(DateTime(2026, 10, 7));
 
   final router = GoRouter(
     routes: [
@@ -71,6 +69,20 @@ void main() {
       expect(find.byType(Slider), findsNothing);
       expect(find.byIcon(Icons.fullscreen_rounded), findsNothing);
       expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+      // 자막이 없으면 자막 버튼도 없다.
+      expect(find.byTooltip('자막 끄기'), findsNothing);
+    });
+
+    testWidgets('자막이 있으면 위쪽 버튼으로 켜고 끈다', (tester) async {
+      await _pump(
+        tester,
+        const ShortformPlayerScreen(subtitlesUrl: 'http://server/a.vtt'),
+      );
+
+      expect(find.byTooltip('자막 끄기'), findsOneWidget);
+      await tester.tap(find.byTooltip('자막 끄기'));
+      await tester.pump();
+      expect(find.byTooltip('자막 켜기'), findsOneWidget);
     });
   });
 

@@ -16,6 +16,7 @@ import '../../../../features/diary/data/diary_providers.dart';
 import '../../../../features/onboarding/application/onboarding_controller.dart';
 import '../../../../features/records/application/recorded_days_provider.dart';
 import '../../../../features/records/application/viewing_date_provider.dart';
+import '../../../../features/records/presentation/screens/shortform_player_screen.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
@@ -312,8 +313,16 @@ class _WrittenContent extends ConsumerWidget {
   /// 그날 보관된 영상(Firebase Storage)을 재생한다. 없으면 플레이어가 안내한다.
   Future<void> _openVideo(BuildContext context, WidgetRef ref) async {
     final url = await ref.read(savedVideoUrlProvider(date).future);
+    final subtitles = url == null
+        ? null
+        : await ref.read(savedVideoSubtitlesUrlProvider(date).future);
     if (!context.mounted) return;
-    unawaited(context.pushNamed(AppRoute.shortformPlayer, extra: url));
+    unawaited(
+      context.pushNamed(
+        AppRoute.shortformPlayer,
+        extra: ShortformVideo(videoUrl: url, subtitlesUrl: subtitles),
+      ),
+    );
   }
 
   @override
