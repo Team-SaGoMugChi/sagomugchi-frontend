@@ -29,6 +29,7 @@ import '../../features/diary/presentation/screens/report_generating_screen.dart'
 import '../../features/diary/presentation/screens/report_guide_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/onboarding/presentation/screens/app_introduction_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_done_screen.dart';
 import '../../features/onboarding/presentation/screens/permission_screen.dart';
 import '../../features/persona/presentation/screens/persona_detail_screen.dart';
@@ -49,13 +50,6 @@ import '../../features/records/presentation/screens/shortform_player_screen.dart
 import '../../features/settings/presentation/screens/chatbot_settings_screen.dart';
 import '../../features/settings/presentation/screens/my_page_screen.dart';
 import '../../features/settings/presentation/screens/settings_home_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_call_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_done_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_face_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_intro_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_method_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_self_intro_screen.dart';
-import '../../features/tutorial/presentation/screens/tutorial_voice_screen.dart';
 import 'app_routes.dart';
 import 'route_guard.dart';
 
@@ -121,6 +115,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const HomeScreen(),
       ),
 
+      GoRoute(
+        path: AppPath.appIntroduction,
+        name: AppRoute.appIntroduction,
+        builder: (_, _) => const AppIntroductionScreen(),
+      ),
       // ── Onboarding: permission ──────────────────────────────────────────
       GoRoute(
         path: AppPath.permission,
@@ -132,37 +131,37 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.tutorialIntro,
         name: AppRoute.tutorialIntro,
-        builder: (_, _) => const TutorialIntroScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialCall,
         name: AppRoute.tutorialCall,
-        builder: (_, _) => const TutorialCallScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialSelfIntro,
         name: AppRoute.tutorialSelfIntro,
-        builder: (_, _) => const TutorialSelfIntroScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialVoice,
         name: AppRoute.tutorialVoice,
-        builder: (_, _) => const TutorialVoiceScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialFace,
         name: AppRoute.tutorialFace,
-        builder: (_, _) => const TutorialFaceScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialMethod,
         name: AppRoute.tutorialMethod,
-        builder: (_, _) => const TutorialMethodScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialDone,
         name: AppRoute.tutorialDone,
-        builder: (_, _) => const TutorialDoneScreen(),
+        redirect: (_, _) => AppPath.appIntroduction,
       ),
 
       // ── Onboarding: baseline ────────────────────────────────────────────

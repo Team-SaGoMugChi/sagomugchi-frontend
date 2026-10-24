@@ -23,8 +23,7 @@ class ChatbotSettingsScreen extends ConsumerStatefulWidget {
       _ChatbotSettingsScreenState();
 }
 
-class _ChatbotSettingsScreenState
-    extends ConsumerState<ChatbotSettingsScreen> {
+class _ChatbotSettingsScreenState extends ConsumerState<ChatbotSettingsScreen> {
   bool _saving = false;
   bool _initialized = false;
 
@@ -41,13 +40,17 @@ class _ChatbotSettingsScreenState
           if (PersonaDummy.defaultTraits.contains(PersonaDummy.traits[i])) i,
       };
     } else {
-      final toneIndex =
-          PersonaDummy.tones.indexWhere((t) => t.title == config.tone);
+      final toneIndex = PersonaDummy.tones.indexWhere(
+        (t) => t.title == config.tone,
+      );
       _toneIndex = toneIndex < 0 ? 0 : toneIndex;
       _traits = {
         for (var i = 0; i < PersonaDummy.traits.length; i++)
-          if (config.traits.contains(PersonaDummy.traits[i])) i,
+          if (config.traits.isNotEmpty &&
+              config.traits.first == PersonaDummy.traits[i])
+            i,
       };
+      if (_traits.isEmpty) _traits = {0};
       _name = config.name;
     }
     _initialized = true;
@@ -56,8 +59,9 @@ class _ChatbotSettingsScreenState
   Future<void> _save() async {
     final name = _name.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('챗봇 이름을 입력해주세요.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('챗봇 이름을 입력해주세요.')));
       return;
     }
     final config = PersonaConfig(
@@ -75,12 +79,14 @@ class _ChatbotSettingsScreenState
       await ref.read(personaRepositoryProvider).savePersona(config);
       ref.invalidate(personaConfigProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('챗봇 설정을 저장했어요.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('챗봇 설정을 저장했어요.')));
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -120,8 +126,12 @@ class _ChatbotSettingsScreenState
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                AppSpacing.lg, AppSpacing.screenH, AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenH,
+              AppSpacing.lg,
+              AppSpacing.screenH,
+              AppSpacing.md,
+            ),
             child: PersonaForm(
               initialToneIndex: _toneIndex,
               initialTraits: {..._traits},
@@ -135,8 +145,12 @@ class _ChatbotSettingsScreenState
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-              AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.xs,
+            AppSpacing.screenH,
+            AppSpacing.xs,
+          ),
           child: PrimaryButton(
             label: '저장하기',
             loading: _saving,

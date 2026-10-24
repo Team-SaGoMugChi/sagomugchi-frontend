@@ -17,8 +17,18 @@ class PersonaConfig {
   /// 말투 — a title from PersonaDummy.tones (e.g. '친근하고 따뜻한').
   final String tone;
 
-  /// 성격 multi-select (e.g. ['공감 잘해주는', '따뜻한']).
+  /// 성격 (신규 설정은 하나, 기존 다중 선택은 읽기 호환) (e.g. ['공감 잘해주는', '따뜻한']).
   final List<String> traits;
+
+  /// Four CLOVA voices, consistently paired with the selected conversation tone.
+  String get clovaVoice => voiceForTone(tone);
+
+  static String voiceForTone(String tone) => switch (tone) {
+    '차분하고 진중한' => 'njinho',
+    '밝고 에너지 넘치는' => 'nminyoung',
+    '간결하고 솔직한' => 'ndonghyun',
+    _ => 'nara',
+  };
 
   final DateTime updatedAt;
 

@@ -48,13 +48,13 @@ Future<void> showBaselineNeededDialog(
             Text(
               hasPendingMeasurement
                   ? '이전 측정 결과가\n아직 저장되지 않았어요.'
-                  : '감정 분석을 위해\n첫 측정이 필요해요.',
+                  : 'Oddo에 오신 것을 환영해요!',
               textAlign: TextAlign.center,
               style: AppTypography.subtitle,
             ),
             Gap.h8,
             const Text(
-              '얼굴과 음성 기준 데이터를 만들면\n오늘의 감정을 더 정확하게 이해할 수 있어요.',
+              '앱을 가볍게 둘러보고,\n나와 대화할 친구를 만나보세요.',
               textAlign: TextAlign.center,
               style: AppTypography.bodySecondary,
             ),
@@ -66,7 +66,7 @@ Future<void> showBaselineNeededDialog(
                 context.pushNamed(
                   hasPendingMeasurement
                       ? AppRoute.baselineAnalyzing
-                      : AppRoute.permission,
+                      : AppRoute.appIntroduction,
                 );
               },
             ),

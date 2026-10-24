@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/media/audio_recorder_service.dart';
 import 'package:oddo/core/media/tts_service.dart';
 import 'package:oddo/core/storage/local_store.dart';
+import 'package:oddo/data/dummy/baseline_dummy.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_measuring_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -86,26 +87,31 @@ void main() {
     expect(find.text('45%'), findsNothing);
     expect(find.text('듣고 있어요 · 녹음 중'), findsNothing);
     expect(find.text('통화를 준비하고 있어요'), findsOneWidget);
-    await tester.tap(find.byTooltip('측정 마치기'));
+    await tester.tap(find.byTooltip('다 읽었어요'));
     expect(recorder.stops, 0);
 
     recorder.started.complete(true);
     await tester.pump();
-    expect(find.text('탄카츄가 안내하고 있어요'), findsOneWidget);
+    expect(find.text(BaselineDummy.readingSentences.first), findsOneWidget);
+    expect(recorder.pauses, 0);
+    expect(find.text('듣고 있어요 · 녹음 중'), findsOneWidget);
+    // Silence never skips text or submits a partial measurement.
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text(BaselineDummy.readingSentences.first), findsOneWidget);
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(find.byTooltip('다 읽었어요'));
+      await tester.pump();
+      expect(find.text(BaselineDummy.readingSentences[i + 1]), findsOneWidget);
+      expect(recorder.stops, 0);
+    }
+    await tester.tap(find.byTooltip('다 읽었어요'));
+    await tester.pump();
     expect(recorder.pauses, 1);
     tts.speaking.complete();
     await tester.pump();
-    recorder.amplitude.add(-10);
     await tester.pump();
-    expect(recorder.resumes, 1);
-    expect(find.text('듣고 있어요 · 녹음 중'), findsOneWidget);
-    await tester.tap(find.byTooltip('측정 마치기'));
-    await tester.pump();
-    recorder.amplitude.add(-10);
-    await tester.pump();
-    expect(find.text('듣고 있어요 · 녹음 중'), findsNothing);
     expect(find.text('측정을 마무리하고 있어요'), findsOneWidget);
-    await tester.tap(find.byTooltip('측정 마치기'));
+    await tester.tap(find.byTooltip('다 읽었어요'));
     expect(recorder.stops, 1);
 
     await tester.pumpWidget(const SizedBox());

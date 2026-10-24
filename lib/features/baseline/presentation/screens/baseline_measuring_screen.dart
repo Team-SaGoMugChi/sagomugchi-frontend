@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/media/amplitude_paced_conversation_controller.dart';
 import '../../../../core/media/audio_recorder_service.dart';
+import '../../../../core/media/guided_conversation_controller.dart';
 import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
 import '../../../../data/dummy/baseline_dummy.dart';
@@ -52,17 +52,12 @@ class _BaselineMeasuringScreenState
   Future<void>? _faceCapture;
   Stopwatch? _recordingClock;
 
-  // 실제 baseline 음성 녹음이 화면 전체에서 계속 돌아가고 있어서, 여기서는
-  // (튜토리얼 연습 화면과 달리) STT로 "말이 끝났는지"를 감지하지 않는다 —
-  // 대신 그 녹음 자체의 진폭(AmplitudePacedConversationController)으로
-  // "말하는 중/멈춤"을 판단해서 마이크를 두 번 잡지 않는다.
-  //
-  // 화면 안내 문구("5~7분")의 중간값을 목표 시간으로 잡는다 — 질문 목록을
-  // 다 쓰기 전에 이 시간에 닿으면 자연스럽게 마무리한다. 실제로 얼마나
-  // 오래 이야기하는지에 따라 몇 문항까지 갈지는 매번 달라진다.
-  static const _budget = Duration(minutes: 6);
+  int _sentenceIndex = 0;
+  Completer<void>? _readDone;
 
-  AmplitudePacedConversationController? _conversation;
+  void _nextSentence() {
+    if (_readDone?.isCompleted == false) _readDone!.complete();
+  }
 
   /// 튜토리얼과 같은 통화 무대에서 탄카츄 입이 따라갈 문장.
   late final MascotSpeech _speech;
@@ -80,8 +75,7 @@ class _BaselineMeasuringScreenState
 
   Future<void> _runGuideThenAdvance() async {
     final recorder = ref.read(audioRecorderProvider);
-    // amplitudeStream()은 실제로 녹음 중일 때만 의미 있는 값을 준다 — 녹음이
-    // 시작되기 전에 부르면 빈 스트림이라 매 질문이 대기 없이 그냥 넘어간다.
+    // 문장 읽기는 한 번의 연속 녹음으로 수집한다. 앱은 문장을 읽어주지 않는다.
     final started = await recorder.start(
       fileName: 'baseline_voice_${DateTime.now().microsecondsSinceEpoch}',
     );
@@ -106,19 +100,19 @@ class _BaselineMeasuringScreenState
       }
       _captureFace();
     });
-    final conversation = AmplitudePacedConversationController(
-      ref.read(ttsServiceProvider),
-      recorder.amplitudeStream(),
-      speakPrompt: _speakWithoutRecording,
-    );
-    _conversation = conversation;
-    await conversation.run(
-      BaselineDummy.baselineConversationPrompts,
-      budget: _budget,
-      onTurn: (turn) {
-        if (mounted) setState(() => _turn = turn);
-      },
-    );
+    for (var i = 0; i < BaselineDummy.readingSentences.length; i++) {
+      if (!mounted || _advanced) return;
+      final done = Completer<void>();
+      _readDone = done;
+      setState(() {
+        _sentenceIndex = i;
+        _turn = ConversationTurn(
+          caption: BaselineDummy.readingSentences[i],
+          speaking: false,
+        );
+      });
+      await done.future;
+    }
     if (!mounted || _advanced) return;
     const closing = '감사합니다, 측정을 마칠게요.';
     setState(
@@ -133,7 +127,7 @@ class _BaselineMeasuringScreenState
   }
 
   /// 앱 안내 음성이 사용자 음성 기준값에 섞이지 않게 녹음을 일시정지한다.
-  /// 일시정지에 실패하면 음성 재생을 생략하고 화면의 질문 자막만 보여준다.
+  /// 일시정지에 실패하면 음성 재생을 생략하고 화면의 안내 자막만 보여준다.
   Future<void> _speakWithoutRecording(String prompt) async {
     if (!mounted || _advanced) return;
     final recorder = ref.read(audioRecorderProvider);
@@ -163,7 +157,7 @@ class _BaselineMeasuringScreenState
       _advanced = true;
       _recording = false;
     });
-    _conversation?.stop();
+    _nextSentence();
     _faceCaptureTimer?.cancel();
     _recordingClock?.stop();
     final images = ref.read(baselineFaceFramesProvider);
@@ -187,7 +181,7 @@ class _BaselineMeasuringScreenState
   void dispose() {
     // X 버튼 등으로 화면을 바로 나가면 _advance를 거치지 않으므로, 남아있는
     // 대화 대기 루프를 여기서 끊어준다.
-    _conversation?.stop();
+    _nextSentence();
     _faceCaptureTimer?.cancel();
     _speech.dispose();
     super.dispose();
@@ -247,7 +241,7 @@ class _BaselineMeasuringScreenState
       _advanced = true;
       _recording = false;
     });
-    _conversation?.stop();
+    _nextSentence();
     _faceCaptureTimer?.cancel();
     await ref.read(ttsServiceProvider).stop();
 
@@ -352,9 +346,9 @@ class _BaselineMeasuringScreenState
                                   children: [
                                     SpeechBubble(
                                       text: _advanced
-                                          ? '고마워요. 방금 나눈 대화를 정리할게요.'
+                                          ? '고마워요. 읽어주신 목소리와 표정을 분석할게요.'
                                           : _turn?.caption ??
-                                                '잠시만요, 곧 이야기 나눠요.',
+                                                '잠시만요, 녹음을 준비하고 있어요.',
                                     ),
                                     if (listening && _cameraHint != null) ...[
                                       Gap.h8,
@@ -370,9 +364,9 @@ class _BaselineMeasuringScreenState
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton.filled(
-                                    tooltip: '측정 마치기',
+                                    tooltip: '다 읽었어요',
                                     onPressed: _recording && !_advanced
-                                        ? _advance
+                                        ? _nextSentence
                                         : null,
                                     style: IconButton.styleFrom(
                                       fixedSize: const Size.square(
@@ -394,11 +388,13 @@ class _BaselineMeasuringScreenState
                                               color: AppColors.callTextPrimary,
                                             ),
                                           )
-                                        : const Icon(Icons.call_end_rounded),
+                                        : const Icon(Icons.check_rounded),
                                   ),
                                   Gap.h8,
                                   Text(
-                                    _advanced ? '마무리 중' : '측정 마치기',
+                                    _advanced
+                                        ? '마무리 중'
+                                        : '${_sentenceIndex + 1}/6 · 다 읽었어요',
                                     style: AppTypography.caption.copyWith(
                                       color: AppColors.callTextPrimary,
                                     ),

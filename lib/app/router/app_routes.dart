@@ -25,6 +25,7 @@ abstract final class AppRoute {
   static const String permission = 'permission'; // 9
 
   // ── Onboarding: tutorial (10–16) ─────────────────────────────────────────
+  static const String appIntroduction = 'appIntroduction';
   static const String tutorialIntro = 'tutorialIntro'; // 10 (1/5)
   static const String tutorialCall = 'tutorialCall'; // 11 통화 연습
   static const String tutorialSelfIntro = 'tutorialSelfIntro'; // 12 (2/5)
@@ -104,6 +105,7 @@ abstract final class AppPath {
 
   static const String permission = '/onboarding/permission';
 
+  static const String appIntroduction = '/onboarding/introduction';
   static const String tutorialIntro = '/onboarding/tutorial/intro';
   static const String tutorialCall = '/onboarding/tutorial/call';
   static const String tutorialSelfIntro = '/onboarding/tutorial/self-intro';

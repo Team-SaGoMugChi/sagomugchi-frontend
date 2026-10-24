@@ -93,9 +93,9 @@ class PersonaDoneScreen extends ConsumerWidget {
                   AppSpacing.xs,
                 ),
                 child: PrimaryButton(
-                  label: '다음으로',
+                  label: '문장 읽기 측정 준비하기',
                   enabled: persona != null,
-                  onPressed: () => context.pushNamed(AppRoute.onboardingDone),
+                  onPressed: () => context.pushNamed(AppRoute.permission),
                 ),
               ),
             ],

@@ -17,10 +17,9 @@ import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../../widgets/security_note.dart';
-import '../../application/onboarding_controller.dart';
 
 /// Screen 9 — 권한 요청 안내. Explains why each OS permission is needed, then
-/// fires the real camera/mic prompts. → 튜토리얼 1/5.
+/// fires the real camera/mic prompts. → 문장 읽기 베이스라인 안내.
 class PermissionScreen extends ConsumerStatefulWidget {
   const PermissionScreen({super.key});
 
@@ -32,13 +31,7 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen> {
   bool _requesting = false;
 
   void _continue() {
-    unawaited(
-      context.pushNamed(
-        ref.read(onboardingCompleteProvider)
-            ? AppRoute.baselineIntro
-            : AppRoute.tutorialIntro,
-      ),
-    );
+    unawaited(context.pushNamed(AppRoute.baselineIntro));
   }
 
   Future<void> _requestAndContinue() async {

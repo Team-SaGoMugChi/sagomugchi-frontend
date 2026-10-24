@@ -68,7 +68,7 @@ class BaselineIntroScreen extends ConsumerWidget {
                       // TODO: 클립보드를 든 안내 포즈로 교체 예정 (character_sheet 13.클립보드)
                       const MascotSceneCard(
                         pose: MascotPose.clipboard,
-                        bubble: '몇 가지 상황에 대해\n자연스럽게 이야기해주세요!',
+                        bubble: '화면의 문장 6개를\n평소 목소리로 읽어주세요!',
                       ),
                       Gap.h24,
                       const Text(

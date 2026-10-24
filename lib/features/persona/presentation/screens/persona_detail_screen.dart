@@ -38,8 +38,9 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
   Future<void> _saveAndContinue() async {
     final name = _name.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('챗봇 이름을 입력해주세요.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('챗봇 이름을 입력해주세요.')));
       return;
     }
     final config = PersonaConfig(
@@ -59,8 +60,9 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
       if (mounted) await context.pushNamed(AppRoute.personaDone);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -76,15 +78,20 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                     onPressed: () {
                       if (context.canPop()) context.pop();
                     },
                   ),
                   const Expanded(
-                    child: Text('페르소나 설정',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
+                    child: Text(
+                      '페르소나 설정',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.subtitle,
+                    ),
                   ),
                   const SizedBox(width: 48),
                 ],
@@ -93,8 +100,12 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
               const ProgressDots(count: 3, current: 1),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.lg, AppSpacing.screenH, AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.lg,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: PersonaForm(
                     onChanged: (tone, traits, name) {
                       _toneIndex = tone;
@@ -105,8 +116,12 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '다음',
                   loading: _saving,

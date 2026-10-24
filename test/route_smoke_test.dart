@@ -21,6 +21,7 @@ const _routes = <String>[
   AppPath.termsDetail,
   AppPath.home,
   AppPath.homeWritten,
+  AppPath.appIntroduction,
   AppPath.permission,
   AppPath.tutorialIntro,
   AppPath.tutorialCall,
