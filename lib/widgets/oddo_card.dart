@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
-/// White rounded card with a subtle shadow — the core content container used
+/// White rounded card with a warm outline — the core content container used
 /// across nearly every screen.
 class OddoCard extends StatelessWidget {
   const OddoCard({
@@ -15,7 +15,7 @@ class OddoCard extends StatelessWidget {
     this.borderRadius = AppRadius.card,
     this.border,
     this.onTap,
-    this.shadow = true,
+    this.shadow = false,
   });
 
   final Widget child;
@@ -33,7 +33,7 @@ class OddoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: borderRadius,
-        border: border,
+        border: border ?? Border.all(color: AppColors.border),
         boxShadow: shadow
             ? const [
                 BoxShadow(

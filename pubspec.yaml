@@ -59,6 +59,7 @@ dependencies:
   # assets/animations/README.md 참고. .riv 애셋이 없는 동안은 코드가 자동으로
   # 기존 절차적 입 모양 연출로 폴백한다 (talking_mascot_guide.dart).
   rive: ^0.14.11
+  model_viewer_plus: ^1.10.0
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +91,7 @@ flutter:
     - assets/images/character/
     - assets/icons/
     - assets/animations/
+    - assets/models/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

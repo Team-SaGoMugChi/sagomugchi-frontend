@@ -8,6 +8,7 @@
     <application
         android:label="oddo"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/oddo_network_security_config"
         android:icon="@mipmap/ic_launcher">
         <receiver android:name=".DiaryReminderReceiver" android:exported="false">
             <intent-filter>

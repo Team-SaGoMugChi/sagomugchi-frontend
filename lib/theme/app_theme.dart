@@ -6,8 +6,8 @@ import 'app_typography.dart';
 
 /// Builds the global [ThemeData] from Oddo's design tokens.
 ///
-/// Only the light theme is defined for now (the app is white-background first).
-/// A dark theme can be added here later without touching screen code.
+/// Light screens use the prototype's warm canvas; call screens have their own
+/// near-black surface tokens.
 abstract final class AppTheme {
   AppTheme._();
 
@@ -64,7 +64,7 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.backgroundAlt,
+        fillColor: AppColors.surface,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintStyle: AppTypography.body.copyWith(color: AppColors.textTertiary),
@@ -92,7 +92,7 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.sheet),
       ),
       chipTheme: const ChipThemeData(
-        backgroundColor: AppColors.backgroundAlt,
+        backgroundColor: AppColors.surface,
         selectedColor: AppColors.primarySoft,
         side: BorderSide(color: AppColors.border),
         shape: StadiumBorder(),

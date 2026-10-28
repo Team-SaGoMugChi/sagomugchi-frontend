@@ -20,19 +20,12 @@ class RecordsShell extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: DiaryBottomNav(
-        currentIndex: navigationShell.currentIndex,
+        currentIndex: navigationShell.currentIndex == 2 ? 2 : 1,
         onSelect: (i) {
-          // The 일기 tab returns to the written-day home (screenshot 1), not the
-          // diary-detail branch. The detail screen is only reached via the
-          // home's "작성한 일기 읽기" button.
-          if (i == 0) {
-            context.goNamed(AppRoute.homeWritten);
-          } else {
-            navigationShell.goBranch(
-              i,
-              initialLocation: i == navigationShell.currentIndex,
-            );
-          }
+          if (i == 0) context.goNamed(AppRoute.homeWritten);
+          if (i == 1) context.goNamed(AppRoute.monthlyCalendar);
+          if (i == 2) navigationShell.goBranch(2);
+          if (i == 3) context.goNamed(AppRoute.myPage);
         },
       ),
     );
