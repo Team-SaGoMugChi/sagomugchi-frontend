@@ -6,37 +6,35 @@ import 'package:flutter/material.dart';
 /// widgets must reference these tokens (never raw `Color(0x...)`), so that a
 /// palette change happens in exactly one place.
 ///
-/// Brand color is #7C5CF6 (a soft, comforting violet). Backgrounds stay white /
-/// very-light-grey; only light-lavender tints are allowed as secondary
-/// surfaces. (2026-07 파랑 #3182F6 → 보라 테마 전환 — 토큰만 교체)
+/// 2026-10 prototype palette: warm ivory surfaces and chocolate actions.
 abstract final class AppColors {
   AppColors._();
 
   // --- Brand / primary ---------------------------------------------------
-  static const Color primary = Color(0xFF7C5CF6);
-  static const Color primaryPressed = Color(0xFF6242E0);
+  static const Color primary = Color(0xFF5B3A29);
+  static const Color primaryPressed = Color(0xFF44291C);
 
-  /// Light-lavender card / selected-state background (연보라 카드).
-  static const Color primarySoft = Color(0xFFF0EBFE);
+  /// Selected cards and secondary actions.
+  static const Color primarySoft = Color(0xFFF2E9DF);
 
   /// Border for soft/selected cards.
-  static const Color primarySoftBorder = Color(0xFFD9CDFB);
+  static const Color primarySoftBorder = Color(0xFFE5D3C3);
 
   // --- Auth / onboarding surfaces ---------------------------------------
-  /// Light-lavender background used on splash / auth / onboarding screens.
-  static const Color authBackground = Color(0xFFF3F0FB);
+  /// Shared warm-ivory canvas from the prototype.
+  static const Color authBackground = Color(0xFFFBF7F1);
 
   /// Decorative cloud/blob tint layered on the auth background corners.
-  static const Color cloud = Color(0xFFE7E1F6);
+  static const Color cloud = Color(0xFFFBF7F1);
 
   /// Kakao brand yellow — used only for the Kakao login icon chip.
   static const Color kakao = Color(0xFFFEE500);
 
   // --- Surfaces / backgrounds -------------------------------------------
-  static const Color background = Color(0xFFFFFFFF);
+  static const Color background = Color(0xFFFBF7F1);
 
   /// Very light grey alternative background.
-  static const Color backgroundAlt = Color(0xFFF7F8FA);
+  static const Color backgroundAlt = Color(0xFFF4EEE8);
   static const Color surface = Color(0xFFFFFFFF);
 
   /// Dim overlay behind modals / bottom sheets.
@@ -44,27 +42,27 @@ abstract final class AppColors {
 
   // --- Video-call (dark) screens ----------------------------------------
   // Tutorial call practice / baseline measuring / Step1 speaking / counseling.
-  static const Color callBackground = Color(0xFF17181C);
-  static const Color callSurface = Color(0xFF26282D);
+  static const Color callBackground = Color(0xFF1D1815);
+  static const Color callSurface = Color(0xFF302720);
   static const Color callTextPrimary = Color(0xFFFFFFFF);
-  static const Color callTextSecondary = Color(0xFFB0B6BE);
+  static const Color callTextSecondary = Color(0xFFB9ADA2);
 
   // --- Text --------------------------------------------------------------
-  static const Color textStrong = Color(0xFF191F28);
-  static const Color textPrimary = Color(0xFF333D4B);
-  static const Color textSecondary = Color(0xFF6B7684);
-  static const Color textTertiary = Color(0xFF8B95A1);
+  static const Color textStrong = Color(0xFF302823);
+  static const Color textPrimary = Color(0xFF43372F);
+  static const Color textSecondary = Color(0xFF80736A);
+  static const Color textTertiary = Color(0xFF9D9086);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
   // --- Lines -------------------------------------------------------------
-  static const Color border = Color(0xFFE5E8EB);
-  static const Color divider = Color(0xFFF2F4F6);
+  static const Color border = Color(0xFFE9DCD0);
+  static const Color divider = Color(0xFFF0E6DD);
 
   // --- Semantic ----------------------------------------------------------
-  static const Color success = Color(0xFF15C47E);
-  static const Color warning = Color(0xFFFFB020);
-  static const Color error = Color(0xFFF04452);
+  static const Color success = Color(0xFF4F9775);
+  static const Color warning = Color(0xFFBB8249);
+  static const Color error = Color(0xFFC4483C);
 
   // --- Inactive (e.g. bottom tab) ---------------------------------------
-  static const Color inactive = Color(0xFFB0B8C1);
+  static const Color inactive = Color(0xFFA99B90);
 }

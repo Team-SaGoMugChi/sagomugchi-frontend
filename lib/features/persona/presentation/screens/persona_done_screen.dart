@@ -8,6 +8,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/mascot_3d_preview.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
@@ -58,9 +59,15 @@ class PersonaDoneScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // TODO: 하트를 들고 있는 포즈로 교체 예정
                         const Center(
                           child: MascotImage(pose: MascotPose.heart, size: 140),
+                        ),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => Mascot3dPreview.show(context),
+                            icon: const Icon(Icons.view_in_ar_rounded),
+                            label: const Text('오또를 3D로 보기'),
+                          ),
                         ),
                         Gap.h16,
                         personaAsync.when(

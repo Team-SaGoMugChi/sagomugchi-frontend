@@ -63,8 +63,7 @@ class PrimaryButton extends StatelessWidget {
   }
 }
 
-/// Secondary action: full-width outlined button (white fill + primary border)
-/// so it stays clearly visible on the light-blue background.
+/// Secondary action: outlined ivory button from the prototype.
 class SecondaryButton extends StatelessWidget {
   const SecondaryButton({
     super.key,
@@ -82,11 +81,11 @@ class SecondaryButton extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.primary,
+          backgroundColor: AppColors.authBackground,
+          foregroundColor: AppColors.textPrimary,
           minimumSize: const Size.fromHeight(56),
           textStyle: AppTypography.button,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          side: const BorderSide(color: AppColors.primarySoftBorder),
           shape: const RoundedRectangleBorder(borderRadius: AppRadius.button),
         ),
         child: Text(label),

@@ -87,15 +87,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     return Scaffold(
-      bottomNavigationBar: written
-          ? DiaryBottomNav(
-              currentIndex: 0,
-              onSelect: (i) {
-                if (i == 1) context.goNamed(AppRoute.recordsReport);
-                if (i == 2) context.goNamed(AppRoute.recordsCounsel);
-              },
-            )
-          : null,
+      bottomNavigationBar: DiaryBottomNav(
+        currentIndex: 0,
+        onSelect: (i) {
+          if (i == 1) context.goNamed(AppRoute.monthlyCalendar);
+          if (i == 2) context.goNamed(AppRoute.recordsCounsel);
+          if (i == 3) context.goNamed(AppRoute.myPage);
+        },
+      ),
       body: AppBackground(
         child: SafeArea(
           bottom: false,

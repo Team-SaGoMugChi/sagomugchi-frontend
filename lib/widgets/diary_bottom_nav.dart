@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// The three tabs of the written-day context.
-enum DiaryTab { diary, report, counsel }
+/// Main destinations shared by the prototype's home and record screens.
+enum DiaryTab { home, records, counsel, my }
 
-/// Bottom tab bar shown only in the written-day context: [일기][리포트][상담].
-/// Driven by the records [StatefulNavigationShell] in the router.
+/// Four-destination bottom bar: 홈 · 기록 · 상담 · 마이.
 class DiaryBottomNav extends StatelessWidget {
   const DiaryBottomNav({
     super.key,
@@ -23,23 +22,31 @@ class DiaryBottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onTap: onSelect,
       type: BottomNavigationBarType.fixed,
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.inactive,
       showUnselectedLabels: true,
       elevation: 0,
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.menu_book_rounded),
-          label: '일기',
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home_rounded),
+          label: '홈',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.insights_rounded),
-          label: '리포트',
+          icon: Icon(Icons.calendar_today_outlined),
+          activeIcon: Icon(Icons.calendar_month_rounded),
+          label: '기록',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_rounded),
+          icon: Icon(Icons.chat_bubble_outline_rounded),
+          activeIcon: Icon(Icons.chat_bubble_rounded),
           label: '상담',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline_rounded),
+          activeIcon: Icon(Icons.person_rounded),
+          label: '마이',
         ),
       ],
     );

@@ -14,6 +14,7 @@ import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/diary_bottom_nav.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
@@ -40,6 +41,14 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
     final isWritten = recorded
         .contains(DateTime(_selected.year, _selected.month, _selected.day));
     return Scaffold(
+      bottomNavigationBar: DiaryBottomNav(
+        currentIndex: 1,
+        onSelect: (i) {
+          if (i == 0) context.goNamed(AppRoute.home);
+          if (i == 2) context.goNamed(AppRoute.recordsCounsel);
+          if (i == 3) context.goNamed(AppRoute.myPage);
+        },
+      ),
       body: AppBackground(
         child: SafeArea(
           child: Column(
@@ -63,7 +72,7 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
                       context,
                       title: '날짜 선택 도움말',
                       items: const [
-                        '보라색 배경 날짜는 일기가 작성된 날이에요.',
+                        '갈색 점이 있는 날짜는 일기가 작성된 날이에요.',
                         '날짜를 고르면 아래 카드에서 상태를 확인할 수 있어요.',
                         '지난 날짜를 골라 그날의 일기를 새로 쓸 수도 있어요.',
                       ],
@@ -83,7 +92,7 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                                '캘린더에서 원하는 날짜를 선택해 주세요.\n작성한 날짜는 파란 배경으로 표시돼요.',
+                                '캘린더에서 원하는 날짜를 선택해 주세요.\n작성한 날짜에는 갈색 점이 있어요.',
                                 style: AppTypography.bodySecondary),
                           ),
                           // TODO: 캘린더를 안내하는 정면 포즈로 교체 예정
