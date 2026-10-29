@@ -28,7 +28,7 @@ class OddoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
+    final content = Ink(
       padding: padding,
       decoration: BoxDecoration(
         color: color,
@@ -47,16 +47,18 @@ class OddoCard extends StatelessWidget {
       child: child,
     );
 
-    if (onTap == null) return content;
+    if (onTap == null) {
+      return Material(
+        color: Colors.transparent,
+        borderRadius: borderRadius,
+        child: content,
+      );
+    }
 
     return Material(
       color: Colors.transparent,
       borderRadius: borderRadius,
-      child: InkWell(
-        borderRadius: borderRadius,
-        onTap: onTap,
-        child: content,
-      ),
+      child: InkWell(borderRadius: borderRadius, onTap: onTap, child: content),
     );
   }
 }

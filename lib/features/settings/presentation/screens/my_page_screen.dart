@@ -7,6 +7,7 @@ import '../../../../core/error/app_exception.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../features/auth/application/auth_controller.dart';
 import '../../../../features/auth/data/auth_providers.dart';
+import '../../../../features/records/application/recorded_days_provider.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
@@ -50,14 +51,17 @@ class MyPageScreen extends ConsumerWidget {
               final name = controller.text.trim();
               final error = Validators.nickname(name);
               if (error != null) {
-                ScaffoldMessenger.of(dialogContext)
-                    .showSnackBar(SnackBar(content: Text(error)));
+                ScaffoldMessenger.of(
+                  dialogContext,
+                ).showSnackBar(SnackBar(content: Text(error)));
                 return;
               }
               Navigator.of(dialogContext).pop(name);
             },
-            child: const Text('저장',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              '저장',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -66,12 +70,14 @@ class MyPageScreen extends ConsumerWidget {
     try {
       await ref.read(authControllerProvider.notifier).updateNickname(saved);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('닉네임을 변경했어요.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('닉네임을 변경했어요.')));
     } on AppException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -91,11 +97,13 @@ class MyPageScreen extends ConsumerWidget {
           .sendPasswordReset(email: email);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('메일을 보냈어요. 받은 편지함을 확인해주세요.')));
+        const SnackBar(content: Text('메일을 보냈어요. 받은 편지함을 확인해주세요.')),
+      );
     } on AppException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -125,8 +133,9 @@ class MyPageScreen extends ConsumerWidget {
       if (context.mounted) context.goNamed(AppRoute.login);
     } on AppException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -169,7 +178,17 @@ class MyPageScreen extends ConsumerWidget {
     final hasPassword = ref.watch(hasPasswordLoginProvider).value ?? false;
 
     return Scaffold(
-      appBar: const OddoAppBar(title: '마이페이지'),
+      appBar: OddoAppBar(
+        title: '마이',
+        showBack: false,
+        actions: [
+          IconButton(
+            tooltip: '설정',
+            onPressed: () => context.pushNamed(AppRoute.settings),
+            icon: const Icon(Icons.tune_rounded),
+          ),
+        ],
+      ),
       bottomNavigationBar: DiaryBottomNav(
         currentIndex: 3,
         onSelect: (i) {
@@ -193,28 +212,52 @@ class MyPageScreen extends ConsumerWidget {
                         color: AppColors.primarySoft,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          size: 30, color: AppColors.primary),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        size: 30,
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(user?.nickname ?? '로그인이 필요해요',
-                              style: AppTypography.subtitle),
+                          Text(
+                            user?.nickname ?? '로그인이 필요해요',
+                            style: AppTypography.subtitle,
+                          ),
                           const SizedBox(height: 2),
-                          Text(user?.email ?? '-',
-                              style: AppTypography.bodySecondary),
+                          Text(
+                            user?.email ?? '-',
+                            style: AppTypography.bodySecondary,
+                          ),
                         ],
                       ),
                     ),
                     if (user != null)
                       IconButton(
-                        icon: const Icon(Icons.edit_rounded,
-                            size: 20, color: AppColors.textTertiary),
+                        icon: const Icon(
+                          Icons.edit_rounded,
+                          size: 20,
+                          color: AppColors.textTertiary,
+                        ),
                         onPressed: () => _editNickname(context, ref),
                       ),
+                  ],
+                ),
+              ),
+              Gap.h16,
+              OddoCard(
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text('쓴 일기', style: AppTypography.bodySecondary),
+                    ),
+                    Text(
+                      ref.watch(recordedDaysProvider).length.toString(),
+                      style: AppTypography.title,
+                    ),
                   ],
                 ),
               ),
@@ -282,18 +325,25 @@ class _MenuRow extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.md),
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             Icon(icon, size: 20, color: color ?? AppColors.textSecondary),
             const SizedBox(width: AppSpacing.sm),
-            Text(label,
-                style: AppTypography.body.copyWith(
-                    color: color ?? AppColors.textStrong,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: AppTypography.body.copyWith(
+                color: color ?? AppColors.textStrong,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
-            const Icon(Icons.chevron_right_rounded,
-                color: AppColors.textTertiary),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiary,
+            ),
           ],
         ),
       ),

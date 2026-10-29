@@ -10,6 +10,6 @@ class AppBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(color: AppColors.authBackground, child: child);
+    return Material(color: AppColors.authBackground, child: child);
   }
 }

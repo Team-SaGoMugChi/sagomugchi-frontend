@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_radius.dart';
+import 'app_spacing.dart';
 import 'app_typography.dart';
 
 /// Builds the global [ThemeData] from Oddo's design tokens.
@@ -17,9 +18,7 @@ abstract final class AppTheme {
       primary: AppColors.primary,
       surface: AppColors.surface,
       brightness: Brightness.light,
-    ).copyWith(
-      error: AppColors.error,
-    );
+    ).copyWith(error: AppColors.error);
 
     return ThemeData(
       useMaterial3: true,
@@ -46,7 +45,7 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.textOnPrimary,
-          disabledBackgroundColor: AppColors.primarySoftBorder,
+          disabledBackgroundColor: AppColors.disabled,
           disabledForegroundColor: AppColors.textOnPrimary,
           elevation: 0,
           minimumSize: const Size.fromHeight(56),
@@ -65,8 +64,10 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: AppTypography.body.copyWith(color: AppColors.textTertiary),
         border: const OutlineInputBorder(
           borderRadius: AppRadius.button,
@@ -90,6 +91,35 @@ abstract final class AppTheme {
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.sheet),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.card),
+        titleTextStyle: AppTypography.subtitle,
+        contentTextStyle: AppTypography.bodySecondary,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.xxs),
+        ),
+        side: const BorderSide(color: AppColors.primarySoftBorder),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+        linearTrackColor: AppColors.primarySoftBorder,
+        linearMinHeight: 6,
+        borderRadius: AppRadius.chip,
+      ),
+      switchTheme: SwitchThemeData(
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+        thumbColor: const WidgetStatePropertyAll(AppColors.surface),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.primarySoftBorder,
+        ),
       ),
       chipTheme: const ChipThemeData(
         backgroundColor: AppColors.surface,

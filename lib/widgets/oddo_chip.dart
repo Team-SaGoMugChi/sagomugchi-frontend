@@ -23,9 +23,9 @@ class OddoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primarySoft : AppColors.backgroundAlt,
+        color: selected ? AppColors.primary : AppColors.surface,
         borderRadius: AppRadius.chip,
         border: Border.all(
           color: selected ? AppColors.primary : AppColors.border,
@@ -35,15 +35,21 @@ class OddoChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon,
-                size: 16,
-                color: selected ? AppColors.primary : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 16,
+              color: selected
+                  ? AppColors.textOnPrimary
+                  : AppColors.textSecondary,
+            ),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: AppTypography.bodySecondary.copyWith(
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected
+                  ? AppColors.textOnPrimary
+                  : AppColors.textSecondary,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),

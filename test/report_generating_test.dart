@@ -94,7 +94,7 @@ void main() {
     // 고정 % 숫자는 없다 — 실제 진행률을 알 수 없어서.
     expect(find.textContaining('%'), findsNothing);
     // 응답 전: 대화 전달만 끝났고, 리포트 완성은 아직.
-    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check_box_rounded), findsOneWidget);
     expect(find.byIcon(Icons.radio_button_unchecked_rounded), findsOneWidget);
 
     // 오래 기다려도 응답 전에는 끝까지 차지 않는다.
@@ -108,7 +108,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(_barValue(tester), 1.0);
-    expect(find.byIcon(Icons.check_circle_rounded), findsNWidgets(3));
+    expect(find.byIcon(Icons.check_box_rounded), findsNWidgets(3));
 
     await tester.pump(const Duration(seconds: 2));
     await tester.pump(const Duration(seconds: 1));

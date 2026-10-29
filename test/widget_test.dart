@@ -31,7 +31,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MaterialApp), findsOneWidget);
-    expect(find.text('Oddo'), findsWidgets);
+    expect(find.text('오또'), findsWidgets);
 
     // Flush the splash session-restore delay so no timers stay pending.
     await tester.pump(const Duration(seconds: 2));

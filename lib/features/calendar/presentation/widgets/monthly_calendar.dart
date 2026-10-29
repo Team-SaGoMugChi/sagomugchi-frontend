@@ -30,7 +30,15 @@ class MonthlyCalendar extends StatelessWidget {
   final VoidCallback? onPrevMonth;
   final VoidCallback? onNextMonth;
 
-  static const List<String> _weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+  static const List<String> _weekdayLabels = [
+    '일',
+    '월',
+    '화',
+    '수',
+    '목',
+    '금',
+    '토',
+  ];
 
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -38,7 +46,11 @@ class MonthlyCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final firstWeekday = DateTime(month.year, month.month, 1).weekday; // Mon=1..Sun=7
+    final firstWeekday = DateTime(
+      month.year,
+      month.month,
+      1,
+    ).weekday; // Mon=1..Sun=7
     final leadingBlanks = firstWeekday % 7; // Sun-first grid
 
     // Build the flat cell list (leading blanks + day numbers), then chunk by 7.
@@ -52,12 +64,10 @@ class MonthlyCalendar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: AppRadius.card,
-        boxShadow: [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 16, offset: Offset(0, 4)),
-        ],
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -69,8 +79,13 @@ class MonthlyCalendar extends StatelessWidget {
                 color: AppColors.textSecondary,
                 onPressed: onPrevMonth,
               ),
-              Text(DateFormatter.yearMonth(month),
-                  style: AppTypography.subtitle),
+              Expanded(
+                child: Text(
+                  DateFormatter.yearMonth(month),
+                  textAlign: TextAlign.center,
+                  style: AppTypography.subtitle,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded),
                 color: AppColors.textSecondary,
@@ -85,7 +100,9 @@ class MonthlyCalendar extends StatelessWidget {
                   child: Center(
                     child: Text(
                       _weekdayLabels[i],
-                      style: AppTypography.caption.copyWith(color: _weekdayColor(i)),
+                      style: AppTypography.caption.copyWith(
+                        color: _weekdayColor(i),
+                      ),
                     ),
                   ),
                 ),
@@ -120,24 +137,22 @@ class MonthlyCalendar extends StatelessWidget {
 
     BoxDecoration? deco;
     if (isSelected) {
-      deco = const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle);
+      deco = const BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: AppRadius.button,
+      );
     } else if (isToday) {
       deco = BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: AppRadius.button,
         border: Border.all(color: AppColors.primary, width: 1.5),
-      );
-    } else if (isRecorded) {
-      deco = BoxDecoration(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
       );
     }
 
     final textColor = isSelected
         ? AppColors.textOnPrimary
         : _weekdayColor(column) == AppColors.textSecondary
-            ? AppColors.textStrong
-            : _weekdayColor(column);
+        ? AppColors.textStrong
+        : _weekdayColor(column);
 
     return Expanded(
       child: GestureDetector(
@@ -151,12 +166,34 @@ class MonthlyCalendar extends StatelessWidget {
             height: 36,
             alignment: Alignment.center,
             decoration: deco,
-            child: Text(
-              '$day',
-              style: AppTypography.bodySecondary.copyWith(
-                color: textColor,
-                fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w400,
-              ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                FittedBox(
+                  child: Text(
+                    '$day',
+                    maxLines: 1,
+                    style: AppTypography.bodySecondary.copyWith(
+                      color: textColor,
+                      fontWeight: isSelected || isToday
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                if (!isSelected && isRecorded)
+                  Positioned(
+                    bottom: 1,
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

@@ -51,7 +51,7 @@ class PrimaryButton extends StatelessWidget {
                     Icon(leadingIcon, size: 18),
                     const SizedBox(width: 6),
                   ],
-                  Text(label),
+                  Flexible(child: Text(label, textAlign: TextAlign.center)),
                   if (trailingIcon != null) ...[
                     const SizedBox(width: 6),
                     Icon(trailingIcon, size: 18),
@@ -65,11 +65,7 @@ class PrimaryButton extends StatelessWidget {
 
 /// Secondary action: outlined ivory button from the prototype.
 class SecondaryButton extends StatelessWidget {
-  const SecondaryButton({
-    super.key,
-    required this.label,
-    this.onPressed,
-  });
+  const SecondaryButton({super.key, required this.label, this.onPressed});
 
   final String label;
   final VoidCallback? onPressed;

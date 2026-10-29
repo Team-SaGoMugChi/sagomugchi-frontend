@@ -35,9 +35,12 @@ class LoadingProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: AppTypography.bodySecondary
-                  .copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            title,
+            style: AppTypography.bodySecondary.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           Gap.h8,
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -52,21 +55,38 @@ class LoadingProgressCard extends StatelessWidget {
             ),
           ),
           Gap.h12,
-          for (final (label, state) in steps)
+          for (var i = 0; i < steps.length; i++) ...[
+            if (i > 0) const Divider(),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
               child: Row(
                 children: [
-                  _StepIcon(state: state),
-                  const SizedBox(width: 8),
-                  Text(label,
-                      style: state == LoadingStepState.pending
-                          ? AppTypography.bodySecondary
-                              .copyWith(color: AppColors.textTertiary)
-                          : AppTypography.bodySecondary),
+                  _StepIcon(state: steps[i].$2),
+                  Gap.w12,
+                  Expanded(
+                    child: Text(
+                      steps[i].$1,
+                      style: AppTypography.body.copyWith(
+                        color: steps[i].$2 == LoadingStepState.pending
+                            ? AppColors.textTertiary
+                            : AppColors.textStrong,
+                        fontWeight: steps[i].$2 == LoadingStepState.running
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  Gap.w8,
+                  Text(switch (steps[i].$2) {
+                    LoadingStepState.done => '완료',
+                    LoadingStepState.running => '진행 중',
+                    LoadingStepState.failed => '실패',
+                    LoadingStepState.pending => '대기',
+                  }, style: AppTypography.caption),
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
@@ -80,24 +100,33 @@ class _StepIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (state) {
-      LoadingStepState.done => const Icon(Icons.check_circle_rounded,
-          size: 16, color: AppColors.primary),
+      LoadingStepState.done => const Icon(
+        Icons.check_box_rounded,
+        size: 22,
+        color: AppColors.primary,
+      ),
       LoadingStepState.running => const SizedBox(
-          width: 16,
-          height: 16,
-          child: Padding(
-            padding: EdgeInsets.all(2),
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppColors.primary),
+        width: 16,
+        height: 16,
+        child: Padding(
+          padding: EdgeInsets.all(2),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
           ),
         ),
+      ),
       LoadingStepState.pending => const Icon(
-          Icons.radio_button_unchecked_rounded,
-          size: 16,
-          color: AppColors.textTertiary),
+        Icons.radio_button_unchecked_rounded,
+        size: 16,
+        color: AppColors.textTertiary,
+      ),
       // 실패는 다음 화면이 안내하므로 여기선 조용히 표시만 한다.
-      LoadingStepState.failed => const Icon(Icons.error_outline_rounded,
-          size: 16, color: AppColors.textSecondary),
+      LoadingStepState.failed => const Icon(
+        Icons.error_outline_rounded,
+        size: 16,
+        color: AppColors.textSecondary,
+      ),
     };
   }
 }
