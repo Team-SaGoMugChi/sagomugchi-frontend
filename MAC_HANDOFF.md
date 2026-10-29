@@ -1,4 +1,11 @@
 # Oddo 맥북 작업 인수인계
+## 2026-10-29 UI 개선 PR #96 게시 완료 (#95)
+
+- 사용자 요청에 따라 이슈 #95 → develop 기반 95-reference-screen-ui → feat 커밋 193d560 → develop 대상 PR #96 순서로 게시했다.
+- PR: https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/96 (일반 공개 리뷰 상태, draft 아님). 실제 병합·develop 직접 push·백엔드 배포는 하지 않았다.
+- 앱 UI·회귀 테스트·문서 27개 파일만 포함한다. build/의 휴대폰 확인용 코드·APK·캡처 및 개인 설정/측정 원본은 게시하지 않았다. 현재 휴대폰의 확인용 앱 상태는 유지한다.
+- 검증은 전체 테스트 266개, 정적 분석 이상 없음, Android debug 빌드 성공이며 관련 상세와 미완료 항목은 PR 본문에 명시했다. 이후 이 기록을 같은 브랜치에 문서 커밋으로 추가한다.
+
 ## 2026-10-29 UI 개선 PR 게시 준비 (#95)
 
 - 사용자가 현재 작업까지 팀 develop 대상 PR 게시를 요청했다. GitHub 연결 도구의 403 제한 후 로컬 Git 인증으로 이슈 #95를 생성했다: https://github.com/Team-SaGoMugChi/sagomugchi-frontend/issues/95
