@@ -11,7 +11,8 @@ abstract final class AppColors {
   AppColors._();
 
   // --- Brand / primary ---------------------------------------------------
-  static const Color primary = Color(0xFF5B3A29);
+  static const Color primary = Color(0xFF603E2B);
+  static const Color disabled = Color(0xFFE4D3C0);
   static const Color primaryPressed = Color(0xFF44291C);
 
   /// Selected cards and secondary actions.

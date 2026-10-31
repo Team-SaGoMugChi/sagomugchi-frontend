@@ -13,8 +13,10 @@ class SocialLoginButton extends StatelessWidget {
     required this.label,
     required this.leading,
     this.onPressed,
+    this.backgroundColor = AppColors.surface,
   });
 
+  final Color backgroundColor;
   final String label;
   final Widget leading;
   final VoidCallback? onPressed;
@@ -22,7 +24,7 @@ class SocialLoginButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: backgroundColor,
       borderRadius: AppRadius.button,
       child: InkWell(
         borderRadius: AppRadius.button,

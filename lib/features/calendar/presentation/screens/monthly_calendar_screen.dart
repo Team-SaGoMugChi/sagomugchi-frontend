@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../data/dummy/calendar_dummy.dart';
 import '../../../../features/home/presentation/widgets/diary_start_modal.dart';
 import '../../../../features/records/application/recorded_days_provider.dart';
 import '../../../../features/records/application/viewing_date_provider.dart';
@@ -16,7 +14,6 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/diary_bottom_nav.dart';
 import '../../../../widgets/help_sheet.dart';
-import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../widgets/monthly_calendar.dart';
@@ -32,14 +29,18 @@ class MonthlyCalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
-  DateTime _month = CalendarDummy.month;
-  DateTime _selected = CalendarDummy.today;
+  DateTime _month = DateTime.now();
+  DateTime _selected = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
     final recorded = ref.watch(recordedDaysProvider);
-    final isWritten = recorded
-        .contains(DateTime(_selected.year, _selected.month, _selected.day));
+    final monthCount = recorded
+        .where((d) => d.year == _month.year && d.month == _month.month)
+        .length;
+    final isWritten = recorded.contains(
+      DateTime(_selected.year, _selected.month, _selected.day),
+    );
     return Scaffold(
       bottomNavigationBar: DiaryBottomNav(
         currentIndex: 1,
@@ -56,15 +57,20 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                     onPressed: () {
                       if (context.canPop()) context.pop();
                     },
                   ),
                   const Expanded(
-                    child: Text('날짜 선택',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
+                    child: Text(
+                      '날짜 선택',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.subtitle,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.help_outline_rounded, size: 20),
@@ -82,42 +88,48 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0,
-                      AppSpacing.screenH, AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    0,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                                '캘린더에서 원하는 날짜를 선택해 주세요.\n작성한 날짜에는 갈색 점이 있어요.',
-                                style: AppTypography.bodySecondary),
-                          ),
-                          // TODO: 캘린더를 안내하는 정면 포즈로 교체 예정
-                          MascotImage(pose: MascotPose.front, size: 72),
-                        ],
+                      Text('$monthCount일 기록했어요', style: AppTypography.subtitle),
+                      Gap.h8,
+                      const Text(
+                        '갈색 점이 있는 날의 이야기를 다시 볼 수 있어요.',
+                        style: AppTypography.bodySecondary,
                       ),
                       Gap.h16,
                       MonthlyCalendar(
                         month: _month,
-                        today: CalendarDummy.today,
+                        today: DateTime.now(),
                         selected: _selected,
                         recordedDays: recorded,
                         onSelect: (d) => setState(() => _selected = d),
-                        onPrevMonth: () => setState(() =>
-                            _month = DateTime(_month.year, _month.month - 1)),
-                        onNextMonth: () => setState(() =>
-                            _month = DateTime(_month.year, _month.month + 1)),
+                        onPrevMonth: () => setState(
+                          () =>
+                              _month = DateTime(_month.year, _month.month - 1),
+                        ),
+                        onNextMonth: () => setState(
+                          () =>
+                              _month = DateTime(_month.year, _month.month + 1),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: Column(
                   // 카드가 항상 하단 버튼과 같은 전체 폭을 갖도록 stretch.
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,8 +148,11 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
                           )
                         : PrimaryButton(
                             label: '이 날짜에 일기 작성하기',
-                            onPressed: () =>
-                                showDiaryStartModal(context, ref, date: _selected),
+                            onPressed: () => showDiaryStartModal(
+                              context,
+                              ref,
+                              date: _selected,
+                            ),
                           ),
                   ],
                 ),
@@ -167,10 +182,12 @@ class _SelectCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(DateFormatter.fullKoreanDate(date),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            DateFormatter.fullKoreanDate(date),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+          ),
           Gap.h8,
           _StatusBadge(isWritten: isWritten),
           Gap.h8,
@@ -201,7 +218,8 @@ class _StatusBadge extends StatelessWidget {
         // 두 상태 모두 1px 테두리를 차지해 배지 높이가 항상 같도록,
         // 작성일은 투명 테두리를 쓴다.
         border: Border.all(
-            color: isWritten ? Colors.transparent : AppColors.border),
+          color: isWritten ? Colors.transparent : AppColors.border,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -211,8 +229,9 @@ class _StatusBadge extends StatelessWidget {
                 ? Icons.check_rounded
                 : Icons.radio_button_unchecked_rounded,
             size: 14,
-            color:
-                isWritten ? AppColors.textOnPrimary : AppColors.textSecondary,
+            color: isWritten
+                ? AppColors.textOnPrimary
+                : AppColors.textSecondary,
           ),
           const SizedBox(width: 5),
           Text(

@@ -127,9 +127,9 @@ lib/
 
 ### 5.3 디자인 토큰 (`lib/theme/`)
 - 색/여백/모서리/타이포는 **반드시 토큰 사용**. 매직 넘버·하드코딩 색 금지.
-  - `AppColors` — **메인 컬러 `#7C5CF6`**(primary, 보라 — 2026-07 파랑에서 전환), `primarySoft #F0EBFE`, `authBackground`, `callBackground`(다크) 등
+  - `AppColors` — **메인 컬러 `#603E2B`**(primary, 갈색 — 2026-10 첨부 시안), `primarySoft #F2E9DF`, `authBackground`, `callBackground`(다크) 등
   - `AppSpacing`(+ `Gap.h8/h12/...` 헬퍼), `AppRadius`, `AppTypography`
-- 공통 배경 크롬은 `AppBackground`(연한 하늘색 + 구름) 위젯.
+- 공통 배경은 `AppBackground`(아이보리 #FBF7F1) 위젯. 흰 카드·연갈색 테두리·갈색 CTA를 사용하며, 통화 화면은 낮/밤 방 배경과 다크 토큰을 유지한다.
 
 ### 5.4 데이터 레이어 / 더미
 - 더미 데이터는 **`lib/data/dummy/`** 에만 추가 (`home_dummy`, `calendar_dummy`, `records_dummy`, `diary_flow_dummy`, `dummy_seed` 등).

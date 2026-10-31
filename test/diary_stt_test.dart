@@ -577,7 +577,7 @@ void main() {
 
       // 고정 70%는 없다. 감정 분석만 남았고 나머지 세 단계는 끝났다.
       expect(find.textContaining('%'), findsNothing);
-      expect(find.byIcon(Icons.check_circle_rounded), findsNWidgets(3));
+      expect(find.byIcon(Icons.check_box_rounded), findsNWidgets(3));
       expect(find.byIcon(Icons.radio_button_unchecked_rounded), findsNothing);
 
       // 분석이 오래 걸려도 끝까지 차지 않는다: 끝난 몫 0.4 + 분석 몫 0.6의 90%.

@@ -52,8 +52,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('대화할 친구 설정하기'));
-      await tester.tap(find.text('대화할 친구 설정하기'));
+      await tester.tap(find.text('건너뛰기'));
       await tester.pumpAndSettle();
       expect(find.text('설정 시작하기'), findsOneWidget);
       router.go(AppPath.personaDone);
@@ -68,6 +67,14 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: AppIntroductionScreen()));
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('샘플로 둘러보기'));
+    await tester.tap(find.text('샘플로 둘러보기'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('상담'));
     await tester.tap(find.text('상담'));
     await tester.pump();
     await tester.ensureVisible(find.text('“천천히 걸을 수 있어서 좋았어요” 보내보기'));

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_typography.dart';
 
 /// Horizontal week strip: weekday labels + date cells. The selected day gets a
@@ -27,11 +28,7 @@ class WeeklyCalendar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final day in days) Expanded(child: _cell(day)),
-      ],
-    );
+    return Row(children: [for (final day in days) Expanded(child: _cell(day))]);
   }
 
   Widget _cell(DateTime day) {
@@ -56,19 +53,22 @@ class WeeklyCalendar extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: AppRadius.button,
               color: isSelected ? AppColors.primary : Colors.transparent,
-              border: isSelected
-                  ? null
-                  : Border.all(color: Colors.transparent),
+              border: isSelected ? null : Border.all(color: Colors.transparent),
             ),
             alignment: Alignment.center,
-            child: Text(
-              '${day.day}',
-              style: AppTypography.body.copyWith(
-                color: isSelected ? AppColors.textOnPrimary : AppColors.textStrong,
-                fontWeight:
-                    isSelected || isToday ? FontWeight.w700 : FontWeight.w400,
+            child: FittedBox(
+              child: Text(
+                '${day.day}',
+                style: AppTypography.body.copyWith(
+                  color: isSelected
+                      ? AppColors.textOnPrimary
+                      : AppColors.textStrong,
+                  fontWeight: isSelected || isToday
+                      ? FontWeight.w700
+                      : FontWeight.w400,
+                ),
               ),
             ),
           ),

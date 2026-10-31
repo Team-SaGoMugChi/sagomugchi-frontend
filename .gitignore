@@ -74,3 +74,6 @@ CAP*.jpeg
 serviceAccountKey*.json
 firebase-service-account*.json
 *firebase-adminsdk*.json
+
+# Kotlin build session cache.
+/android/.kotlin/

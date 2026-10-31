@@ -7,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../data/dummy/home_dummy.dart';
-import '../../../../data/dummy/records_dummy.dart';
 import '../../../../features/baseline/application/baseline_face_frames_provider.dart';
 import '../../../../features/baseline/application/baseline_face_image_provider.dart';
 import '../../../../features/baseline/application/baseline_recording_provider.dart';
@@ -24,6 +22,8 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/diary_bottom_nav.dart';
 import '../../../../widgets/mascot_image.dart';
+import '../../../../widgets/oddo_card.dart';
+import '../../../../widgets/oddo_chip.dart';
 import '../../../../widgets/primary_button.dart';
 import '../widgets/baseline_needed_dialog.dart';
 import '../widgets/diary_start_modal.dart';
@@ -80,12 +80,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final written = recorded.contains(
       DateTime(selected.year, selected.month, selected.day),
     );
-    // 7-day strip centered on the selected date (selected in the middle).
-    final weekDays = List.generate(
-      7,
-      (i) => selected.add(Duration(days: i - 3)),
-    );
-
+    final start = DateTime(
+      selected.year,
+      selected.month,
+      selected.day,
+    ).subtract(Duration(days: selected.weekday % 7));
+    final weekDays = List.generate(7, (i) => start.add(Duration(days: i)));
+    final recent =
+        recorded
+            .where(
+              (d) => d.isBefore(
+                DateTime(selected.year, selected.month, selected.day),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
+    final weekCount = recorded
+        .where(
+          (d) =>
+              !d.isBefore(start) &&
+              d.isBefore(start.add(const Duration(days: 7))),
+        )
+        .length;
     return Scaffold(
       bottomNavigationBar: DiaryBottomNav(
         currentIndex: 0,
@@ -98,181 +114,150 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: AppBackground(
         child: SafeArea(
           bottom: false,
-          child: Column(
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.screenH),
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                  AppSpacing.screenH,
-                  0,
-                ),
-                child: HomeHeader(month: selected),
-              ),
+              HomeHeader(month: selected),
               Gap.h12,
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenH,
-                ),
-                child: WeeklyCalendar(
-                  days: weekDays,
-                  today: HomeDummy.today,
-                  selected: selected,
-                  recordedDays: recorded,
-                  onSelect: (d) =>
-                      ref.read(viewingDateProvider.notifier).set(d),
-                ),
-              ),
-              Expanded(
-                // 위 기준 고정 정렬: 작성일에만 하단 탭바가 생겨도 카드가
-                // 세로로 밀리지 않도록, 화면 중앙 정렬 대신 주간 바 아래
-                // 고정 오프셋에 카드를 둔다.
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screenH,
-                      AppSpacing.xl,
-                      AppSpacing.screenH,
-                      AppSpacing.md,
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Padding(
-                          // 마스코트 박스(170) - 겹침(14) = 카드 시작 오프셋.
-                          padding: const EdgeInsets.only(top: 156),
-                          child: _HomeCard(
-                            date: selected,
-                            written: written,
-                            onReadDiary: () =>
-                                context.goNamed(AppRoute.recordsDiary),
-                            onWrite: () => _onWritePressed(onboarded, selected),
-                          ),
-                        ),
-                        // 카드 위 레이어: 빼꼼 포즈의 양손이 카드 윗변을 잡는
-                        // 연출 (이미지 하단 = 손끝이라 카드 내용은 안 가림).
-                        const Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: MascotImage(
-                              pose: MascotPose.peeking,
-                              size: 170,
-                              alignment: Alignment.bottomCenter,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The home's single main card. Both states render inside one shell via
-/// [IndexedStack], which sizes itself to the larger child (the written
-/// layout) — so the card's size and position never change when the selected
-/// date flips between written/unwritten; only the content swaps.
-class _HomeCard extends StatelessWidget {
-  const _HomeCard({
-    required this.date,
-    required this.written,
-    required this.onReadDiary,
-    required this.onWrite,
-  });
-
-  final DateTime date;
-  final bool written;
-  final VoidCallback onReadDiary;
-  final VoidCallback onWrite;
-
-  @override
-  Widget build(BuildContext context) {
-    return _HomeCardShell(
-      child: Stack(
-        children: [
-          // 작성일 내용은 항상 레이아웃에 참여(maintainSize)해서 카드
-          // 크기를 고정하는 기준이 된다. 미작성일에는 보이지만 않게.
-          Visibility(
-            visible: written,
-            maintainSize: true,
-            maintainAnimation: true,
-            maintainState: true,
-            child: _WrittenContent(date: date, onReadDiary: onReadDiary),
-          ),
-          // 미작성 내용은 고정된 카드 영역 전체를 채우며 렌더링
-          // (날짜 좌상단 / 히어로 중앙 / 버튼 하단).
-          if (!written)
-            Positioned.fill(
-              child: _WriteContent(date: date, onWrite: onWrite),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Not-written state — prompt to start a diary for [date]. 파란 날짜는
-/// 작성일 카드와 같은 스타일로 좌상단, 히어로(아이콘+문구)는 중앙, 작성
-/// 버튼은 하단 고정.
-class _WriteContent extends StatelessWidget {
-  const _WriteContent({required this.date, required this.onWrite});
-
-  final DateTime date;
-  final VoidCallback onWrite;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 미작성일은 회색 날짜 — 파랑(기록 있음)/회색(기록 없음)으로
-        // 상태를 색으로 구분 (월간 캘린더 배지와 동일한 규칙).
-        Text(
-          DateFormatter.monthDay(date),
-          style: AppTypography.title.copyWith(color: AppColors.textTertiary),
-        ),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.backgroundAlt,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.edit_note_rounded,
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              Gap.h12,
-              const Text(
-                HomeDummy.writeCardTitle,
-                textAlign: TextAlign.center,
-                style: AppTypography.title,
+              Text(
+                DateFormatter.monthDay(selected),
+                style: AppTypography.caption,
               ),
               Gap.h8,
-              const Text(
-                HomeDummy.writeCardSubtitle,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodySecondary,
+              Text(
+                written ? '오늘 남긴 이야기' : '오늘 일기는 아직이에요',
+                style: AppTypography.title,
               ),
+              Gap.h24,
+              WeeklyCalendar(
+                days: weekDays,
+                today: DateTime.now(),
+                selected: selected,
+                recordedDays: recorded,
+                onSelect: (d) => ref.read(viewingDateProvider.notifier).set(d),
+              ),
+              Gap.h24,
+              if (written) ...[
+                _HomeCardShell(
+                  child: _WrittenContent(
+                    date: selected,
+                    onReadDiary: () => context.goNamed(AppRoute.recordsDiary),
+                  ),
+                ),
+                Gap.h16,
+                OddoCard(
+                  color: AppColors.backgroundAlt,
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '조금 더 이야기하고 싶다면',
+                          style: AppTypography.body,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            context.goNamed(AppRoute.recordsCounsel),
+                        child: const Text('상담'),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                OddoCard(
+                  child: Row(
+                    children: [
+                      const MascotImage(pose: MascotPose.writing, size: 72),
+                      Gap.w16,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              weekCount == 0
+                                  ? '오늘의 이야기를 들려주세요'
+                                  : '이번 주 $weekCount일 썼어요',
+                              style: AppTypography.subtitle,
+                            ),
+                            Gap.h4,
+                            const Text(
+                              '말로 남기면 한 편의 일기가 돼요.',
+                              style: AppTypography.bodySecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Gap.h16,
+                PrimaryButton(
+                  label: '오늘 일기 말하기',
+                  leadingIcon: Icons.mic_none_rounded,
+                  onPressed: () => _onWritePressed(onboarded, selected),
+                ),
+              ],
+              Gap.h24,
+              const Text('최근 기록', style: AppTypography.caption),
+              Gap.h8,
+              if (recent.isEmpty)
+                const OddoCard(
+                  child: Text(
+                    '아직 기록이 없어요. 첫 이야기를 남겨 보세요.',
+                    style: AppTypography.bodySecondary,
+                  ),
+                )
+              else
+                OddoCard(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < recent.take(3).length; i++) ...[
+                        if (i > 0) const Divider(),
+                        _RecentEntry(date: recent[i]),
+                      ],
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
-        PrimaryButton(label: '일기 작성하기', onPressed: onWrite),
-      ],
+      ),
+    );
+  }
+}
+
+class _RecentEntry extends ConsumerWidget {
+  const _RecentEntry({required this.date});
+  final DateTime date;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entry = ref.watch(diaryEntryProvider(date)).value;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(DateFormatter.monthDay(date), style: AppTypography.body),
+      subtitle: entry == null || entry.emotionKeywords.isEmpty
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Wrap(
+                spacing: AppSpacing.xxs,
+                children: entry.emotionKeywords
+                    .take(2)
+                    .map((e) => OddoChip(label: e))
+                    .toList(),
+              ),
+            ),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: AppColors.textTertiary,
+      ),
+      onTap: () {
+        ref.read(viewingDateProvider.notifier).set(date);
+        context.goNamed(AppRoute.recordsDiary);
+      },
     );
   }
 }
@@ -326,6 +311,7 @@ class _WrittenContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final entry = ref.watch(diaryEntryProvider(date)).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -336,9 +322,25 @@ class _WrittenContent extends ConsumerWidget {
         ),
         Gap.h4,
         const Text(
-          RecordsDummy.homeWrittenTitle,
+          '기록한 일기와 영상을 다시 볼 수 있어요.',
           style: AppTypography.bodySecondary,
         ),
+        if (entry != null) ...[
+          Gap.h16,
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: entry.emotionKeywords
+                .map((e) => OddoChip(label: e))
+                .toList(),
+          ),
+          Gap.h12,
+          Text(entry.summary, style: AppTypography.body),
+          TextButton(
+            onPressed: () => context.goNamed(AppRoute.recordsReport),
+            child: const Text('리포트 보기'),
+          ),
+        ],
         Gap.h16,
         GestureDetector(
           onTap: () => _openVideo(context, ref),
@@ -383,13 +385,14 @@ class _WrittenContent extends ConsumerWidget {
                   color: AppColors.primary,
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  '작성한 일기 읽기',
-                  style: AppTypography.body.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    '작성한 일기 읽기',
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.textTertiary,
@@ -413,16 +416,10 @@ class _HomeCardShell extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: AppRadius.card,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 20,
-            offset: Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: AppColors.border),
       ),
       child: child,
     );

@@ -8,7 +8,7 @@ class OddoWordmark extends StatelessWidget {
   const OddoWordmark({
     super.key,
     this.fontSize = 40,
-    this.withHeart = true,
+    this.withHeart = false,
     this.color = AppColors.primary,
   });
 
@@ -23,7 +23,7 @@ class OddoWordmark extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Text(
-          'Oddo',
+          '오또',
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: FontWeight.w800,
