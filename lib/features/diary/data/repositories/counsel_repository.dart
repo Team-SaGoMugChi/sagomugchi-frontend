@@ -15,6 +15,7 @@ abstract interface class CounselRepository {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   });
 
   Future<CounselReport> fetchReport({

@@ -14,6 +14,9 @@ abstract interface class CounselDataSource {
   /// [emotionArc]는 일기 전달 JSON(handoff)의 감정 흐름 한 줄이다. 상담봇이
   /// 사용자가 실제로 한 말에만 근거해 대화하게 하는 재료다.
   ///
+  /// [cbt]는 CBT 단계형 상태(`stage`·`stage_turn`·`style`·`last_mission`)다.
+  /// 없으면 서버가 자유 대화로 응답한다.
+  ///
   /// 모두 없어도 상담은 동작한다.
   Future<CounselTurnResult> sendTurn({
     required String userText,
@@ -26,6 +29,7 @@ abstract interface class CounselDataSource {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   });
 
   /// 상담이 끝난 뒤 대화를 보내 리포트를 받는다.

@@ -21,6 +21,7 @@ class CounselRepositoryImpl implements CounselRepository {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   }) {
     return _dataSource.sendTurn(
       userText: userText,
@@ -33,6 +34,7 @@ class CounselRepositoryImpl implements CounselRepository {
       psychProfile: psychProfile,
       slots: slots,
       emotionArc: emotionArc,
+      cbt: cbt,
     );
   }
 

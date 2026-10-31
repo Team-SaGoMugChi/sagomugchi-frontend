@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../persona/data/persona_providers.dart';
 import '../../psych_test/data/psych_providers.dart';
 import '../data/diary_providers.dart';
+import '../data/models/counsel_cbt_state.dart';
 import '../data/models/counsel_session.dart';
 import 'diary_draft_provider.dart';
 import 'diary_handoff_controller.dart';
+
+/// 지난 미션을 찾을 때 거슬러 올라가는 날 수.
+const counselMissionLookbackDays = 7;
 
 /// 상담·리포트에 넘길 오늘 일기 맥락.
 ///
@@ -32,7 +36,7 @@ String? counselEmotionArc(Ref ref) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
-/// Step4 상담 대화 상태 — 메시지 목록, 전송 중 여부, 위기 감지 여부.
+/// Step4 상담 대화 상태 — 메시지 목록, 전송 중 여부, 위기 감지 여부, CBT 단계.
 class CounselState {
   const CounselState({
     this.messages = const [],
@@ -40,6 +44,7 @@ class CounselState {
     this.crisis = false,
     this.riskAxis,
     this.startedAt,
+    this.cbt = const CounselCbtState(),
   });
 
   final List<CounselMessage> messages;
@@ -55,22 +60,30 @@ class CounselState {
   /// 이 상담을 처음 시작한 시각. 이어하기면 저장돼 있던 시작 시각을 쓴다.
   final DateTime? startedAt;
 
+  /// CBT 단계형 진행 상태 — 다음 요청에 보낼 단계와 지금까지 얻은 값.
+  final CounselCbtState cbt;
+
   CounselState copyWith({
     List<CounselMessage>? messages,
     bool? sending,
     bool? crisis,
     String? riskAxis,
     DateTime? startedAt,
+    CounselCbtState? cbt,
   }) => CounselState(
     messages: messages ?? this.messages,
     sending: sending ?? this.sending,
     crisis: crisis ?? this.crisis,
     riskAxis: riskAxis ?? this.riskAxis,
     startedAt: startedAt ?? this.startedAt,
+    cbt: cbt ?? this.cbt,
   );
 }
 
 class CounselController extends Notifier<CounselState> {
+  /// 지난 미션은 상담 한 번에 한 번만 찾는다.
+  Future<String?>? _lastMission;
+
   @override
   CounselState build() => const CounselState();
 
@@ -85,6 +98,8 @@ class CounselController extends Notifier<CounselState> {
       state = state.copyWith(
         messages: saved.messages,
         startedAt: saved.startedAt,
+        // 이어하기면 멈췄던 단계부터 다시 간다.
+        cbt: saved.cbt,
       );
     } catch (_) {
       // 기록을 못 불러와도 새 상담은 가능해야 한다.
@@ -109,6 +124,8 @@ class CounselController extends Notifier<CounselState> {
     try {
       final draft = ref.read(diaryDraftProvider);
       final fusion = draft.fusionResult;
+      final persona = await _loadPersona();
+      final lastMission = await (_lastMission ??= _loadLastMission());
       final result = await ref
           .read(counselRepositoryProvider)
           .sendTurn(
@@ -118,13 +135,19 @@ class CounselController extends Notifier<CounselState> {
             signals: fusion?.signals,
             diarySummary: counselDiaryContext(draft),
             incongruent: fusion?.incongruent ?? false,
-            persona: await _loadPersona(),
+            persona: persona,
             psychProfile: await _loadPsychProfile(),
             // 일기 대화에서 사용자가 직접 말한 사실 — 상담봇이 지어내지 않고
             // 이미 들은 것을 다시 묻지 않게 하는 근거.
             slots: draft.interviewSlots,
             emotionArc: counselEmotionArc(ref),
+            // 서버가 이번 턴의 단계를 정하고, 다음 단계를 돌려준다.
+            cbt: state.cbt.toRequestJson(
+              style: CounselCbtState.styleForTone(persona?['tone'] as String?),
+              lastMission: lastMission,
+            ),
           );
+      final nextCbt = result.cbt;
       state = state.copyWith(
         messages: [
           ...state.messages,
@@ -133,6 +156,7 @@ class CounselController extends Notifier<CounselState> {
         sending: false,
         crisis: result.crisis,
         riskAxis: result.riskAxis,
+        cbt: nextCbt == null ? null : state.cbt.merge(nextCbt),
       );
     } catch (_) {
       state = state.copyWith(
@@ -169,6 +193,30 @@ class CounselController extends Notifier<CounselState> {
     } catch (_) {
       return null;
     }
+  }
+
+  /// 최근 상담 기록에서 가장 가까운 날의 미션을 찾는다.
+  ///
+  /// 오늘 기록은 이어하기로 따로 불러오므로 어제부터 본다. 찾지 못하거나
+  /// 실패하면 null — 서버가 0단계(미션 확인)를 건너뛴다.
+  Future<String?> _loadLastMission() async {
+    try {
+      final repository = ref.read(diaryRepositoryProvider);
+      final now = DateTime.now();
+      final sessions = await Future.wait([
+        for (var i = 1; i <= counselMissionLookbackDays; i++)
+          repository
+              .fetchCounsel(DateTime(now.year, now.month, now.day - i))
+              .catchError((Object _) => null),
+      ]);
+      for (final session in sessions) {
+        final mission = session?.cbt?.mission;
+        if (mission != null) return mission;
+      }
+    } catch (_) {
+      // 미션이 없어도 상담은 1단계부터 시작할 수 있다.
+    }
+    return null;
   }
 }
 

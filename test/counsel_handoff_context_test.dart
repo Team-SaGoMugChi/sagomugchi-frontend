@@ -52,6 +52,7 @@ class _Repository implements CounselRepository {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   }) async {
     sent = {'slots': slots, 'emotionArc': emotionArc};
     return const CounselTurnResult(reply: '응답');
