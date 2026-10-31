@@ -18,6 +18,7 @@ class CounselDummyDataSource implements CounselDataSource {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   }) async {
     await Future<void>.delayed(AppDurations.dummyLatency);
     return const CounselTurnResult(reply: '그랬군요. 조금 더 이야기해줄래요?');
