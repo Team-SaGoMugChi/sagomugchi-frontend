@@ -111,6 +111,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       date: writtenDate,
       useSampleContent: useSampleContent,
     );
+    final counselCbt = ref.read(counselControllerProvider).cbt;
     final counsel = CounselSession(
       date: writtenDate,
       // Step4에서 실제로 주고받은 대화. 상담을 건너뛰었으면 빈 목록으로
@@ -118,6 +119,8 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       startedAt: draft.counselStartedAt ?? now,
       endedAt: now,
       messages: draft.counselMessages,
+      // CBT 단계에서 얻은 값(자동적 사고·미션 등). 다음 상담이 미션을 이어받는다.
+      cbt: draft.counselMessages.isEmpty ? null : counselCbt,
     );
 
     setState(() => _saving = true);
