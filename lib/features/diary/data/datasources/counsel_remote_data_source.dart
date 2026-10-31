@@ -35,6 +35,7 @@ class CounselRemoteDataSource implements CounselDataSource {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   }) async {
     final filledSlots = filledCounselSlots(slots);
     final arc = emotionArc?.trim();
@@ -54,6 +55,7 @@ class CounselRemoteDataSource implements CounselDataSource {
           'psych_profile': psychProfile,
         'slots': ?filledSlots,
         if (arc != null && arc.isNotEmpty) 'emotion_arc': arc,
+        'cbt': ?cbt,
       },
     );
     if (json['reply'] is! String) {
