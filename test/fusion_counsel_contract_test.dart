@@ -60,6 +60,7 @@ class _CounselRepository implements CounselRepository {
     Map<String, dynamic>? psychProfile,
     Map<String, String?>? slots,
     String? emotionArc,
+    Map<String, dynamic>? cbt,
   }) async {
     sent = {
       'userText': userText,
