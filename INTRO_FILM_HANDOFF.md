@@ -144,3 +144,11 @@
 
 - 사용자 판단: 웃는 눈(^^)과 입(ω)이 부자연스러워 **웃는 표정 변화는 쓰지 않는다**. `ad.html`의 `exprAt()`은 smile·happy를 항상 0으로 돌려주고, **눈 깜빡임만** 남겼다. 표정 데칼 코드(`extras.js`)는 남겨 두었지만 영상에서는 쓰지 않는다.
 - 팀 반영: 이 브랜치(`intro-film-3d`)를 팀 프론트 레포에 push한다. 변경 범위는 소개·온보딩 진입부(스플래시, 소개 화면, 라우트 가드, 홈 측정 팝업 분기, 3D 미리보기)와 에셋, `tools/intro_film/`뿐이다. 상담·일기·영상 제작·베이스라인·백엔드 파일은 바꾸지 않았다.
+
+## 2026-11-02 Codex 검증 및 PR 준비 (#100)
+- teamfront fetch 결과 develop 최신 56206de. 해당 기준 위에 Claude 후속 패치 7개 적용, 최종 코드 5a2cc9a.
+- 기존 수정 파일은 Oddo_app/build/recovery/intro-film-before-20261102에 백업. 원래 Oddo_app 미커밋 소스 보존, pubspec.lock 로컬 변경과 _patches는 PR에서 제외.
+- dart fix 변경 없음, flutter analyze 이슈 없음, 전체 테스트 266개 통과. Android debug APK 빌드 및 SM-S908N 무선 설치·실행 성공(ODDO_FORCE_INTRO=true).
+- 디버거 연결 종료 후에도 adb 연결 및 앱 프로세스 실행 확인. 외관·음질 최종 사용자 확인 미완료.
+- 이슈 #100 생성, 팀 규칙에 맞는 100-intro-film-3d 브랜치로 PR 게시 준비. develop 병합은 하지 않음.
+
