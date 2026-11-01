@@ -21,6 +21,8 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  static const _forceIntro = bool.fromEnvironment('ODDO_FORCE_INTRO');
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +37,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     ]);
     if (!mounted) return;
     final loggedIn = results[1] != null;
+    // 실기기 확인용: --dart-define=ODDO_FORCE_INTRO=true 로 실행하면
+    // 로그인 여부와 상관없이 매번 소개 영상부터 보여 준다.
+    if (_forceIntro) {
+      context.goNamed(AppRoute.appIntroduction);
+      return;
+    }
     // 처음 설치한 기기는 로그인 전에 소개 영상부터 보여 준다.
     final introSeen = ref
         .read(localStoreProvider)
