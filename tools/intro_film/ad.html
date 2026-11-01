@@ -209,7 +209,9 @@ function exprAt(t){
   let blink=0; for(const b of BLINKS){const d=Math.abs(t-b); if(d<.09) blink=Math.max(blink,1-d/.09);}
   const smile=clamp(kf(t,[[0,0],[1.9,0],[2.3,.85],[3.0,.85],[3.4,0],[7.5,0],[7.8,1],[9.6,1],[9.9,.3],[14.2,.3],[14.5,1],[15.3,1],[15.6,0],[20.9,0],[21.2,1],[27,1]]));
   const happy=clamp(kf(t,[[0,0],[21.3,0],[21.55,1],[22.6,1],[22.85,0],[24.25,0],[24.5,1],[25.7,1],[25.95,0],[27,0]]));
-  return {smile,happy,blink};
+  // 웃는 표정(ω 입·^^ 눈)은 부자연스러워 쓰지 않는다. 눈 깜빡임만 남긴다.
+  void smile; void happy;
+  return {smile:0,happy:0,blink};
 }
 
 // ───────────────── 장면 요소 ─────────────────
