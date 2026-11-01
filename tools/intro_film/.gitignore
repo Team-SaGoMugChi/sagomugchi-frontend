@@ -1,0 +1,5 @@
+node_modules/
+out/
+*.woff2
+oddo_rigged.glb
+call_room_*.jpg

@@ -27,6 +27,9 @@ class LocalStore {
       'baseline_pending_face_prompt_flags';
   static const String kBig5Progress = 'psych_big5_progress_v1';
 
+  /// 첫 실행 소개 영상을 끝까지 봤거나 건너뛰었는지(기기 단위, 계정과 무관).
+  static const String kIntroFilmSeen = 'intro_film_seen';
+
   /// 일기 리마인더 알림 on/off (Phase 7 로컬 푸시의 스위치).
   static const String kReminderEnabled = 'reminder_enabled';
   static const String kReminderOwner = 'reminder_owner';

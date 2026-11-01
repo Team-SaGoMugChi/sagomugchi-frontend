@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body style="margin:0"><script type="module">
+import * as THREE from 'three';
+import * as SU from 'three/addons/utils/SkeletonUtils.js';
+import {loadRig} from './rig.js';
+import {setupRenderer,velvet,studio} from './look.js';
+const P=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+const W=360*P.length,H=460;const r=setupRenderer(W,H);const s=new THREE.Scene();studio(s,r);
+const rig=await loadRig();rig.mesh.material=velvet(rig.material);
+const d=THREE.MathUtils.degToRad;
+P.forEach((pose,i)=>{const g=SU.clone(rig.group);g.position.x=(i-(P.length-1)/2)*0.95;s.add(g);
+  g.traverse(o=>{if(o.isBone&&pose[o.name]){const q=pose[o.name];o.rotation.set(d(q[0]||0),d(q[1]||0),d(q[2]||0));if(q[3])o.scale.set(q[3],q[4]??q[3],q[5]??q[3]);}
+   if(o.isMesh){o.castShadow=true;}});
+  if(pose.ry) g.rotation.y=d(pose.ry);});
+const cam=new THREE.PerspectiveCamera(26,W/H,0.1,50);cam.position.set(0,0.6,0.95*P.length*1.05+0.6);cam.lookAt(0,0.48,0);
+r.render(s,cam);window.DONE=true;
+</script></body></html>

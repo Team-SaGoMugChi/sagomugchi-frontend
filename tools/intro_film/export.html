@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head><body><script type="module">
+import * as THREE from 'three';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import {loadRig, BONE_NAMES} from './rig.js';
+import {velvet} from './look.js';
+const D=THREE.MathUtils.degToRad, TAU=Math.PI*2;
+const rig=await loadRig(); const b=rig.bones;
+const m=velvet(rig.material); m.color.set('#c7a896'); rig.mesh.material=m;
+function reset(){for(const n of BONE_NAMES){b[n].rotation.set(0,0,0);b[n].scale.set(1,1,1);} b.body.position.set(0,.09,0); b.root.position.set(0,0,0);}
+function idle(t,P,amp=1){const w=TAU/P;
+  b.body.rotation.z+=D(1.6*amp)*Math.sin(w*t);
+  const br=Math.sin(2*w*t)*.013*amp; b.body.scale.set(1-br*.5,1+br,1-br*.5);
+  b.head.rotation.z+=D(2.2*amp)*Math.sin(w*t+1); b.head.rotation.x+=D(1.6*amp)*Math.sin(w*t);
+  b.armL.rotation.z+=D(3*amp)*Math.sin(w*t+.4); b.armR.rotation.z-=D(3*amp)*Math.sin(w*t+.4);
+  const tw=Math.exp(-Math.pow((t%P)-P*.55,2)*120)*D(14);
+  b.earL.rotation.z+=D(2)*Math.sin(2*w*t)+tw; b.earR.rotation.z-=D(2)*Math.sin(2*w*t+.5)+tw*.6;}
+const CLIPS={
+  Idle:{P:4,f:t=>idle(t,4)},
+  Wave:{P:2,f:t=>{idle(t,2,.6);const s=Math.sin(TAU*1.5*t);
+    b.armL.rotation.x+=D(-18); b.armL.rotation.z+=D(-92+11*s); b.armL.scale.set(1.08,1.48,1);
+    b.pawL.rotation.z+=D(-58+24*Math.sin(TAU*1.5*t+.6)); b.head.rotation.z+=D(7); b.body.rotation.z+=D(-3);}},
+  Nod:{P:2,f:t=>{idle(t,2,.6);for(const a of [.2,.85]){const p=t-a;if(p>0&&p<.55)b.head.rotation.x+=D(10)*Math.sin(p/.55*Math.PI);} b.head.rotation.z+=D(4);}},
+  Hop:{P:1.2,f:t=>{const p=t/1.2; const air=p>.2&&p<.75?Math.sin((p-.2)/.55*Math.PI):0;
+    const squash=p<.2?Math.sin(p/.2*Math.PI)*.08:(p>.75?Math.sin((p-.75)/.25*Math.PI)*.07:-air*.04);
+    b.root.position.y=air*.11; b.body.scale.set(1+squash*.6,1-squash,1+squash*.6);
+    b.armL.rotation.z+=D(-25)*air; b.armR.rotation.z+=D(25)*air;
+    b.earL.rotation.z+=D(10)*air; b.earR.rotation.z-=D(10)*air; b.legL.rotation.x+=D(-12)*air; b.legR.rotation.x+=D(-12)*air;}},
+};
+const FPS=30, clips=[];
+for(const [name,{P,f}] of Object.entries(CLIPS)){
+  const n=Math.round(P*FPS)+1, times=[...Array(n)].map((_,i)=>i/FPS);
+  const data={}; for(const bn of BONE_NAMES) data[bn]={q:[],s:[],p:[]};
+  for(const t of times){reset();f(t%P);for(const bn of BONE_NAMES){const o=b[bn];data[bn].q.push(...o.quaternion.toArray());data[bn].s.push(...o.scale.toArray());data[bn].p.push(...o.position.toArray());}}
+  const tracks=[];
+  for(const bn of BONE_NAMES){tracks.push(new THREE.QuaternionKeyframeTrack(`${bn}.quaternion`,times,data[bn].q));
+    if(data[bn].s.some(v=>Math.abs(v-1)>1e-4)) tracks.push(new THREE.VectorKeyframeTrack(`${bn}.scale`,times,data[bn].s));
+    if(bn==='body'||bn==='root') tracks.push(new THREE.VectorKeyframeTrack(`${bn}.position`,times,data[bn].p));}
+  clips.push(new THREE.AnimationClip(name,P,tracks));
+}
+reset();
+const scene=new THREE.Scene(); scene.add(rig.group);
+const glb=await new GLTFExporter().parseAsync(scene,{binary:true,animations:clips,onlyVisible:true});
+const u8=new Uint8Array(glb); let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode(...u8.subarray(i,i+0x8000));
+window.RESULT=btoa(s); window.DONE=true;
+</script></body></html>

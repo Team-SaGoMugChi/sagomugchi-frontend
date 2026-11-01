@@ -1,0 +1,111 @@
+# 소개 영상 · 3D 탄카츄 작업 인수인계 (2026-11-01, Claude → Codex)
+
+비밀키·계정·개인 측정값은 포함하지 않았습니다.
+
+## 1. 목표
+
+앱 앞부분을 재설계합니다. 기존 소개 3장과 샘플 체험(일기/리포트/상담)을 없애고,
+그 자리에 **15~30초 광고형 브랜드 영상**을 넣습니다. 영상에는 **3D 탄카츄**가 나오고,
+끝나면 바로 시작으로 이어집니다. 레퍼런스는 캐리(AI 연애상담) 인스타 광고 랜딩처럼
+몰입감 있는 연출입니다. 디자인 큰 틀(아이보리 #FBF7F1, 갈색 #603E2B, 흰 카드)은
+유지해 뒤쪽 화면(페르소나, 베이스라인)과 자연스럽게 이어지게 했습니다.
+
+추가 목표: Tripo 3D 모델의 인사 동작이 어색한 문제를 해결합니다.
+원인은 사람용 Mixamo 뼈대였고, 체형 전용 리그로 다시 만들었습니다.
+
+## 2. 작업 위치
+
+- 이 작업은 Claude 클라우드 작업공간에서 했습니다. **한규님 PC에는 아직 아무것도 반영되지 않았습니다.**
+- 기준: 팀 프론트 `develop` `56206de`(PR #99 병합)
+- 로컬 브랜치: `intro-film-3d` (팀 원격에 **push 안 함**, PR 없음, 이슈 없음)
+- 함께 전달하는 `intro-film-3d.patch`를 PC의 프론트 레포에 적용하세요.
+  ```bash
+  git fetch teamfront && git switch -c intro-film-3d teamfront/develop   # remote 이름은 PC 설정에 맞게
+  git am < intro-film-3d.patch     # 커밋째 적용(바이너리 GLB·영상 포함)
+  ```
+- **주의 — 윈도우 PC에 미커밋 작업이 있습니다.** `C:\Users\hk976\Oddo_app`의
+  `91-first-run-app-exploration` 브랜치에 소개/계정/3D 관련 **미커밋** 작업이 있습니다.
+  이번 작업과 같은 파일(`app_introduction_screen.dart` 등)을 건드렸을 가능성이 큽니다.
+  사용자 요청은 "병합하지 말고 이어서 진행"입니다. 그 작업을 덮어쓰거나 지우지 말고,
+  **별도 worktree/브랜치**에 이 패치를 적용하세요. 그 뒤 두 작업을 비교해서 필요한 부분만 가져오세요.
+  (이번 세션에서는 PC 연결이 끊겨 그 작업 내용을 보지 못했습니다.)
+
+## 3. 바뀐 흐름
+
+```
+[처음 설치한 기기] 스플래시 → 소개 영상(27초) → 끝/건너뛰기 → [시작하기]=회원가입 · [이미 계정이 있어요]=로그인
+로그인 후 홈 → "Baseline 측정 필요" 팝업 → (영상 봤으면) 페르소나 설정 → 권한 → 베이스라인 → Big5 → 완료
+(영상을 아직 안 본 계정/기기) 팝업 → 소개 영상 → [시작하기] → 페르소나 설정
+```
+
+- 영상을 끝까지 보거나 건너뛰면 기기 단위로 `intro_film_seen = true`가 기록됩니다(계정과 무관).
+- 영상 하단 27%는 버튼 자리로 비어 있습니다. 로고 장면에서 멈추면 `시작하기` 패널이 올라옵니다.
+- 영상을 열 수 없을 때(테스트 환경, 코덱 오류)는 마지막 장면 이미지와 버튼만 보여 줍니다. 이 경우에도 다음 단계로 막힘 없이 넘어갑니다.
+- 상단 UI: 진행 막대, 소리 켜기/끄기, 건너뛰기. 화면을 탭하면 일시정지/재생됩니다.
+
+## 4. 수정·추가 파일
+
+| 파일 | 내용 |
+|---|---|
+| `lib/features/onboarding/presentation/screens/app_introduction_screen.dart` | **전면 교체.** 샘플 체험·3장 소개 삭제 → `video_player` 영상 화면(`AppIntroductionScreen` 이름은 유지) |
+| `lib/features/auth/presentation/screens/splash_screen.dart` | 비로그인 + 영상 미시청 → `appIntroduction` |
+| `lib/app/router/route_guard.dart` | `AppPath.appIntroduction`을 비로그인 공개 경로에 추가 |
+| `lib/core/storage/local_store.dart` | `kIntroFilmSeen = 'intro_film_seen'` |
+| `lib/core/constants/app_assets.dart` | `introFilm`, `introFilmEndCard`, `mascotModel` 상수 |
+| `lib/features/home/presentation/widgets/baseline_needed_dialog.dart` | `introFilmSeen` 인자 → 봤으면 바로 `personaIntro` |
+| `lib/features/home/presentation/screens/home_screen.dart` | 위 인자를 LocalStore에서 읽어 전달 |
+| `lib/widgets/mascot_3d_preview.dart` | 새 GLB + `animationName: 'Wave'`, `autoPlay: true` |
+| `pubspec.yaml` | `assets/videos/` 등록 |
+| `test/onboarding_introduction_test.dart` | 샘플 체험 테스트 삭제, 영상 대체 화면·시청 기록·로그인 이동 테스트 추가 |
+| `assets/models/tankachu_animated.glb` (신규, 3.7MB) | 체형 전용 11뼈 리그 + 클립 `Idle`(4s) `Wave`(2s) `Nod`(2s) `Hop`(1.2s), 벨벳(sheen) 재질 |
+| `assets/videos/oddo_intro.mp4` (신규) | 720x1280 27초 앱 번들용(아래 5절 상태 참고) |
+| `assets/images/intro_end_card.jpg` (신규) | 영상 마지막 장면, 대체 이미지 |
+| `tools/intro_film/` (신규) | 리그·영상·음악 제작 파이프라인 + README(재렌더 방법) |
+
+기존 `assets/models/oddo_rigged.glb`(Tripo 원본, 4.3MB)는 지우지 않았습니다.
+`tools/intro_film/setup.sh`가 리그의 원본으로 쓰는 파일이기 때문입니다.
+`assets/models/`는 폴더째 번들되므로 앱 크기를 줄이려면 원본을 `tools/`로 옮기는 것을 팀과 상의하세요.
+
+## 5. 완료 / 미완료
+
+완료
+- 원인 분석: Tripo가 Mixamo 인간형 뼈대(손가락 30개)를 씌워서, 어깨 영향이 볼·머리까지 번져 있었습니다.
+- 체형 전용 리그 재스키닝(원본 메쉬·텍스처 유지)과 동작 4종을 만들고, 재로드해서 재생까지 확인했습니다.
+- 27초 9:16 영상, 7장면:
+  0~3.2s 빼꼼 "오늘 하루, 괜찮았어요?" → 3.2~6.6s 감정 단어 "괜찮다고 했지만 사실 잘 모르겠는 날" →
+  6.6~11.2s 통화 화면 "탄카츄랑 3분만 이야기해요" → 11.2~15.6s 감정 읽기 "목소리, 표정, 말까지 / 평소의 나와 비교해요"(상처 58·불안 27·기쁨 15) →
+  15.6~20s 숏폼 줌아웃 "오늘의 나를, 한 발짝 떨어져서" → 20~23.6s 리포트+하트 "그리고 내 마음을 다르게 보는 연습" →
+  23.6~27s 로고 "오또 / 한 발짝 떨어져 보는 나의 감정 일기"
+- 합성 배경음악(96BPM 로파이, 장면 전환 효과음)
+- Flutter 코드 수정과 테스트 갱신
+
+미완료
+- **`flutter analyze` / `flutter test` / APK 빌드를 실행하지 못했습니다.** 클라우드 환경이 pub.dev에 접근할 수 없었습니다. PC에서 반드시 실행하세요.
+  ```bash
+  flutter pub get && dart fix --apply && flutter analyze && flutter test && flutter build apk --debug
+  ```
+  - 확인할 테스트: `onboarding_introduction_test`, `route_smoke_test`, `reference_ui_layout_test(introduction)`, `widget_test`(스플래시 → 이제 소개 영상으로 이동)
+  - `VideoPlayerController.asset` 초기화 실패 시 대체 화면으로 넘어가도록 작성했습니다. 테스트에서 타이머가 남거나 예외가 나면 이 부분을 먼저 보세요.
+- 실기기 확인이 안 됐습니다. 영상 재생, 소리 토글, 건너뛰기 후 로고 장면 정지, 세로로 긴 화면에서 위아래 아이보리 여백, 3D 미리보기의 Wave 재생을 확인해야 합니다.
+- 배경음악은 코드로 합성한 것이라 들어보고 판단해야 합니다. 저작권 문제 없는 음원으로 교체해도 됩니다(`tools/intro_film/music.py`, ffmpeg 명령은 README에).
+- 레퍼런스 링크(캐리)는 클라우드에서 열리지 않았습니다. 일반적인 광고형 랜딩 패턴(훅 질문 → 공감 → 기능 3단계 → 브랜드)으로 구성했으니, 사용자가 레퍼런스와 비교해 피드백할 수 있습니다.
+- 팀 반영(이슈 생성, push, PR)은 사용자 확인 후에만 진행합니다.
+
+## 6. 다음에 할 일 (순서)
+
+1. 윈도우 미커밋 작업을 보존한 채, 별도 브랜치/worktree에 패치를 적용합니다.
+2. 위 검증 명령을 실행하고, 실패하면 수정합니다.
+3. 실기기(SM-S908N)에 설치해서 영상, 버튼, 3D 미리보기를 확인합니다.
+4. 사용자 피드백을 반영합니다(문구, 장면 길이, 음악, 캐릭터 색).
+   - 영상 수정: `tools/intro_film/ad.html`의 `T` 타임라인과 각 장면 블록을 고칩니다. 확인은 `snap.mjs`, 전체 렌더는 `render.mjs`(30fps, 프레임당 약 2~3초), 인코딩은 README의 ffmpeg 명령입니다.
+   - 동작 수정: `export.html`의 `CLIPS` → `node export.mjs`
+5. 3D를 다른 화면에도 쓸 경우(예: 통화 화면 탄카츄 3D화)에는 `Hop`/`Nod` 클립을 활용합니다. 입 모양은 텍스처라 립싱크는 별도 작업이 필요합니다.
+6. 팀 반영: 이슈 → `develop` 기반 브랜치 → PR. `MAC_HANDOFF.md`에 기록합니다(이번 내용은 이 파일에만 있음).
+
+## 7. 주의할 점
+
+- `_docs/`, `_screens/`는 읽기 전용입니다(CLAUDE.md §9).
+- 화면 문구 "평소의 나와 비교해요", 감정 수치(상처 58 등)는 **연출용 예시**입니다. 실제 측정값이 아닙니다.
+- 영상 속 감정 6종 표기는 팀 분류(기쁨·슬픔·분노·불안·상처·당황)에 맞췄습니다.
+- 영상은 BoxFit.contain입니다. 세로로 긴 폰에서는 위아래가 아이보리로 채워집니다. cover로 바꾸면 좌우 글자가 잘립니다.
+- 렌더용 웹 페이지는 로컬 HTTP 서버(`python3 -m http.server 8765`)가 필요합니다. Chrome 경로는 `CHROME_PATH` 환경변수로 지정합니다.

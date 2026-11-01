@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../core/storage/local_store.dart';
 import '../../../../features/auth/application/auth_controller.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
@@ -11,7 +12,7 @@ import '../../../../widgets/app_background.dart';
 import '../../../../widgets/oddo_wordmark.dart';
 
 /// Screen 1 — 스플래시. Shows the brand while restoring the saved session,
-/// then routes to home (auto-login) or the login screen.
+/// then routes to home (auto-login), the first-run intro film, or login.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -34,7 +35,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     ]);
     if (!mounted) return;
     final loggedIn = results[1] != null;
-    context.goNamed(loggedIn ? AppRoute.home : AppRoute.login);
+    // 처음 설치한 기기는 로그인 전에 소개 영상부터 보여 준다.
+    final introSeen = ref
+        .read(localStoreProvider)
+        .getBool(LocalStore.kIntroFilmSeen);
+    context.goNamed(
+      loggedIn
+          ? AppRoute.home
+          : (introSeen ? AppRoute.login : AppRoute.appIntroduction),
+    );
   }
 
   @override
