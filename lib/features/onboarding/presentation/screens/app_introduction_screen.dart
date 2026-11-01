@@ -99,13 +99,16 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
   void _togglePlay() {
     final controller = _controller;
     if (controller == null || _ended) return;
-    controller.value.isPlaying ? controller.pause() : controller.play();
+    unawaited(
+      controller.value.isPlaying ? controller.pause() : controller.play(),
+    );
     setState(() {});
   }
 
   void _toggleMute() {
     setState(() => _muted = !_muted);
-    _controller?.setVolume(_muted ? 0 : 1);
+    final controller = _controller;
+    if (controller != null) unawaited(controller.setVolume(_muted ? 0 : 1));
   }
 
   Future<void> _markSeen() async {
@@ -137,7 +140,9 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
   static Future<void> _safeDispose(VideoPlayerController c) async {
     try {
       await c.dispose();
-    } catch (_) {}
+    } catch (_) {
+      // 초기화에 실패한 컨트롤러는 정리 중에도 예외가 날 수 있어 무시한다.
+    }
   }
 
   @override
