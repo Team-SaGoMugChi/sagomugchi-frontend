@@ -159,7 +159,7 @@ ch2.children.filter(o=>o.material&&o.material.isShadowMaterial).forEach(o=>o.mat
 const cam2=new THREE.PerspectiveCamera(26,580/1210,.05,50);
 
 // ───────────────── 캐릭터 포즈(절차적 애니메이션) ─────────────────
-function reset(b){for(const n in b){b[n].rotation.set(0,0,0);b[n].scale.set(1,1,1);} b.body.position.set(0,.09,0);}
+function reset(b){for(const n in b){const o=b[n];o.rotation.set(0,0,0);o.scale.set(1,1,1);o.userData.p0??=o.position.clone();o.position.copy(o.userData.p0);}}
 function idle(b,t,amp=1){
   b.body.rotation.z+=D(1.6*amp)*Math.sin(t*1.25);
   const br=Math.sin(t*2.3)*.013*amp; b.body.scale.y*=1+br; b.body.scale.x*=1-br*.5; b.body.scale.z*=1-br*.5;
@@ -168,11 +168,13 @@ function idle(b,t,amp=1){
   const tw=(c)=>Math.exp(-Math.pow(((t+c)%2.7)-0.15,2)*120)*D(14); // 주기적 귀 쫑긋
   b.earL.rotation.z+=D(2)*Math.sin(t*1.7)+tw(.3); b.earR.rotation.z-=D(2)*Math.sin(t*1.7+.5)+tw(1.6);
 }
-function wave(b,t,w=1){ // 팔을 옆으로 뻗어 손바닥 흔들기
-  b.armL.rotation.x+=D(-18)*w; b.armL.rotation.z+=D(-92+11*Math.sin(t*8.5))*w;
-  b.armL.scale.y*=lerp(1,1.48,w); b.armL.scale.x*=lerp(1,1.08,w);
-  b.pawL.rotation.z+=D(-58+24*Math.sin(t*8.5+.6))*w;
-  b.head.rotation.z+=D(7)*w; b.body.rotation.z+=D(-3)*w;
+function wave(b,t,w=1){ // 팔을 몸 바깥으로 빼서 볼 옆으로 올리고 손을 흔든다(겨드랑이가 몸에 붙어 보이지 않게)
+  const s=Math.sin(t*8.5);
+  b.armL.position.x+=-.1*w; b.armL.position.z+=.06*w;
+  b.armL.rotation.x+=D(-20)*w; b.armL.rotation.z+=D(-120+7*s)*w;
+  b.armL.scale.x*=lerp(1,1.12,w); b.armL.scale.y*=lerp(1,1.3,w); b.armL.scale.z*=lerp(1,1.12,w);
+  b.pawL.rotation.z+=D(-10+26*Math.sin(t*8.5+.7))*w;
+  b.head.rotation.z+=D(6)*w; b.body.rotation.z+=D(-3)*w;
 }
 function nod(b,t,at){for(const a of at){const p=t-a;if(p>0&&p<.55)b.head.rotation.x+=D(9)*Math.sin(p/.55*Math.PI);}}
 function hug(b,w){ // 하트 끌어안기

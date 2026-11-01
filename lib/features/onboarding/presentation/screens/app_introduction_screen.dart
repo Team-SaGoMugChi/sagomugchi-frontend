@@ -194,61 +194,56 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
           ),
           if (showFilm && !controller.value.isPlaying && !_ended)
             const Center(child: _PlayBadge()),
-          // 상단: 진행 막대 · 소리 · 건너뛰기
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH,
-                AppSpacing.xs,
-                AppSpacing.xs,
-                0,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: showFilm
-                        ? ValueListenableBuilder<VideoPlayerValue>(
-                            valueListenable: controller,
-                            builder: (_, v, _) => _FilmProgress(
-                              value: _ended
-                                  ? 1
-                                  : (v.duration.inMilliseconds == 0
-                                        ? 0
-                                        : v.position.inMilliseconds /
-                                              v.duration.inMilliseconds),
-                            ),
-                          )
-                        : const SizedBox(),
-                  ),
-                  if (showFilm)
-                    IconButton(
-                      tooltip: _muted ? '소리 켜기' : '소리 끄기',
-                      onPressed: _toggleMute,
-                      icon: Icon(
-                        _muted
-                            ? Icons.volume_off_rounded
-                            : Icons.volume_up_rounded,
-                        color: AppColors.primary,
-                      ),
+          // 상단 오른쪽: 건너뛰기만 둔다(영상 내용을 가리지 않게).
+          Align(
+            alignment: Alignment.topRight,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, AppSpacing.xs, AppSpacing.sm, 0),
+                child: AnimatedOpacity(
+                  opacity: _ended ? 0 : 1,
+                  duration: const Duration(milliseconds: 200),
+                  child: TextButton(
+                    onPressed: _ended ? null : _finish,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.surface.withValues(alpha: .85),
+                      shape: const StadiumBorder(),
                     ),
-                  AnimatedOpacity(
-                    opacity: _ended ? 0 : 1,
-                    duration: const Duration(milliseconds: 200),
-                    child: TextButton(
-                      onPressed: _ended ? null : _finish,
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.surface.withValues(
-                          alpha: .85,
-                        ),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text('건너뛰기'),
-                    ),
+                    child: const Text('건너뛰기'),
                   ),
-                ],
+                ),
               ),
             ),
           ),
+          // 하단: 재생/멈춤 · 진행 막대 · 소리 (영상이 끝나면 시작 버튼으로 교체)
+          if (showFilm)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: AnimatedOpacity(
+                opacity: _ended ? 0 : 1,
+                duration: const Duration(milliseconds: 200),
+                child: IgnorePointer(
+                  ignoring: _ended,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.screenH,
+                        0,
+                        AppSpacing.screenH,
+                        AppSpacing.sm,
+                      ),
+                      child: _FilmControls(
+                        controller: controller,
+                        muted: _muted,
+                        onTogglePlay: _togglePlay,
+                        onToggleMute: _toggleMute,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // 하단: 끝나면 시작 버튼(로고 장면의 비어 있는 하단 영역)
           Align(
             alignment: Alignment.bottomCenter,
@@ -276,6 +271,69 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
       ),
     );
   }
+}
+
+/// 영상 하단 조작 바: 재생/멈춤 · 진행 막대 · 소리.
+class _FilmControls extends StatelessWidget {
+  const _FilmControls({
+    required this.controller,
+    required this.muted,
+    required this.onTogglePlay,
+    required this.onToggleMute,
+  });
+
+  final VideoPlayerController controller;
+  final bool muted;
+  final VoidCallback onTogglePlay;
+  final VoidCallback onToggleMute;
+
+  @override
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: controller,
+        builder: (_, v, _) {
+          final total = v.duration.inMilliseconds;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: .88),
+              borderRadius: AppRadius.chip,
+              border: Border.all(color: AppColors.primarySoftBorder),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: v.isPlaying ? '일시정지' : '재생',
+                    onPressed: onTogglePlay,
+                    icon: Icon(
+                      v.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  Expanded(
+                    child: _FilmProgress(
+                      value: total == 0
+                          ? 0
+                          : v.position.inMilliseconds / total,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: muted ? '소리 켜기' : '소리 끄기',
+                    onPressed: onToggleMute,
+                    icon: Icon(
+                      muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
 }
 
 class _FilmProgress extends StatelessWidget {

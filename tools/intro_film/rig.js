@@ -24,7 +24,7 @@ function label(orig, v){
   const isArm = /Arm|Hand/.test(n) && !/Shoulder/.test(n);
   if (isArm) return (v.y < 0.205 ? 'paw' : 'arm') + side;
   if (/Shoulder/.test(n)) {
-    if (Math.abs(v.x) > 0.205 && v.y < 0.33 && v.y > 0.15) return (v.y < 0.205 ? 'paw':'arm') + side;
+    if (Math.abs(v.x) > 0.195 && v.y < 0.33 && v.y > 0.15) return (v.y < 0.205 ? 'paw':'arm') + side;
     return v.y > 0.305 ? 'head' : 'body';
   }
   if (/Foot|Toe|Leg$|LeftLeg|RightLeg/.test(n) && !/UpLeg/.test(n)) return 'leg' + side;
@@ -36,7 +36,7 @@ function label(orig, v){
   return v.y > 0.305 ? 'head' : 'body';
 }
 
-export async function loadRig(url = 'oddo_rigged.glb', {smooth = 7} = {}) {
+export async function loadRig(url = 'oddo_rigged.glb', {smooth = 7, armSmooth = 1} = {}) {
   const g = await new GLTFLoader().loadAsync(url);
   g.scene.updateMatrixWorld(true);
   let src; g.scene.traverse(o => { if (o.isSkinnedMesh) src = o; });
@@ -64,8 +64,14 @@ export async function loadRig(url = 'oddo_rigged.glb', {smooth = 7} = {}) {
   const B = BONE_NAMES.length, bi = Object.fromEntries(BONE_NAMES.map((n, i) => [n, i]));
   let W = new Float32Array(M * B);
   for (let i = 0; i < N; i++) W[wid[i] * B + bi[labels[i]]] = 1;
-  // 경계에서만 부드럽게 섞이도록 이웃 평균(라플라시안) 반복. 머리-몸 경계는 덜 섞는다.
+  const W0 = W.slice();
+  const ARM = ['armL','pawL','armR','pawR'].map(n => bi[n]);
+  let W2 = armSmooth === 0 ? W.slice() : null;
+  // 경계에서만 부드럽게 섞이도록 이웃 평균(라플라시안) 반복.
+  // 팔은 armSmooth 번만 섞어 경계를 좁게 유지한다(넓게 섞으면 팔을 들 때
+  // 겨드랑이 살이 같이 늘어나 팔이 몸에 붙은 채로 흔들리는 '물갈퀴'가 생김).
   for (let it = 0; it < smooth; it++) {
+    if (it === armSmooth) W2 = W.slice();
     const nw = new Float32Array(M * B);
     for (let m = 0; m < M; m++) {
       const nb = adj[m]; const self = 1.0;
@@ -75,6 +81,16 @@ export async function loadRig(url = 'oddo_rigged.glb', {smooth = 7} = {}) {
       for (let b = 0; b < B; b++) nw[m*B+b] /= s;
     }
     W = nw;
+  }
+  if (!W2) W2 = W.slice();
+  for (let m = 0; m < M; m++) {
+    let armS = 0, restS = 0;
+    for (const b of ARM) armS += W2[m*B+b];
+    for (let b = 0; b < B; b++) if (!ARM.includes(b)) restS += W[m*B+b];
+    for (let b = 0; b < B; b++) {
+      if (ARM.includes(b)) W[m*B+b] = W2[m*B+b];
+      else W[m*B+b] = restS > 0 ? W[m*B+b] / restS * (1 - armS) : 0;
+    }
   }
   // 정점별 상위 4개 가중치
   const skinIndex = new Uint16Array(N * 4), skinWeight = new Float32Array(N * 4);
