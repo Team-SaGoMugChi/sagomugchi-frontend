@@ -152,3 +152,4 @@
 - 디버거 연결 종료 후에도 adb 연결 및 앱 프로세스 실행 확인. 외관·음질 최종 사용자 확인 미완료.
 - 이슈 #100 생성, 팀 규칙에 맞는 100-intro-film-3d 브랜치로 PR 게시 준비. develop 병합은 하지 않음.
 
+- PR 게시 완료: https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/101 (base develop). develop 병합하지 않음.
