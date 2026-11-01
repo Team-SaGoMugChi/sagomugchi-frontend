@@ -18,11 +18,13 @@
 - 이 작업은 Claude 클라우드 작업공간에서 했습니다. **한규님 PC에는 아직 아무것도 반영되지 않았습니다.**
 - 기준: 팀 프론트 `develop` `56206de`(PR #99 병합)
 - 로컬 브랜치: `intro-film-3d` (팀 원격에 **push 안 함**, PR 없음, 이슈 없음)
-- 함께 전달하는 `intro-film-3d.patch`를 PC의 프론트 레포에 적용하세요.
+- 로컬 커밋 2개: `4ddd182`(코드·GLB·도구·문서), 그다음 영상 에셋 커밋. 전달한 패치 2개를 **순서대로** 적용하세요.
   ```bash
   git fetch teamfront && git switch -c intro-film-3d teamfront/develop   # remote 이름은 PC 설정에 맞게
-  git am < intro-film-3d.patch     # 커밋째 적용(바이너리 GLB·영상 포함)
+  git am < intro-film-3d-1-code.patch
+  git am < intro-film-3d-2-video.patch
   ```
+- 영상 원본(1080x1920, 11.6MB) `oddo_intro_1080.mp4`는 발표·홍보용으로 따로 전달했습니다. 레포에는 720p(2.2MB)만 넣었습니다.
 - **주의 — 윈도우 PC에 미커밋 작업이 있습니다.** `C:\Users\hk976\Oddo_app`의
   `91-first-run-app-exploration` 브랜치에 소개/계정/3D 관련 **미커밋** 작업이 있습니다.
   이번 작업과 같은 파일(`app_introduction_screen.dart` 등)을 건드렸을 가능성이 큽니다.
@@ -58,7 +60,7 @@
 | `pubspec.yaml` | `assets/videos/` 등록 |
 | `test/onboarding_introduction_test.dart` | 샘플 체험 테스트 삭제, 영상 대체 화면·시청 기록·로그인 이동 테스트 추가 |
 | `assets/models/tankachu_animated.glb` (신규, 3.7MB) | 체형 전용 11뼈 리그 + 클립 `Idle`(4s) `Wave`(2s) `Nod`(2s) `Hop`(1.2s), 벨벳(sheen) 재질 |
-| `assets/videos/oddo_intro.mp4` (신규) | 720x1280 27초 앱 번들용(아래 5절 상태 참고) |
+| `assets/videos/oddo_intro.mp4` (신규, 2.2MB) | 720x1280 27초, H.264 + AAC, 앱 번들용 |
 | `assets/images/intro_end_card.jpg` (신규) | 영상 마지막 장면, 대체 이미지 |
 | `tools/intro_film/` (신규) | 리그·영상·음악 제작 파이프라인 + README(재렌더 방법) |
 
