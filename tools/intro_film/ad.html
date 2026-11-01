@@ -48,11 +48,11 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--ivory);fon
 .film{position:absolute;width:640px;height:1138px;border-radius:56px;overflow:hidden;box-shadow:0 50px 110px rgba(48,40,35,.30);background:#000}
 .film>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .film canvas{position:absolute;inset:0;width:100%;height:100%}
-.film .cap{position:absolute;left:44px;right:44px;bottom:150px;text-align:center;color:#fff;font-weight:700;font-size:38px;line-height:1.45;letter-spacing:-.5px;text-shadow:0 2px 14px rgba(0,0,0,.55)}
+.film .cap{position:absolute;left:44px;right:44px;bottom:140px;text-align:center;color:#fff;font-weight:700;font-size:36px;line-height:1.45;letter-spacing:-.5px;padding:18px 10px;border-radius:24px;background:rgba(48,40,35,.55)}
 .film .pb{position:absolute;left:44px;right:44px;bottom:84px;height:8px;border-radius:4px;background:rgba(255,255,255,.35)}
 .film .pb b{display:block;height:100%;border-radius:4px;background:#fff}
 .film .tag{position:absolute;top:44px;left:44px;padding:12px 24px;border-radius:999px;background:rgba(255,255,255,.92);font-weight:800;font-size:28px;color:var(--brown)}
-.vignette{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 40%,transparent 60%,rgba(0,0,0,.35))}
+.vignette{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(120% 70% at 50% 40%,transparent 62%,rgba(60,40,28,.22))}
 .rep{left:150px;width:780px;padding:46px 50px}
 .rep .k{font-size:30px;font-weight:800;color:var(--brown);display:flex;align-items:center;gap:12px}
 .rep .k i{width:12px;height:12px;border-radius:50%;background:var(--orange);display:block}
@@ -155,9 +155,28 @@ heart.castShadow=true;ch.add(heart);
 const R2=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
 R2.setPixelRatio(1);R2.outputColorSpace=THREE.SRGBColorSpace;R2.toneMapping=THREE.ACESFilmicToneMapping;R2.setClearColor(0,0);
 const S2=new THREE.Scene();studio(S2,R2,{bg:null,ground:false});S2.environmentIntensity=.45;
+// 숏폼 장면 무대: 바닥·벽·러그가 있는 3D 공간(캐릭터가 바닥에 서서 그림자를 드리운 채 물러난다)
+R2.shadowMap.enabled=true;R2.shadowMap.type=THREE.VSMShadowMap;
+const stage=new THREE.Group();stage.visible=false;S2.add(stage);
+{const floor=new THREE.Mesh(new THREE.PlaneGeometry(14,14),new THREE.MeshStandardMaterial({color:'#e3cfba',roughness:.95}));
+ floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;stage.add(floor);
+ const wall=new THREE.Mesh(new THREE.PlaneGeometry(14,7),new THREE.MeshStandardMaterial({color:'#f1e2d2',roughness:1}));
+ wall.position.set(0,3.5,-2.4);wall.receiveShadow=true;stage.add(wall);
+ const base=new THREE.Mesh(new THREE.BoxGeometry(14,.12,.04),new THREE.MeshStandardMaterial({color:'#d6bea6',roughness:.9}));
+ base.position.set(0,.06,-2.38);stage.add(base);
+ const rug=new THREE.Mesh(new THREE.CircleGeometry(1.05,64),new THREE.MeshStandardMaterial({color:'#d9b99c',roughness:1}));
+ rug.rotation.x=-Math.PI/2;rug.position.set(0,.002,-.25);rug.scale.set(1,.72,1);rug.receiveShadow=true;stage.add(rug);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.95,1.0,64),new THREE.MeshStandardMaterial({color:'#c9a688',roughness:1}));
+ ring.rotation.x=-Math.PI/2;ring.position.set(0,.003,-.25);ring.scale.set(1,.72,1);stage.add(ring);
+ // 창문 빛(벽에 비친 사각 빛 두 개)
+ for(const x of [-.75,.75]){const win=new THREE.Mesh(new THREE.PlaneGeometry(.9,1.3),new THREE.MeshBasicMaterial({color:'#fff6ea',transparent:true,opacity:.55}));
+  win.position.set(x+.2,1.75,-2.39);win.rotation.z=.06;stage.add(win);}
+}
 const ch2=SU.clone(ch);ch2.remove(ch2.children.find(o=>o.isMesh&&o.geometry===hg));S2.add(ch2);
+ch2.traverse(o=>{if(o.isMesh)o.castShadow=true;});
 const b2={};ch2.traverse(o=>{if(o.isBone)b2[o.name]=o;if(o.isSkinnedMesh){o.material=mat;}});
 ch2.children.filter(o=>o.material&&o.material.isShadowMaterial).forEach(o=>o.material=new THREE.ShadowMaterial({opacity:.25}));
+const sh2=ch2.children.find(o=>o.material&&o.material.isShadowMaterial);
 const cam2=new THREE.PerspectiveCamera(26,580/1210,.05,50);
 
 // ───────────────── 캐릭터 포즈(절차적 애니메이션) ─────────────────
@@ -225,7 +244,7 @@ const resNums=[...res.querySelectorAll('span[data-v]')], resBars=[...res.querySe
 // S5
 const p5=pill('숏폼 일기',230);
 const s5=headline([{text:'오늘의 나를,'},{text:'한 발짝 떨어져서',em:true}],320,{size:86});
-const film=add(`<div class="film" style="left:220px;top:640px"><img src="call_room_night.jpg"><div class="vignette"></div><div class="tag">10월 31일의 나</div>
+const film=add(`<div class="film" style="left:220px;top:640px;background:#f1e2d2"><div class="vignette"></div><div class="tag">10월 31일의 나</div>
  <div class="cap">괜찮은 척 웃었지만,<br>사실 조금 서운했던 하루.</div><div class="pb"><b></b></div></div>`);
 const filmPb=film.querySelector('.pb b'), filmCap=film.querySelector('.cap');
 // S6
@@ -311,7 +330,7 @@ function render(t){
     reset(b2); idle(b2,tt,1.2); nod(b2,tt,[1.1,1.9,3.8,4.6]);
     b2.head.rotation.z+=D(kf(tt,[[0,0],[1.2,-6],[2.6,5],[3.6,-3]]));
     if(tt>3.3) b2.head.rotation.x+=D(-5)*Math.min(1,(tt-3.3)*2);
-    X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t));
+    X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t)); stage.visible=false; sh2.visible=true;
     ch2.position.set(0,0,0); ch2.scale.setScalar(1); ch2.rotation.y=0;
     cam2.aspect=580/1210; cam2.fov=26; cam2.updateProjectionMatrix(); cam2.position.set(0,.62,3.7); cam2.lookAt(0,.5,0);
     R2.render(S2,cam2);
@@ -336,7 +355,7 @@ function render(t){
     css(filmPb,{width:(clamp((tt-.2)/4.2)*100)+'%'});
     if(!film.contains(R2.domElement)) film.insertBefore(R2.domElement,film.children[1]);
     R2.setSize(640,1138,false);
-    reset(b2); idle(b2,tt,.7); X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t));
+    reset(b2); idle(b2,tt,.7); X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t)); stage.visible=true; sh2.visible=false;
     // 뒤로 크게 한 걸음: 웅크림 → 뒤로 폴짝(한쪽 발을 뒤로 뻗음) → 착지 찌그러짐 → 살짝 한 번 더 물러남
     const hop=prog(tt,.45,1.15,E.io), arc=Math.sin(hop*Math.PI);
     const hop2=prog(tt,1.35,1.75,E.io), arc2=Math.sin(hop2*Math.PI);

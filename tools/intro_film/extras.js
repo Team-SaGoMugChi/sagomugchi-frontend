@@ -66,23 +66,23 @@ function makeExpressionCanvases(base) {
   const [mx, my] = toPx(0, 0.501);
   // ── 미소 입(ω) ──
   const smile = mk(); { const g = smile.getContext('2d'); g.drawImage(base, 0, 0);
-    eraseWithFur(g, base, mx, my, 92, 64, 180, 0);
-    line(g, 10);
+    eraseWithFur(g, base, mx, my + 2, 104, 72, 190, 0);
+    line(g, 11);
     g.beginPath(); g.moveTo(nx, ny - 4); g.lineTo(nx, ny + 16); g.stroke();
-    g.beginPath(); g.moveTo(nx - 64, ny + 6); g.quadraticCurveTo(nx - 34, ny + 66, nx, ny + 16);
-    g.quadraticCurveTo(nx + 34, ny + 66, nx + 64, ny + 6); g.stroke();
-    feather(smile, [[mx, my + 6, 100, 74]]);
+    g.beginPath(); g.moveTo(nx - 62, ny + 2); g.quadraticCurveTo(nx - 34, ny + 64, nx, ny + 18);
+    g.quadraticCurveTo(nx + 34, ny + 64, nx + 62, ny + 2); g.stroke();
+    feather(smile, [[mx, my + 4, 116, 84]]);
   }
   const eyeC = [toPx(-0.12, 0.585), toPx(0.12, 0.585)];
   const eyes = (kind) => { const c = mk(); const g = c.getContext('2d'); g.drawImage(base, 0, 0);
     for (const [ex, ey] of eyeC) {
       eraseWithFur(g, base, ex, ey, 104, 118, ex < FW / 2 ? 120 : -120, -230);
-      line(g, 12); g.beginPath();
-      if (kind === 'blink') { g.moveTo(ex - 50, ey + 4); g.quadraticCurveTo(ex, ey + 34, ex + 50, ey + 4); }
-      else { g.moveTo(ex - 50, ey + 18); g.quadraticCurveTo(ex, ey - 34, ex + 50, ey + 18); }
+      line(g, kind === 'blink' ? 15 : 18); g.beginPath();
+      if (kind === 'blink') { g.moveTo(ex - 58, ey + 8); g.quadraticCurveTo(ex, ey + 42, ex + 58, ey + 8); }
+      else { g.moveTo(ex - 62, ey + 24); g.quadraticCurveTo(ex, ey - 50, ex + 62, ey + 24); }
       g.stroke();
     }
-    feather(c, eyeC.map(([x, y]) => [x, y, 112, 126]));
+    feather(c, eyeC.map(([x, y]) => [x, y, 116, 130]));
     return c; };
   return {smile, blink: eyes('blink'), happy: eyes('happy')};
 }
@@ -95,8 +95,15 @@ function decal(srcMesh, canvas, center, size, refMat, flatten = 0) {
   const v0 = (center[1] - size[1] / 2 - FACE.y0) / (FACE.y1 - FACE.y0), v1 = (center[1] + size[1] / 2 - FACE.y0) / (FACE.y1 - FACE.y0);
   for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * (u1 - u0), v0 + uv.getY(i) * (v1 - v0));
   if (flatten > 0) { // 눈의 볼록한 모양이 비치지 않게 노멀을 정면 쪽으로 평탄화
-    const n = geo.attributes.normal, f = new THREE.Vector3(0, 0.12, 1).normalize(), v = new THREE.Vector3();
-    for (let i = 0; i < n.count; i++) { v.fromBufferAttribute(n, i).lerp(f, flatten).normalize(); n.setXYZ(i, v.x, v.y, v.z); }
+    // 눈동자 볼록한 부분 안쪽만 평탄화하고 바깥으로 갈수록 원래 노멀로 되돌려 경계가 보이지 않게
+    const n = geo.attributes.normal, P = geo.attributes.position, f = new THREE.Vector3(0, 0.12, 1).normalize(), v = new THREE.Vector3();
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    for (let i = 0; i < n.count; i++) {
+      const x = P.getX(i), y = P.getY(i);
+      const d = Math.min(Math.hypot(x + 0.12, (y - 0.585) * 0.9), Math.hypot(x - 0.12, (y - 0.585) * 0.9));
+      const k = flatten * (1 - ss(0.03, 0.058, d));
+      v.fromBufferAttribute(n, i).lerp(f, k).normalize(); n.setXYZ(i, v.x, v.y, v.z);
+    }
   }
   const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const mat = refMat.clone(); mat.map = tex; mat.transparent = true; mat.opacity = 0; mat.depthWrite = false;
@@ -122,7 +129,7 @@ export function addExtras(rig, renderer, mat) {
     const d = decal(src, canvas, center, size, mat, flatten); d.name = name;
     d.geometry.applyMatrix4(headInv); rig.bones.head.add(d); return d;
   };
-  const dSmile = make(cv.smile, [0, 0.50, 0.3], [0.12, 0.09, 0.2], 'exprSmile', 0.3);
+  const dSmile = make(cv.smile, [0, 0.50, 0.3], [0.13, 0.095, 0.2], 'exprSmile', 0);
   const dBlink = make(cv.blink, [0, 0.585, 0.3], [0.40, 0.15, 0.2], 'exprBlink', 0.85);
   const dHappy = make(cv.happy, [0, 0.585, 0.3], [0.40, 0.15, 0.2], 'exprHappy', 0.85);
 
@@ -144,7 +151,7 @@ export function addExtras(rig, renderer, mat) {
   }
   // 몸통 뼈 기준 어깨 위치(정지 자세 월드 -0.19, 0.29, 0.03)
   const bodyInv = rig.bones.body.matrixWorld.clone().invert();
-  shoulder.position.copy(new THREE.Vector3(-0.2, 0.28, 0.12).applyMatrix4(bodyInv));
+  shoulder.position.copy(new THREE.Vector3(-0.2, 0.28, 0.15).applyMatrix4(bodyInv));
   shoulder.visible = false; rig.bones.body.add(shoulder);
 
   const find = (root, name) => { let r; root.traverse(o => { if (o.name === name) r = o; }); return r; };
@@ -152,9 +159,10 @@ export function addExtras(rig, renderer, mat) {
     canvases: {base, ...cv},
     /** smile/happy/blink: 0..1 */
     expr(root, {smile = 0, happy = 0, blink = 0} = {}) {
-      find(root, 'exprSmile').material.opacity = smile;
-      find(root, 'exprHappy').material.opacity = happy * (1 - blink);
-      find(root, 'exprBlink').material.opacity = blink;
+      const on = (v) => (v >= 0.5 ? 1 : 0);
+      find(root, 'exprSmile').material.opacity = on(smile);
+      find(root, 'exprHappy').material.opacity = on(happy) * (1 - on(blink));
+      find(root, 'exprBlink').material.opacity = on(blink);
     },
     /** w: 0..1 팔 올림 정도, t: 시간(흔들기) */
     waveArm(root, bones, w, t) {
@@ -163,7 +171,7 @@ export function addExtras(rig, renderer, mat) {
       // 원본 왼팔은 몸 안으로 접어 넣는다
       bones.armL.scale.multiplyScalar(lerp(1, 0.04, w)); bones.armL.position.x += 0.05 * w;
       const s = Math.sin(t * 8.5);
-      p.rotation.set(THREE.MathUtils.degToRad(14 * w), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(lerp(160, 27 + 8 * s, w)));
+      p.rotation.set(THREE.MathUtils.degToRad(42 * w), THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(lerp(160, 22 + 6 * s, w)));
       p.scale.setScalar(Math.min(1, w * 1.6));
     },
   };
