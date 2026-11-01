@@ -5,10 +5,15 @@ import * as THREE from 'three';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {loadRig, BONE_NAMES} from './rig.js';
 import {velvet} from './look.js';
+import {addExtras} from './extras.js';
 const D=THREE.MathUtils.degToRad, TAU=Math.PI*2;
 const rig=await loadRig(); const b=rig.bones;
 const m=velvet(rig.material); m.color.set('#c7a896'); rig.mesh.material=m;
-function reset(){for(const n of BONE_NAMES){const o=b[n];o.rotation.set(0,0,0);o.scale.set(1,1,1);o.userData.p0??=o.position.clone();o.position.copy(o.userData.p0);}}
+// 인사용 분리 팔(원본 팔은 몸에 붙어 있어 들면 살이 늘어남). 표정 데칼은 앱 모델에서는 제외.
+const bakeR=new THREE.WebGLRenderer(); const X=addExtras(rig,bakeR,m);
+const drop=[]; rig.group.traverse(o=>{if(o.name.startsWith('expr'))drop.push(o);}); drop.forEach(o=>o.parent.remove(o));
+let pivot; rig.group.traverse(o=>{if(o.name==='waveArmPivot')pivot=o;});
+function reset(){pivot.visible=true;pivot.scale.setScalar(1e-4);pivot.rotation.set(0,0,0);for(const n of BONE_NAMES){const o=b[n];o.rotation.set(0,0,0);o.scale.set(1,1,1);o.userData.p0??=o.position.clone();o.position.copy(o.userData.p0);}}
 function idle(t,P,amp=1){const w=TAU/P;
   b.body.rotation.z+=D(1.6*amp)*Math.sin(w*t);
   const br=Math.sin(2*w*t)*.013*amp; b.body.scale.set(1-br*.5,1+br,1-br*.5);
@@ -18,10 +23,8 @@ function idle(t,P,amp=1){const w=TAU/P;
   b.earL.rotation.z+=D(2)*Math.sin(2*w*t)+tw; b.earR.rotation.z-=D(2)*Math.sin(2*w*t+.5)+tw*.6;}
 const CLIPS={
   Idle:{P:4,f:t=>idle(t,4)},
-  Wave:{P:2,f:t=>{idle(t,2,.6);const s=Math.sin(TAU*1.5*t);
-    b.armL.position.x+=-.1; b.armL.position.z+=.06;
-    b.armL.rotation.x+=D(-20); b.armL.rotation.z+=D(-120+7*s); b.armL.scale.set(1.12,1.3,1.12);
-    b.pawL.rotation.z+=D(-10+26*Math.sin(TAU*1.5*t+.7)); b.head.rotation.z+=D(6); b.body.rotation.z+=D(-3);}},
+  Wave:{P:2,f:t=>{idle(t,2,.6); X.waveArm(rig.group,b,1,TAU*1.5*t/8.5); pivot.visible=true;
+    b.head.rotation.z+=D(6); b.body.rotation.z+=D(-3);}},
   Nod:{P:2,f:t=>{idle(t,2,.6);for(const a of [.2,.85]){const p=t-a;if(p>0&&p<.55)b.head.rotation.x+=D(10)*Math.sin(p/.55*Math.PI);} b.head.rotation.z+=D(4);}},
   Hop:{P:1.2,f:t=>{const p=t/1.2; const air=p>.2&&p<.75?Math.sin((p-.2)/.55*Math.PI):0;
     const squash=p<.2?Math.sin(p/.2*Math.PI)*.08:(p>.75?Math.sin((p-.75)/.25*Math.PI)*.07:-air*.04);
@@ -32,12 +35,13 @@ const CLIPS={
 const FPS=30, clips=[];
 for(const [name,{P,f}] of Object.entries(CLIPS)){
   const n=Math.round(P*FPS)+1, times=[...Array(n)].map((_,i)=>i/FPS);
-  const data={}; for(const bn of BONE_NAMES) data[bn]={q:[],s:[],p:[]};
-  for(const t of times){reset();f(t%P);for(const bn of BONE_NAMES){const o=b[bn];data[bn].q.push(...o.quaternion.toArray());data[bn].s.push(...o.scale.toArray());data[bn].p.push(...o.position.toArray());}}
+  const data={}; for(const bn of BONE_NAMES) data[bn]={q:[],s:[],p:[]}; const pv={q:[],s:[]};
+  for(const t of times){reset();f(t%P);for(const bn of BONE_NAMES){const o=b[bn];data[bn].q.push(...o.quaternion.toArray());data[bn].s.push(...o.scale.toArray());data[bn].p.push(...o.position.toArray());} pv.q.push(...pivot.quaternion.toArray()); pv.s.push(...pivot.scale.toArray());}
   const tracks=[];
   for(const bn of BONE_NAMES){tracks.push(new THREE.QuaternionKeyframeTrack(`${bn}.quaternion`,times,data[bn].q));
     if(data[bn].s.some(v=>Math.abs(v-1)>1e-4)) tracks.push(new THREE.VectorKeyframeTrack(`${bn}.scale`,times,data[bn].s));
     if(bn==='body'||bn==='root'||bn==='armL') tracks.push(new THREE.VectorKeyframeTrack(`${bn}.position`,times,data[bn].p));}
+  if(name==='Wave'){tracks.push(new THREE.QuaternionKeyframeTrack('waveArmPivot.quaternion',times,pv.q));tracks.push(new THREE.VectorKeyframeTrack('waveArmPivot.scale',times,pv.s));}
   clips.push(new THREE.AnimationClip(name,P,tracks));
 }
 reset();

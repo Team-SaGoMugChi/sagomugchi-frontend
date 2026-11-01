@@ -14,7 +14,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--ivory);fon
 .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.75}
 #g3d{position:absolute;inset:0;z-index:5}
 .layer{position:absolute;inset:0;z-index:10}
-.head{position:absolute;left:96px;right:96px;text-align:left}
+.head{position:absolute;left:150px;right:150px;text-align:left}
 .h{font-weight:800;font-size:104px;line-height:1.16;letter-spacing:-4px;white-space:pre}
 .h .c{display:inline-block;will-change:transform,opacity,filter}
 .h em{font-style:normal;color:var(--brown);position:relative}
@@ -36,13 +36,13 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--ivory);fon
 .sub small{display:block;font-size:24px;color:var(--brown);font-weight:700;margin-bottom:8px}
 .wave{position:absolute;left:150px;right:150px;bottom:80px;border-radius:44px;background:rgba(29,24,21,.55);z-index:3;display:flex;justify-content:center;align-items:center;gap:9px;height:80px}
 .wave span{width:10px;border-radius:6px;background:#fff;display:block}
-.mod{position:absolute;width:888px;left:96px;height:170px;display:flex;align-items:center;gap:30px;padding:0 40px}
+.mod{position:absolute;width:780px;left:150px;height:170px;display:flex;align-items:center;gap:30px;padding:0 40px}
 .mod .ic{width:96px;height:96px;border-radius:30px;background:var(--soft);display:flex;align-items:center;justify-content:center;flex:none}
 .mod .t1{font-size:30px;font-weight:700;color:var(--muted)}
 .mod .t2{font-size:40px;font-weight:800;color:var(--ink);letter-spacing:-1px;margin-top:4px}
 .bar{height:26px;border-radius:13px;background:var(--soft);overflow:hidden;margin-top:14px}
 .bar b{display:block;height:100%;border-radius:13px}
-.res{left:96px;width:888px;padding:52px 56px}
+.res{left:150px;width:780px;padding:48px 50px}
 .res .lb{display:flex;justify-content:space-between;font-weight:800;font-size:40px;margin-top:34px;letter-spacing:-1px}
 .res .lb span:last-child{color:var(--brown)}
 .film{position:absolute;width:640px;height:1138px;border-radius:56px;overflow:hidden;box-shadow:0 50px 110px rgba(48,40,35,.30);background:#000}
@@ -53,7 +53,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--ivory);fon
 .film .pb b{display:block;height:100%;border-radius:4px;background:#fff}
 .film .tag{position:absolute;top:44px;left:44px;padding:12px 24px;border-radius:999px;background:rgba(255,255,255,.92);font-weight:800;font-size:28px;color:var(--brown)}
 .vignette{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 40%,transparent 60%,rgba(0,0,0,.35))}
-.rep{left:96px;width:888px;padding:50px 54px}
+.rep{left:150px;width:780px;padding:46px 50px}
 .rep .k{font-size:30px;font-weight:800;color:var(--brown);display:flex;align-items:center;gap:12px}
 .rep .k i{width:12px;height:12px;border-radius:50%;background:var(--orange);display:block}
 .rep .v{font-size:42px;font-weight:700;line-height:1.42;letter-spacing:-1px;margin-top:14px;color:var(--ink)}
@@ -80,6 +80,7 @@ import * as THREE from 'three';
 import * as SU from 'three/addons/utils/SkeletonUtils.js';
 import {loadRig} from './rig.js';
 import {velvet, studio} from './look.js';
+import {addExtras} from './extras.js';
 
 // ───────────────── 시간 도구 ─────────────────
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
@@ -121,7 +122,7 @@ function headline(lines,top,{size=104,align='left'}={}){
   };
   return e;
 }
-function pill(text,top,left=96){return add(`<div class="pill" style="position:absolute;top:${top}px;left:${left}px"><i></i>${text}</div>`);}
+function pill(text,top,left=150){return add(`<div class="pill" style="position:absolute;top:${top}px;left:${left}px"><i></i>${text}</div>`);}
 function popIn(e,t,a,b,{dy=40,sc=.92}={}){const p=prog(t,a,a+.55,E.back);const q=b?prog(t,b,b+.35,E.in):0;
   css(e,{opacity:clamp(p*2)*(1-q),transform:`translateY(${(1-p)*dy-q*30}px) scale(${lerp(sc,1,p)-q*.04})`,display:(t<a-.05||(b&&t>b+.5))?'none':''});}
 
@@ -140,6 +141,7 @@ const S=new THREE.Scene();studio(S,R,{bg:null,ground:false});
 const cam=new THREE.PerspectiveCamera(24,1080/1920,.05,50);
 const rig=await loadRig();const mat=velvet(rig.material);mat.color.set('#c7a896');
 rig.mesh.material=mat;
+const X=addExtras(rig,R,mat);
 const ch=rig.group; S.add(ch);
 const shadow=new THREE.Mesh(new THREE.PlaneGeometry(6,6),new THREE.ShadowMaterial({opacity:.17}));shadow.rotation.x=-Math.PI/2;shadow.receiveShadow=true;ch.add(shadow);
 const bones=rig.bones;
@@ -182,16 +184,25 @@ function hug(b,w){ // 하트 끌어안기
   b.armR.rotation.x+=D(-62)*w; b.armR.rotation.z+=D(-32)*w; b.armR.scale.y*=lerp(1,1.25,w);
 }
 
+// ───────────────── 표정(미소·^^눈·깜빡임) 시간표 ─────────────────
+const BLINKS=[1.25,4.3,6.95,9.1,12.6,14.6,17.0,19.4,21.4,24.05,26.3];
+function exprAt(t){
+  let blink=0; for(const b of BLINKS){const d=Math.abs(t-b); if(d<.09) blink=Math.max(blink,1-d/.09);}
+  const smile=clamp(kf(t,[[0,0],[1.9,0],[2.3,.85],[3.0,.85],[3.4,0],[7.5,0],[7.8,1],[9.6,1],[9.9,.3],[14.2,.3],[14.5,1],[15.3,1],[15.6,0],[20.9,0],[21.2,1],[27,1]]));
+  const happy=clamp(kf(t,[[0,0],[21.3,0],[21.55,1],[22.6,1],[22.85,0],[24.25,0],[24.5,1],[25.7,1],[25.95,0],[27,0]]));
+  return {smile,happy,blink};
+}
+
 // ───────────────── 장면 요소 ─────────────────
 // S1
 const s1=headline([{text:'오늘 하루,'},{text:'괜찮았어요?',em:true}],330,{size:124});
 // S2
-const s2=headline([{text:'괜찮다고 했지만'},{text:'사실 잘 모르겠는 날',em:true}],250,{size:96});
-const words=[['피곤함',70,720,.9],['서운함',740,650,.35],['답답함',40,1040,.2],['불안',850,960,.8],['외로움',780,1310,.55],['짜증',70,1380,.7],['무기력',400,560,.08],['걱정',830,1620,.95]];
+const s2=headline([{text:'괜찮다고 했지만'},{text:'사실 잘 모르겠는 날',em:true}],250,{size:82});
+const words=[['피곤함',150,740,.9],['서운함',690,660,.35],['답답함',140,1060,.2],['불안',760,980,.8],['외로움',700,1320,.55],['짜증',160,1400,.7],['무기력',420,560,.08],['걱정',720,1620,.95]];
 const chips=words.map(([w,x,y,z])=>{const e=add(`<div class="chip">${w}</div>`);css(e,{left:x+'px',top:y+'px'});return {e,x,y,z};});
 // S3
 const p3=pill('말하기',230);
-const s3=headline([{text:'탄카츄랑'},{text:'3분만 이야기해요',em:true}],320,{size:96});
+const s3=headline([{text:'탄카츄랑'},{text:'3분만 이야기해요',em:true}],320,{size:86});
 const phone=add(`<div class="phone" style="left:230px;top:610px"><div class="screen"><img src="call_room_day.jpg"><div class="notch"></div>
  <div class="status"><b></b>탄카츄 · 02:41</div><div class="pip"><div class="hd"></div><div class="bd"></div></div>
  <div class="sub"><small>탄카츄</small><span id="q"></span></div><div class="wave">${'<span></span>'.repeat(18)}</div></div></div>`);
@@ -199,7 +210,7 @@ const scr=phone.querySelector('.screen'); const qEl=phone.querySelector('#q'); c
 const QTXT='오늘 하루 중에 제일 마음에 남은 순간은 뭐였어?';
 // S4
 const p4=pill('감정 읽기',230);
-const s4=headline([{text:'목소리, 표정, 말까지'},{text:'평소의 나와 비교해요',em:true}],320,{size:90});
+const s4=headline([{text:'목소리, 표정, 말까지'},{text:'평소의 나와 비교해요',em:true}],320,{size:78});
 const ICON={
  v:`<svg width="56" height="56" viewBox="0 0 56 56"><g fill="#603E2B">${[8,18,28,38,48].map((x,i)=>`<rect x="${x-3}" y="${28-[8,16,22,14,6][i]}" width="6" height="${[8,16,22,14,6][i]*2}" rx="3"/>`).join('')}</g></svg>`,
  f:`<svg width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="#603E2B" stroke-width="4" stroke-linecap="round"><circle cx="28" cy="28" r="22"/><circle cx="20" cy="24" r="2.5" fill="#603E2B"/><circle cx="36" cy="24" r="2.5" fill="#603E2B"/><path d="M20 37c4-3 12-3 16 0"/></svg>`,
@@ -207,19 +218,19 @@ const ICON={
 const mods=[['v','목소리','평소보다 낮고 느려요'],['f','표정','입꼬리가 살짝 내려갔어요'],['t','말','“괜찮다고는 했는데…”']].map(([k,a,b],i)=>{
   const e=add(`<div class="card mod" style="top:${660+i*200}px"><div class="ic">${ICON[k]}</div><div><div class="t1">${a}</div><div class="t2">${b}</div></div></div>`);return e;});
 const res=add(`<div class="card res" style="top:640px"><div style="font-weight:800;font-size:34px;color:var(--muted)">오늘의 마음</div>
- <div style="font-weight:900;font-size:76px;letter-spacing:-3px;margin-top:6px">조금 <span style="color:var(--brown)">상처받은</span> 하루</div>
+ <div style="font-weight:900;font-size:68px;letter-spacing:-3px;margin-top:6px">조금 <span style="color:var(--brown)">상처받은</span> 하루</div>
  ${[['상처',58,'#603E2B'],['불안',27,'#B58463'],['기쁨',15,'#EE8A45']].map(([n,v,c])=>`<div class="lb"><span>${n}</span><span data-v="${v}">0%</span></div><div class="bar"><b data-v="${v}" style="background:${c};width:0"></b></div>`).join('')}
  </div>`);
 const resNums=[...res.querySelectorAll('span[data-v]')], resBars=[...res.querySelectorAll('b[data-v]')];
 // S5
 const p5=pill('숏폼 일기',230);
-const s5=headline([{text:'오늘의 나를,'},{text:'한 발짝 떨어져서',em:true}],320,{size:96});
+const s5=headline([{text:'오늘의 나를,'},{text:'한 발짝 떨어져서',em:true}],320,{size:86});
 const film=add(`<div class="film" style="left:220px;top:640px"><img src="call_room_night.jpg"><div class="vignette"></div><div class="tag">10월 31일의 나</div>
  <div class="cap">괜찮은 척 웃었지만,<br>사실 조금 서운했던 하루.</div><div class="pb"><b></b></div></div>`);
 const filmPb=film.querySelector('.pb b'), filmCap=film.querySelector('.cap');
 // S6
 const p6=pill('상담 · 리포트',230);
-const s6=headline([{text:'그리고 내 마음을'},{text:'다르게 보는 연습',em:true}],320,{size:96});
+const s6=headline([{text:'그리고 내 마음을'},{text:'다르게 보는 연습',em:true}],320,{size:86});
 const rep=add(`<div class="card rep" style="top:600px"><div class="k"><i></i>알아차린 것</div><div class="v">늦은 답장에<br>서운함이 컸어요</div><hr>
  <div class="k"><i style="background:#4F9775"></i>다르게 보기</div><div class="v">상대도 바빴을 수 있어요.<br>오늘은 나부터 챙겨요.</div></div>`);
 // S7
@@ -269,9 +280,12 @@ function render(t){
   } else { // S7: 엔딩 인사
     const tt=t-T.s7; const inn=prog(tt,.0,.9,E.back);
     sc=lerp(.34,.46,inn); cy=lerp(.38,.53,inn);
-    idle(bones,lt,1); wave(bones,lt,prog(tt,.6,1.0,E.out)*(1-prog(tt,2.7,3.2,E.io)));
+    idle(bones,lt,1); const wv=prog(tt,.6,1.0,E.out)*(1-prog(tt,2.7,3.2,E.io));
+    X.waveArm(ch,bones,wv,lt); bones.head.rotation.z+=D(6)*wv; bones.body.rotation.z+=D(-3)*wv;
     bones.body.position.y+=Math.abs(Math.sin(tt*3.2))*.012*(1-prog(tt,1,1.5));
   }
+  if(!(t>=T.s7)) X.waveArm(ch,bones,0,lt);
+  X.expr(ch,exprAt(t));
   ch.visible=vis; ch.position.set(cx,cy,cz); ch.scale.setScalar(sc); ch.rotation.y=ry;
   R.render(S,cam);
 
@@ -297,6 +311,7 @@ function render(t){
     reset(b2); idle(b2,tt,1.2); nod(b2,tt,[1.1,1.9,3.8,4.6]);
     b2.head.rotation.z+=D(kf(tt,[[0,0],[1.2,-6],[2.6,5],[3.6,-3]]));
     if(tt>3.3) b2.head.rotation.x+=D(-5)*Math.min(1,(tt-3.3)*2);
+    X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t));
     ch2.position.set(0,0,0); ch2.scale.setScalar(1); ch2.rotation.y=0;
     cam2.aspect=580/1210; cam2.fov=26; cam2.updateProjectionMatrix(); cam2.position.set(0,.62,3.7); cam2.lookAt(0,.5,0);
     R2.render(S2,cam2);
@@ -314,19 +329,31 @@ function render(t){
   popIn(p5,t,T.s5+1.2,T.s6-.45); s5.update(t,T.s5+1.25,T.s6-.45);
   const shown5=t>T.s5-.05&&t<T.s6+.1;
   if(shown5){
-    const tt=t-T.s5; const z=prog(tt,.25,1.6,E.io); const out5=prog(t,T.s6-.45,T.s6,E.in);
-    const s=lerp(2.05,1,z); const ty=lerp(-140,0,z);
+    const tt=t-T.s5; const z=prog(tt,1.0,2.4,E.io); const out5=prog(t,T.s6-.45,T.s6,E.in);
+    const s=lerp(1.45,1,z); const ty=lerp(-90,0,z);
     css(film,{display:'',borderRadius:lerp(0,56,z)+'px',transform:`translateY(${ty-out5*80}px) scale(${s*(1-out5*.08)})`,opacity:1-out5});
-    css(filmCap,{opacity:prog(tt,1.7,2.3)});
+    css(filmCap,{opacity:prog(tt,2.3,2.9)});
     css(filmPb,{width:(clamp((tt-.2)/4.2)*100)+'%'});
     if(!film.contains(R2.domElement)) film.insertBefore(R2.domElement,film.children[1]);
     R2.setSize(640,1138,false);
-    reset(b2); idle(b2,tt,.7);
-    b2.head.rotation.x+=D(10); b2.head.rotation.z+=D(-5); b2.body.rotation.x+=D(5); // 고개 숙인 모습
-    b2.earL.rotation.z+=D(18); b2.earR.rotation.z+=D(-18);
-    ch2.position.set(.08,0,0); ch2.rotation.y=D(-28); ch2.scale.setScalar(1);
-    cam2.aspect=640/1138; cam2.fov=lerp(24,30,z); cam2.updateProjectionMatrix();
-    cam2.position.set(lerp(.1,.6,z),lerp(.6,.75,z),lerp(2.6,3.4,z)); cam2.lookAt(0,.42,0);
+    reset(b2); idle(b2,tt,.7); X.waveArm(ch2,b2,0,tt); X.expr(ch2,exprAt(t));
+    // 뒤로 크게 한 걸음: 웅크림 → 뒤로 폴짝(한쪽 발을 뒤로 뻗음) → 착지 찌그러짐 → 살짝 한 번 더 물러남
+    const hop=prog(tt,.45,1.15,E.io), arc=Math.sin(hop*Math.PI);
+    const hop2=prog(tt,1.35,1.75,E.io), arc2=Math.sin(hop2*Math.PI);
+    const crouch=Math.exp(-Math.pow(tt-.4,2)*90)*.06, land=Math.exp(-Math.pow(tt-1.2,2)*110)*.07+Math.exp(-Math.pow(tt-1.78,2)*140)*.035;
+    const pz=lerp(.2,-.75,hop)+lerp(0,-.2,hop2), py=arc*.075+arc2*.03;
+    b2.body.scale.y*=1-crouch-land; b2.body.scale.x*=1+(crouch+land)*.5; b2.body.scale.z*=1+(crouch+land)*.5;
+    b2.body.rotation.x+=D(-9)*arc+D(-4)*arc2;                     // 뒤로 몸을 젖히며 점프
+    b2.legR.rotation.x+=D(-28)*arc+D(-14)*arc2; b2.legL.rotation.x+=D(10)*arc;
+    b2.armL.rotation.z+=D(-22)*arc; b2.armR.rotation.z+=D(22)*arc; // 균형 잡는 팔
+    b2.earL.rotation.z+=D(-12)*arc; b2.earR.rotation.z+=D(12)*arc;
+    // 물러난 뒤에는 고개를 살짝 숙이고 오늘을 돌아본다
+    const settle=prog(tt,1.9,2.6,E.io);
+    b2.head.rotation.x+=D(10)*settle; b2.head.rotation.z+=D(-5)*settle; b2.body.rotation.x+=D(5)*settle;
+    b2.earL.rotation.z+=D(16)*settle; b2.earR.rotation.z+=D(-16)*settle;
+    ch2.position.set(.04,py,pz); ch2.rotation.y=D(lerp(-8,-24,settle)); ch2.scale.setScalar(1);
+    cam2.aspect=640/1138; cam2.fov=lerp(26,30,z); cam2.updateProjectionMatrix();
+    cam2.position.set(lerp(.05,.5,z),lerp(.62,.75,z),lerp(3.0,3.4,z)); cam2.lookAt(0,.4,lerp(-.1,-.3,z));
     R2.render(S2,cam2);
   } else css(film,{display:'none'});
   // ── S6 ──

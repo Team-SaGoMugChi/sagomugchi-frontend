@@ -18,8 +18,12 @@ import '../../../../widgets/primary_button.dart';
 /// 첫 실행 소개: 3D 탄카츄가 나오는 27초 브랜드 영상 → 시작하기.
 ///
 /// - 로그인 전에도 열린다(splash가 처음 설치한 기기를 여기로 보낸다).
-/// - 끝까지 보거나 건너뛰면 기기에 '봤음'을 기록하고, 영상의 마지막 장면
-///   (오또 로고) 위에 시작 버튼을 띄운다. 영상 하단 27%는 버튼 자리로 비어 있다.
+/// - 영상은 화면을 꽉 채운다(BoxFit.cover). 기기 비율에 따라 좌우가 조금
+///   잘리므로 영상 속 글자·카드는 가운데 안전 영역 안에 배치해 렌더했다.
+/// - 조작 바는 평소 숨겨 두고, 화면을 탭하면 즉시 멈추고 바를 보여 준다.
+///   바에서 재생/멈춤 · 진행 막대 드래그 탐색 · 소리 크기를 조절한다.
+/// - 끝까지 보거나 건너뛰면 기기에 '봤음'을 기록하고, 마지막 장면(오또 로고)
+///   위에 시작 버튼을 띄운다. 영상 하단 27%는 버튼 자리로 비어 있다.
 /// - 영상을 열 수 없는 환경(테스트, 코덱 오류)에서는 마지막 장면 이미지와
 ///   버튼만 보여 주므로 다음 단계로 막힘 없이 넘어갈 수 있다.
 class AppIntroductionScreen extends ConsumerStatefulWidget {
@@ -34,7 +38,10 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
   VideoPlayerController? _controller;
   bool _ready = false;
   bool _ended = false;
-  bool _muted = false;
+  bool _controlsVisible = false;
+  double _volume = 1;
+  double _volumeBeforeMute = 1;
+  Timer? _hideTimer;
 
   @override
   void initState() {
@@ -75,6 +82,7 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
   /// 끝까지 봤거나 건너뜀 → 로고 장면에서 멈추고 버튼을 띄운다.
   void _finish() {
     if (_ended) return;
+    _hideTimer?.cancel();
     final controller = _controller;
     if (controller != null && controller.value.isInitialized) {
       unawaited(controller.pause());
@@ -84,7 +92,10 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
         ),
       );
     }
-    setState(() => _ended = true);
+    setState(() {
+      _ended = true;
+      _controlsVisible = false;
+    });
     unawaited(_markSeen());
   }
 
@@ -96,19 +107,59 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
     await controller.play();
   }
 
+  /// 화면 탭: 재생 중이면 즉시 멈추고 조작 바를 보여 준다.
+  /// 멈춘 상태에서 다시 탭하면 이어서 재생하고 바를 숨긴다.
+  void _onScreenTap() {
+    final controller = _controller;
+    if (controller == null || _ended) return;
+    _hideTimer?.cancel();
+    if (controller.value.isPlaying) {
+      unawaited(controller.pause());
+      setState(() => _controlsVisible = true);
+    } else {
+      unawaited(controller.play());
+      setState(() => _controlsVisible = false);
+    }
+  }
+
+  /// 조작 바의 재생/멈춤 버튼. 재생을 누르면 잠시 뒤 바가 사라진다.
   void _togglePlay() {
     final controller = _controller;
     if (controller == null || _ended) return;
-    unawaited(
-      controller.value.isPlaying ? controller.pause() : controller.play(),
-    );
+    _hideTimer?.cancel();
+    if (controller.value.isPlaying) {
+      unawaited(controller.pause());
+    } else {
+      unawaited(controller.play());
+      _hideTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (mounted) setState(() => _controlsVisible = false);
+      });
+    }
     setState(() {});
   }
 
-  void _toggleMute() {
-    setState(() => _muted = !_muted);
+  void _seekTo(double fraction) {
     final controller = _controller;
-    if (controller != null) unawaited(controller.setVolume(_muted ? 0 : 1));
+    if (controller == null) return;
+    final total = controller.value.duration.inMilliseconds;
+    unawaited(
+      controller.seekTo(Duration(milliseconds: (total * fraction).round())),
+    );
+  }
+
+  void _setVolume(double value) {
+    final controller = _controller;
+    setState(() => _volume = value);
+    if (controller != null) unawaited(controller.setVolume(value));
+  }
+
+  void _toggleMute() {
+    if (_volume > 0) {
+      _volumeBeforeMute = _volume;
+      _setVolume(0);
+    } else {
+      _setVolume(_volumeBeforeMute == 0 ? 1 : _volumeBeforeMute);
+    }
   }
 
   Future<void> _markSeen() async {
@@ -147,6 +198,7 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     final controller = _controller;
     if (controller != null) {
       controller.removeListener(_onTick);
@@ -160,22 +212,25 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
     final controller = _controller;
     final loggedIn = ref.watch(authControllerProvider).isLoggedIn;
     final showFilm = _ready && controller != null;
+    final showControls = showFilm && _controlsVisible && !_ended;
     return Scaffold(
       backgroundColor: AppColors.authBackground,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 영상(9:16) — 세로가 더 긴 기기에서는 위아래가 아이보리로 이어진다.
+          // 영상 — 화면을 꽉 채운다(위아래 여백 없음).
           Semantics(
             label:
                 '오또 소개 영상. 탄카츄와 3분 대화하면 목소리, 표정, 말을 '
-                '평소와 비교해 감정을 읽고, 하루를 짧은 영상과 리포트로 남겨요.',
+                '평소와 비교해 감정을 읽고, 하루를 짧은 영상과 리포트로 남겨요. '
+                '화면을 누르면 멈추고 조작 버튼이 나타나요.',
             child: GestureDetector(
-              onTap: _togglePlay,
-              child: ColoredBox(
-                color: AppColors.authBackground,
+              behavior: HitTestBehavior.opaque,
+              onTap: _onScreenTap,
+              child: ClipRect(
                 child: showFilm
                     ? FittedBox(
+                        fit: BoxFit.cover,
                         child: SizedBox(
                           width: controller.value.size.width,
                           height: controller.value.size.height,
@@ -185,21 +240,34 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
                     : (_ended
                           ? Image.asset(
                               AppAssets.introFilmEndCard,
-                              fit: BoxFit.contain,
+                              fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => const SizedBox(),
                             )
                           : const SizedBox()),
               ),
             ),
           ),
-          if (showFilm && !controller.value.isPlaying && !_ended)
-            const Center(child: _PlayBadge()),
-          // 상단 오른쪽: 건너뛰기만 둔다(영상 내용을 가리지 않게).
+          // 멈췄을 때 화면을 살짝 어둡게 해 조작 중임을 보여 준다.
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: showControls ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              child: ColoredBox(
+                color: AppColors.textStrong.withValues(alpha: .18),
+              ),
+            ),
+          ),
+          // 상단 오른쪽: 건너뛰기는 항상 보인다.
           Align(
             alignment: Alignment.topRight,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, AppSpacing.xs, AppSpacing.sm, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  0,
+                  AppSpacing.xs,
+                  AppSpacing.sm,
+                  0,
+                ),
                 child: AnimatedOpacity(
                   opacity: _ended ? 0 : 1,
                   duration: const Duration(milliseconds: 200),
@@ -215,29 +283,36 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
               ),
             ),
           ),
-          // 하단: 재생/멈춤 · 진행 막대 · 소리 (영상이 끝나면 시작 버튼으로 교체)
+          // 하단: 탭했을 때만 나타나는 조작 바
           if (showFilm)
             Align(
               alignment: Alignment.bottomCenter,
-              child: AnimatedOpacity(
-                opacity: _ended ? 0 : 1,
-                duration: const Duration(milliseconds: 200),
-                child: IgnorePointer(
-                  ignoring: _ended,
-                  child: SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenH,
-                        0,
-                        AppSpacing.screenH,
-                        AppSpacing.sm,
-                      ),
-                      child: _FilmControls(
-                        controller: controller,
-                        muted: _muted,
-                        onTogglePlay: _togglePlay,
-                        onToggleMute: _toggleMute,
+              child: AnimatedSlide(
+                offset: showControls ? Offset.zero : const Offset(0, .3),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: showControls ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: IgnorePointer(
+                    ignoring: !showControls,
+                    child: SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.screenH,
+                          0,
+                          AppSpacing.screenH,
+                          AppSpacing.sm,
+                        ),
+                        child: _FilmControls(
+                          controller: controller,
+                          volume: _volume,
+                          onTogglePlay: _togglePlay,
+                          onSeek: _seekTo,
+                          onVolume: _setVolume,
+                          onToggleMute: _toggleMute,
+                        ),
                       ),
                     ),
                   ),
@@ -273,102 +348,139 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
   }
 }
 
-/// 영상 하단 조작 바: 재생/멈춤 · 진행 막대 · 소리.
-class _FilmControls extends StatelessWidget {
+/// 영상 하단 조작 바: 재생/멈춤 · 진행 막대(드래그 탐색) · 시간 · 소리 크기.
+class _FilmControls extends StatefulWidget {
   const _FilmControls({
     required this.controller,
-    required this.muted,
+    required this.volume,
     required this.onTogglePlay,
+    required this.onSeek,
+    required this.onVolume,
     required this.onToggleMute,
   });
 
   final VideoPlayerController controller;
-  final bool muted;
+  final double volume;
   final VoidCallback onTogglePlay;
+  final ValueChanged<double> onSeek;
+  final ValueChanged<double> onVolume;
   final VoidCallback onToggleMute;
+
+  @override
+  State<_FilmControls> createState() => _FilmControlsState();
+}
+
+class _FilmControlsState extends State<_FilmControls> {
+  /// 드래그하는 동안의 위치(0~1). 드래그 중에는 재생 위치 대신 이 값을 그린다.
+  double? _dragging;
+
+  static String _clock(Duration d) =>
+      '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) =>
       ValueListenableBuilder<VideoPlayerValue>(
-        valueListenable: controller,
-        builder: (_, v, _) {
+        valueListenable: widget.controller,
+        builder: (context, v, _) {
           final total = v.duration.inMilliseconds;
+          final played = total == 0 ? 0.0 : v.position.inMilliseconds / total;
+          final value = (_dragging ?? played).clamp(0.0, 1.0);
+          final theme = SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: AppColors.primarySoftBorder,
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withValues(alpha: .12),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+          );
           return DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: .88),
-              borderRadius: AppRadius.chip,
+              color: AppColors.surface.withValues(alpha: .94),
+              borderRadius: AppRadius.card,
               border: Border.all(color: AppColors.primarySoftBorder),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: v.isPlaying ? '일시정지' : '재생',
-                    onPressed: onTogglePlay,
-                    icon: Icon(
-                      v.isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: AppColors.primary,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxs,
+                AppSpacing.xxs,
+                AppSpacing.sm,
+                AppSpacing.xxs,
+              ),
+              child: SliderTheme(
+                data: theme,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1줄: 재생/멈춤 · 진행 막대 · 시간
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: v.isPlaying ? '일시정지' : '재생',
+                          onPressed: widget.onTogglePlay,
+                          icon: Icon(
+                            v.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: AppColors.primary,
+                            size: 30,
+                          ),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: value,
+                            semanticFormatterCallback: (_) =>
+                                '${_clock(v.position)} / ${_clock(v.duration)}',
+                            onChangeStart: (x) => setState(() => _dragging = x),
+                            onChanged: (x) {
+                              setState(() => _dragging = x);
+                              widget.onSeek(x);
+                            },
+                            onChangeEnd: (x) {
+                              widget.onSeek(x);
+                              setState(() => _dragging = null);
+                            },
+                          ),
+                        ),
+                        Text(
+                          '${_clock(Duration(milliseconds: (value * total).round()))}'
+                          ' / ${_clock(v.duration)}',
+                          style: AppTypography.caption,
+                        ),
+                      ],
                     ),
-                  ),
-                  Expanded(
-                    child: _FilmProgress(
-                      value: total == 0
-                          ? 0
-                          : v.position.inMilliseconds / total,
+                    // 2줄: 소리 끄기/켜기 · 소리 크기
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: widget.volume == 0 ? '소리 켜기' : '소리 끄기',
+                          onPressed: widget.onToggleMute,
+                          icon: Icon(
+                            widget.volume == 0
+                                ? Icons.volume_off_rounded
+                                : (widget.volume < .5
+                                      ? Icons.volume_down_rounded
+                                      : Icons.volume_up_rounded),
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: widget.volume,
+                            semanticFormatterCallback: (x) =>
+                                '소리 ${(x * 100).round()}%',
+                            onChanged: widget.onVolume,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  IconButton(
-                    tooltip: muted ? '소리 켜기' : '소리 끄기',
-                    onPressed: onToggleMute,
-                    icon: Icon(
-                      muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
         },
       );
-}
-
-class _FilmProgress extends StatelessWidget {
-  const _FilmProgress({required this.value});
-  final double value;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: AppRadius.chip,
-    child: LinearProgressIndicator(
-      value: value.clamp(0, 1).toDouble(),
-      minHeight: 4,
-      color: AppColors.primary,
-      backgroundColor: AppColors.primarySoftBorder,
-    ),
-  );
-}
-
-class _PlayBadge extends StatelessWidget {
-  const _PlayBadge();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 72,
-    height: 72,
-    decoration: BoxDecoration(
-      color: AppColors.surface.withValues(alpha: .9),
-      shape: BoxShape.circle,
-    ),
-    child: const Icon(
-      Icons.play_arrow_rounded,
-      size: 40,
-      color: AppColors.primary,
-    ),
-  );
 }
 
 class _StartPanel extends StatelessWidget {
