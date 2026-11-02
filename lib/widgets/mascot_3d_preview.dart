@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 
+import '../core/constants/app_assets.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_typography.dart';
 
-/// Interactive preview of the team's rigged 3D Oddo model.
-/// The model has a skeleton but no authored animation clips yet, so regular
-/// conversation screens continue to use the lightweight speaking mascot.
+/// Interactive preview of the 3D 탄카츄.
+///
+/// [AppAssets.mascotModel]은 Tripo의 인간형(Mixamo) 뼈대 대신 체형에 맞춘
+/// 11개 뼈(몸통·머리·양 귀·양 팔·양 손·양 발)로 다시 스키닝한 모델이며
+/// `Idle`·`Wave`·`Nod`·`Hop` 클립을 포함한다. 미리보기는 인사(`Wave`)를 반복한다.
 class Mascot3dPreview extends StatelessWidget {
   const Mascot3dPreview({super.key});
 
@@ -40,7 +43,9 @@ class Mascot3dPreview extends StatelessWidget {
       ),
       const Expanded(
         child: ModelViewer(
-          src: 'assets/models/oddo_rigged.glb',
+          src: AppAssets.mascotModel,
+          animationName: 'Wave',
+          autoPlay: true,
           backgroundColor: AppColors.authBackground,
           cameraControls: true,
           autoRotate: true,

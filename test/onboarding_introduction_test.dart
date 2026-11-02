@@ -6,7 +6,6 @@ import 'package:oddo/app/router/app_routes.dart';
 import 'package:oddo/core/config/app_config.dart';
 import 'package:oddo/core/config/app_config_provider.dart';
 import 'package:oddo/core/storage/local_store.dart';
-import 'package:oddo/features/onboarding/presentation/screens/app_introduction_screen.dart';
 import 'package:oddo/features/persona/data/models/persona_config.dart';
 import 'package:oddo/features/persona/data/persona_providers.dart';
 import 'package:oddo/features/persona/data/repositories/persona_repository.dart';
@@ -52,7 +51,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('건너뛰기'));
+      // 테스트 환경은 영상을 열 수 없으므로 곧바로 마지막 장면과 버튼이 보인다.
+      expect(find.text('시작하기'), findsOneWidget);
+      router.go(AppPath.personaIntro);
       await tester.pumpAndSettle();
       expect(find.text('설정 시작하기'), findsOneWidget);
       router.go(AppPath.personaDone);
@@ -63,24 +64,42 @@ void main() {
     },
   );
 
-  testWidgets('sample counseling can be tried without recording or saving', (
+  testWidgets('intro film falls back to the end card and records it as seen', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: AppIntroductionScreen()));
-    await tester.tap(find.text('다음'));
-    await tester.pump();
-    await tester.tap(find.text('다음'));
-    await tester.pump();
-    await tester.ensureVisible(find.text('샘플로 둘러보기'));
-    await tester.tap(find.text('샘플로 둘러보기'));
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [
+        appConfigProvider.overrideWithValue(
+          const AppConfig(
+            environment: AppEnvironment.dev,
+            appName: 'test',
+            apiBaseUrl: '',
+            useDummyData: true,
+          ),
+        ),
+        localStoreProvider.overrideWithValue(LocalStore(prefs)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final router = container.read(goRouterProvider);
+    router.go(AppPath.appIntroduction);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('상담'));
-    await tester.tap(find.text('상담'));
-    await tester.pump();
-    await tester.ensureVisible(find.text('“천천히 걸을 수 있어서 좋았어요” 보내보기'));
-    await tester.tap(find.text('“천천히 걸을 수 있어서 좋았어요” 보내보기'));
-    await tester.pump();
-    expect(find.textContaining('내 속도로 움직이는 시간'), findsOneWidget);
+    // 샘플 체험은 없어지고, 로그인 전 사용자는 가입/로그인 두 갈래만 본다.
+    expect(find.text('샘플로 둘러보기'), findsNothing);
+    expect(find.text('시작하기'), findsOneWidget);
+    expect(find.text('이미 계정이 있어요'), findsOneWidget);
+    expect(prefs.getBool(LocalStore.kIntroFilmSeen), isTrue);
+    await tester.tap(find.text('이미 계정이 있어요'));
+    await tester.pumpAndSettle();
+    expect(find.text('로그인 상태 유지'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/storage/local_store.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../features/baseline/application/baseline_face_frames_provider.dart';
 import '../../../../features/baseline/application/baseline_face_image_provider.dart';
@@ -69,6 +70,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showBaselineNeededDialog(
       context,
       hasPendingMeasurement: hasPendingMeasurement,
+      introFilmSeen: ref
+          .read(localStoreProvider)
+          .getBool(LocalStore.kIntroFilmSeen),
     );
   }
 

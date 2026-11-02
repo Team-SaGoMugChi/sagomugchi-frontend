@@ -13,6 +13,7 @@ import '../../../../widgets/primary_button.dart';
 Future<void> showBaselineNeededDialog(
   BuildContext context, {
   bool hasPendingMeasurement = false,
+  bool introFilmSeen = false,
 }) {
   return showDialog<void>(
     context: context,
@@ -66,7 +67,10 @@ Future<void> showBaselineNeededDialog(
                 context.pushNamed(
                   hasPendingMeasurement
                       ? AppRoute.baselineAnalyzing
-                      : AppRoute.appIntroduction,
+                      // 소개 영상을 이미 봤다면 바로 페르소나 설정으로.
+                      : (introFilmSeen
+                            ? AppRoute.personaIntro
+                            : AppRoute.appIntroduction),
                 );
               },
             ),

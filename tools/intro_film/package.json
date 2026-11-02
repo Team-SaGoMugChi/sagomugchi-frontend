@@ -1,0 +1,11 @@
+{
+  "name": "oddo-intro-film",
+  "private": true,
+  "type": "module",
+  "description": "오또 첫 실행 소개 영상(3D 탄카츄) 렌더 파이프라인",
+  "dependencies": {
+    "pretendard": "^1.3.9",
+    "puppeteer-core": "^25.16.0",
+    "three": "0.170.0"
+  }
+}
