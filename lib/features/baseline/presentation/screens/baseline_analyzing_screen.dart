@@ -3,13 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../application/baseline_upload_controller.dart';
@@ -53,9 +51,7 @@ class _BaselineAnalyzingScreenState
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenH,
-              ),
+              padding: AppSpacing.screenPadding,
               child: uploadState.hasError
                   ? _ErrorContent(
                       message: _errorMessage(uploadState.error),
@@ -98,9 +94,6 @@ class _LoadingContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        // TODO: 노트북을 보며 분석하는 포즈로 교체 예정 (character_sheet 15.노트북)
-        MascotImage(pose: MascotPose.thinking, size: 150),
-        Gap.h20,
         SizedBox(
           width: 30,
           height: 30,
@@ -151,16 +144,14 @@ class _ErrorContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const MascotImage(pose: MascotPose.thinking, size: 150),
-        Gap.h20,
         const Icon(
           Icons.error_outline_rounded,
           size: 32,
           color: AppColors.error,
         ),
         Gap.h12,
-        const Text(
-          '측정 결과를 저장하지 못했어요',
+        Text(
+          needsMeasurement ? '한 번 더 측정이 필요해요' : '측정 결과를 저장하지 못했어요',
           textAlign: TextAlign.center,
           style: AppTypography.title,
         ),
@@ -175,6 +166,14 @@ class _ErrorContent extends StatelessWidget {
           label: needsMeasurement ? '다시 측정하기' : '다시 시도하기',
           onPressed: needsMeasurement ? onRemeasure : onRetry,
         ),
+        if (!needsMeasurement) ...[
+          Gap.h8,
+          const Text(
+            '다시 시도하면 방금 측정한 내용을 사용해요.',
+            textAlign: TextAlign.center,
+            style: AppTypography.caption,
+          ),
+        ],
       ],
     );
   }
