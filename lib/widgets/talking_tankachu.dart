@@ -81,6 +81,7 @@ class _TalkingTankachuState extends State<TalkingTankachu>
   int? _serial;
   double _beatBase = 0;
   Duration _beatClock = Duration.zero;
+  double _beatsPerSecond = KoreanLipSync.syllablesPerSecond;
 
   // 깜빡임·시선 예약
   Duration _nextBlink = const Duration(milliseconds: 1800);
@@ -128,6 +129,7 @@ class _TalkingTankachuState extends State<TalkingTankachu>
       _beatBase = 0;
       _beatClock = _now;
     }
+    _beatsPerSecond = speech.syllablesPerSecond;
     final index = speech.charIndex;
     if (index != null) {
       // TTS가 알려준 읽는 위치로 다시 맞춘다 — 추정이 빠르거나 느려도 단어마다 보정된다.
@@ -170,7 +172,7 @@ class _TalkingTankachuState extends State<TalkingTankachu>
     final lip = _lip;
     if (lip == null || lip.totalBeats <= 0) return MouthShape.rest;
     final elapsed = (_now - _beatClock).inMicroseconds / 1e6;
-    var beat = _beatBase + elapsed * KoreanLipSync.syllablesPerSecond;
+    var beat = _beatBase + elapsed * _beatsPerSecond;
     // 추정이 실제 소리보다 빨라 문장 끝을 넘었는데 아직 읽는 중이면,
     // 마지막 몇 음절을 되풀이해 입이 멈춰 보이지 않게 한다.
     final total = lip.totalBeats;

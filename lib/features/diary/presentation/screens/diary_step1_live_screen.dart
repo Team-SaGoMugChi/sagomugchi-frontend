@@ -437,7 +437,10 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   Future<void> _say(String text, {required bool thenEnd}) async {
     if (mounted) setState(() => _tankachuSpeaking = true);
     if (!_recording) {
-      await ref.read(ttsServiceProvider).speak(text);
+      // 통화 대화라 안내 화면보다 조금 빠르게 — 또박또박 읽으면 기계처럼 들린다.
+      await ref
+          .read(ttsServiceProvider)
+          .speak(text, pace: TtsPace.conversation);
     } else if (thenEnd) {
       await Future<void>.delayed(const Duration(seconds: 2));
     }

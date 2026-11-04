@@ -14,12 +14,19 @@ class ClovaVoicePlayer {
   File? _file;
   int _generation = 0;
 
-  Future<void> speak(String text, String voice) async {
+  /// [speed]는 CLOVA Voice 기준(-5 빠름 ~ 5 느림, 0 기본) — 0이면 보내지 않는다.
+  /// [onStart]는 소리가 실제로 나기 시작할 때 재생 길이와 함께 한 번 불린다.
+  Future<void> speak(
+    String text,
+    String voice, {
+    int speed = 0,
+    void Function(Duration? duration)? onStart,
+  }) async {
     await stop();
     final generation = _generation;
     final result = await api.post(
       '/tts',
-      body: {'text': text, 'speaker': voice},
+      body: {'text': text, 'speaker': voice, if (speed != 0) 'speed': speed},
     );
     if (generation != _generation) return;
     final directory = await getTemporaryDirectory();
@@ -36,6 +43,9 @@ class ClovaVoicePlayer {
       await player.initialize();
       if (generation != _generation) return;
       await player.play();
+      if (generation != _generation) return;
+      final duration = player.value.duration;
+      onStart?.call(duration > Duration.zero ? duration : null);
       while (generation == _generation) {
         if (player.value.hasError) throw StateError('음성 재생 실패');
         if (player.value.isCompleted) break;

@@ -33,4 +33,15 @@ void main() {
       await expectLater(speaking, completes);
     },
   );
+
+  test('sends speed only when it differs from the provider default', () async {
+    final api = _Api();
+    final player = ClovaVoicePlayer(api);
+    final speaking = player.speak('안녕하세요', 'nara', speed: -2);
+    await api.requested.future;
+    expect(api.body, {'text': '안녕하세요', 'speaker': 'nara', 'speed': -2});
+    await player.stop();
+    api.response.complete({'audio_base64': 'not base64'});
+    await expectLater(speaking, completes);
+  });
 }

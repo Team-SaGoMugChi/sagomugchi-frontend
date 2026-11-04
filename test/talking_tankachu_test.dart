@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:oddo/core/media/clova_voice_player.dart';
 import 'package:oddo/core/media/korean_lip_sync.dart';
 import 'package:oddo/core/media/mascot_speech.dart';
 import 'package:oddo/core/media/tts_service.dart';
@@ -87,6 +88,48 @@ void main() {
       final serials = seen.whereType<TtsUtterance>().map((u) => u.serial);
       expect(serials.toSet(), hasLength(2));
       expect(tts.utterance.value, isNull);
+      await tts.dispose();
+    });
+
+    test('서버 음성은 소리가 나기 전엔 입을 다물고, 재생 길이로 박자를 맞춘다', () async {
+      final remote = _FakeRemote();
+      final tts = TtsService(remote: remote);
+
+      final speaking = tts.speak('안녕하세요', pace: TtsPace.conversation);
+      await Future<void>.delayed(Duration.zero);
+      expect(remote.speed, TtsPace.conversation.clovaSpeed);
+      // 음성을 받아오는 동안에는 입이 움직이지 않는다.
+      expect(tts.utterance.value, isNull);
+
+      remote.onStart!(const Duration(seconds: 2));
+      expect(tts.utterance.value?.text, '안녕하세요');
+      expect(
+        tts.utterance.value?.syllablesPerSecond,
+        KoreanLipSync('안녕하세요').totalBeats / 2,
+      );
+
+      remote.done.complete();
+      await speaking;
+      expect(tts.utterance.value, isNull);
+      await tts.dispose();
+    });
+
+    test('서버가 실패하면 기기 TTS가 같은 빠르기로 읽는다', () async {
+      final remote = _FakeRemote(fail: true);
+      final tts = TtsService(remote: remote);
+      final seen = <TtsUtterance>[];
+      tts.utterance.addListener(() {
+        final value = tts.utterance.value;
+        if (value != null) seen.add(value);
+      });
+
+      await tts.speak('안녕', pace: TtsPace.conversation);
+
+      expect(seen, isNotEmpty);
+      expect(
+        seen.first.syllablesPerSecond,
+        greaterThan(KoreanLipSync.syllablesPerSecond),
+      );
       await tts.dispose();
     });
   });
@@ -245,6 +288,33 @@ void main() {
       expect(speech.value, isNull);
     });
   });
+}
+
+class _FakeRemote implements ClovaVoicePlayer {
+  _FakeRemote({this.fail = false});
+
+  final bool fail;
+  final done = Completer<void>();
+  int? speed;
+  void Function(Duration? duration)? onStart;
+
+  @override
+  Future<void> speak(
+    String text,
+    String voice, {
+    int speed = 0,
+    void Function(Duration? duration)? onStart,
+  }) {
+    this.speed = speed;
+    this.onStart = onStart;
+    return fail ? Future.error(StateError('server down')) : done.future;
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeTts implements TtsService {

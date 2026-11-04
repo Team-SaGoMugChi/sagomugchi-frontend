@@ -6,7 +6,7 @@ class _Tts implements TtsService {
   int speaks = 0;
 
   @override
-  Future<void> speak(String line) async {
+  Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) async {
     speaks++;
   }
 
