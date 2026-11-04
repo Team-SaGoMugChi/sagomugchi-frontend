@@ -50,6 +50,8 @@ abstract final class BaselineDummy {
   BaselineDummy._();
 
   // 09 — permission rationale.
+  // 실제로 요청하는 권한만 적는다. 음성 인식은 마이크 권한으로 함께 되고(안드로이드), 영상 저장 기능은
+  // 아직 없어 사진 저장 권한은 뺐다. 알림은 기록 리마인드용이라 거절해도 다음 단계로 간다.
   static const List<PermissionInfo> permissions = [
     PermissionInfo(
       Icons.camera_alt_outlined,
@@ -59,22 +61,12 @@ abstract final class BaselineDummy {
     PermissionInfo(
       Icons.mic_none_rounded,
       '마이크',
-      '목소리를 기록하고 감정을 분석하기 위해 필요해요.',
-    ),
-    PermissionInfo(
-      Icons.graphic_eq_rounded,
-      '음성 인식',
-      '말한 내용을 텍스트로 변환하기 위해 필요해요.',
+      '목소리를 기록하고, 말한 내용을 글로 바꿔 감정을 분석해요.',
     ),
     PermissionInfo(
       Icons.notifications_none_rounded,
-      '알림',
-      '기록 리마인드와 소식을 전달하기 위해 필요해요.',
-    ),
-    PermissionInfo(
-      Icons.photo_library_outlined,
-      '사진 저장',
-      '완성된 숏폼 영상을 저장하기 위해 필요해요.',
+      '알림 (선택)',
+      '일기 쓸 시간을 알려드려요. 허용하지 않아도 사용할 수 있어요.',
     ),
   ];
 

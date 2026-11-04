@@ -14,7 +14,7 @@ import '../../../../widgets/card_section_header.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
-import '../../../../widgets/step_progress_bar.dart';
+import '../../../onboarding/application/onboarding_controller.dart';
 import '../../data/psych_providers.dart';
 
 /// Screen 28 — 심리테스트 완료 → 챗봇 페르소나 설정.
@@ -25,162 +25,145 @@ class PsychTestDoneScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final result = ref.watch(psychResultProvider);
     final hasResult = result.value?.isComplete ?? false;
-    return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      if (context.canPop()) context.pop();
-                    },
+    final onboarding = !ref.watch(onboardingCompleteProvider);
+    return PopScope(
+      canPop: !onboarding,
+      child: Scaffold(
+        body: AppBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                // 검사를 마친 뒤라 문항으로 돌아가는 뒤로가기는 두지 않는다(온보딩 중엔 시스템 뒤로가기도 막는다).
+                const SizedBox(
+                  height: kMinInteractiveDimension,
+                  child: Center(
+                    child: Text('심리테스트 완료', style: AppTypography.subtitle),
                   ),
-                  const Expanded(
-                    child: Text(
-                      '심리테스트 완료',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.subtitle,
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: StepProgressBar(
-                  labels: PsychTestDummy.journeySteps,
-                  currentIndex: 2,
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenH,
-                    AppSpacing.lg,
-                    AppSpacing.screenH,
-                    AppSpacing.md,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(text: 'Big Five 검사가\n'),
-                                      TextSpan(
-                                        text: '완료',
-                                        style: TextStyle(
-                                          color: AppColors.primary,
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.lg,
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        TextSpan(text: 'Big Five 검사가\n'),
+                                        TextSpan(
+                                          text: '완료',
+                                          style: TextStyle(
+                                            color: AppColors.primary,
+                                          ),
                                         ),
-                                      ),
-                                      TextSpan(text: '되었어요!'),
-                                    ],
+                                        TextSpan(text: '되었어요!'),
+                                      ],
+                                    ),
+                                    style: AppTypography.display,
                                   ),
-                                  style: AppTypography.display,
-                                ),
-                                Gap.h8,
-                                Text(
-                                  '정성껏 답변해주셔서 감사합니다.\n응답 범위 안에서 계산한 결과예요.',
+                                  Gap.h8,
+                                  Text(
+                                    '정성껏 답변해주셔서 감사합니다.\n응답 범위 안에서 계산한 결과예요.',
+                                    style: AppTypography.bodySecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // TODO: 반짝이는 체크 표시를 들고 있는 포즈로 교체 예정
+                            MascotImage(pose: MascotPose.check, size: 84),
+                          ],
+                        ),
+                        Gap.h20,
+                        OddoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const CardSectionHeader(
+                                icon: Icons.task_alt_rounded,
+                                title: '완료된 테스트',
+                              ),
+                              Gap.h8,
+                              for (
+                                var i = 0;
+                                i < PsychTestDummy.testList.length;
+                                i++
+                              ) ...[
+                                if (i > 0)
+                                  const Divider(
+                                    color: AppColors.divider,
+                                    height: 1,
+                                  ),
+                                _CompletedRow(info: PsychTestDummy.testList[i]),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Gap.h16,
+                        OddoCard(
+                          child: result.when(
+                            data: (value) => value?.isComplete != true
+                                ? const Text(
+                                    '검증 가능한 Big Five 결과를 찾지 못했어요.',
+                                    style: AppTypography.bodySecondary,
+                                  )
+                                : _Big5Results(scores: value!.big5!),
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (_, _) => Column(
+                              children: [
+                                const Text(
+                                  '결과를 불러오지 못했어요.',
                                   style: AppTypography.bodySecondary,
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      ref.invalidate(psychResultProvider),
+                                  child: const Text('다시 불러오기'),
                                 ),
                               ],
                             ),
                           ),
-                          // TODO: 반짝이는 체크 표시를 들고 있는 포즈로 교체 예정
-                          MascotImage(pose: MascotPose.check, size: 84),
-                        ],
-                      ),
-                      Gap.h20,
-                      OddoCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const CardSectionHeader(
-                              icon: Icons.task_alt_rounded,
-                              title: '완료된 테스트',
-                            ),
-                            Gap.h8,
-                            for (
-                              var i = 0;
-                              i < PsychTestDummy.testList.length;
-                              i++
-                            ) ...[
-                              if (i > 0)
-                                const Divider(
-                                  color: AppColors.divider,
-                                  height: 1,
-                                ),
-                              _CompletedRow(info: PsychTestDummy.testList[i]),
-                            ],
-                          ],
                         ),
-                      ),
-                      Gap.h16,
-                      OddoCard(
-                        child: result.when(
-                          data: (value) => value?.isComplete != true
-                              ? const Text(
-                                  '검증 가능한 Big Five 결과를 찾지 못했어요.',
-                                  style: AppTypography.bodySecondary,
-                                )
-                              : _Big5Results(scores: value!.big5!),
-                          loading: () =>
-                              const Center(child: CircularProgressIndicator()),
-                          error: (_, _) => Column(
-                            children: [
-                              const Text(
-                                '결과를 불러오지 못했어요.',
-                                style: AppTypography.bodySecondary,
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    ref.invalidate(psychResultProvider),
-                                child: const Text('다시 불러오기'),
-                              ),
-                            ],
-                          ),
+                        Gap.h12,
+                        const Text(
+                          '이 점수는 응답 가능한 범위(10~50)를 0~100으로 바꾼 값이며, '
+                          '다른 사람과 비교한 백분위나 의학적 진단이 아니에요.',
+                          style: AppTypography.caption,
                         ),
-                      ),
-                      Gap.h12,
-                      const Text(
-                        '이 점수는 응답 가능한 범위(10~50)를 0~100으로 바꾼 값이며, '
-                        '다른 사람과 비교한 백분위나 의학적 진단이 아니에요.',
-                        style: AppTypography.caption,
-                      ),
-                      Gap.h16,
-                      const _NextStepBanner(),
-                    ],
+                        Gap.h16,
+                        const _NextStepBanner(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.xs,
+                    AppSpacing.screenH,
+                    AppSpacing.xs,
+                  ),
+                  child: PrimaryButton(
+                    label: '시작할 준비가 됐어요',
+                    enabled: hasResult,
+                    onPressed: () => context.pushNamed(AppRoute.onboardingDone),
+                  ),
                 ),
-                child: PrimaryButton(
-                  label: '시작할 준비가 됐어요',
-                  enabled: hasResult,
-                  onPressed: () => context.pushNamed(AppRoute.onboardingDone),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

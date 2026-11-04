@@ -1,116 +1,122 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/psych_test_dummy.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/icon_info_tile.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
-import '../../../../widgets/progress_dots.dart';
-import '../../../../widgets/security_card.dart';
+import '../../../../widgets/step_title.dart';
+import '../../../onboarding/application/onboarding_controller.dart';
 
-/// Screen 22 — 심리테스트 안내·검사 목록 (Big5 / MBTI / 성향 분석).
-class PsychTestListScreen extends StatelessWidget {
+/// Screens 22·23 — 심리테스트 안내. "테스트 시작하기"를 누르면 바로 Big 5 문항이 시작된다.
+///
+/// 예전에는 검사 목록(22)과 시작 안내(23) 두 장을 거쳐야 했고 내용도 겹쳤다. 한 장에 합쳤다
+/// (psychTestStart 경로도 이 화면).
+class PsychTestListScreen extends ConsumerWidget {
   const PsychTestListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                    onPressed: () {
-                      if (context.canPop()) context.pop();
-                    },
-                  ),
-                  const Expanded(
-                    child: Text('심리테스트',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const ProgressDots(count: 3, current: 0),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.lg, AppSpacing.screenH, AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(
-                                  TextSpan(children: [
-                                    TextSpan(text: '진행할 '),
-                                    TextSpan(
-                                        text: '테스트',
-                                        style:
-                                            TextStyle(color: AppColors.primary)),
-                                    TextSpan(text: '를\n안내해요'),
-                                  ]),
-                                  style: AppTypography.display,
-                                ),
-                                Gap.h8,
-                                Text('공개된 50문항 검사 한 가지를 진행해요. 결과는 진단이 아닌 자기이해를 위한 참고 자료예요.',
-                                    style: AppTypography.bodySecondary),
-                              ],
-                            ),
-                          ),
-                          // TODO: 클립보드를 들고 안내하는 포즈로 교체 예정
-                          MascotImage(pose: MascotPose.clipboard, size: 88),
-                        ],
-                      ),
-                      Gap.h20,
-                      for (var i = 0; i < PsychTestDummy.testList.length; i++) ...[
-                        if (i > 0) Gap.h12,
-                        _TestCard(
-                            index: i + 1, info: PsychTestDummy.testList[i]),
-                      ],
-                      Gap.h16,
-                      const SecurityCard(
-                        title: '문항별 답변은 기기에만 임시 저장해요',
-                        description: '완료 후 답변은 삭제하고 계산된 점수만 계정에 저장해요.',
-                      ),
-                      Gap.h8,
-                      Center(
-                        child: TextButton(
-                          onPressed: () =>
-                              context.pushNamed(AppRoute.psychTestResume),
-                          child: const Text('이전에 진행하던 테스트 이어하기'),
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 온보딩 중에는 베이스라인 측정으로 돌아가지 않는다(버튼·시스템 뒤로가기 모두).
+    final onboarding = !ref.watch(onboardingCompleteProvider);
+    return PopScope(
+      canPop: !onboarding,
+      child: Scaffold(
+        body: AppBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    if (onboarding)
+                      const SizedBox(width: kMinInteractiveDimension)
+                    else
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
                         ),
+                        onPressed: () {
+                          if (context.canPop()) context.pop();
+                        },
                       ),
-                    ],
+                    const Expanded(
+                      child: StepTitle(title: '심리테스트', previous: '베이스라인'),
+                    ),
+                    const SizedBox(width: kMinInteractiveDimension),
+                  ],
+                ),
+                Expanded(
+                  // 작은 화면에서만 스크롤된다.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Big 5 성격검사를\n시작해볼까요?',
+                                    style: AppTypography.display,
+                                  ),
+                                  Gap.h8,
+                                  Text(
+                                    '공개 IPIP Big Five 50문항으로 나를 이해하는 참고 자료를 만들어요. '
+                                    '진단이 아니에요.',
+                                    style: AppTypography.bodySecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // TODO: 클립보드를 들고 안내하는 포즈로 교체 예정
+                            MascotImage(pose: MascotPose.clipboard, size: 88),
+                          ],
+                        ),
+                        Gap.h20,
+                        const OddoCard(child: _GuideList()),
+                        Gap.h8,
+                        Center(
+                          child: TextButton(
+                            onPressed: () =>
+                                context.pushNamed(AppRoute.psychTestResume),
+                            child: const Text('이전에 진행하던 테스트 이어하기'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
-                child: PrimaryButton(
-                  label: '테스트 시작하기',
-                  onPressed: () => context.pushNamed(AppRoute.psychTestStart),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.xs,
+                    AppSpacing.screenH,
+                    AppSpacing.xs,
+                  ),
+                  child: PrimaryButton(
+                    label: '테스트 시작하기',
+                    onPressed: () => context.pushNamed(AppRoute.psychTestBig5),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -118,84 +124,37 @@ class PsychTestListScreen extends StatelessWidget {
   }
 }
 
-class _TestCard extends StatelessWidget {
-  const _TestCard({required this.index, required this.info});
-
-  final int index;
-  final PsychTestInfo info;
+class _GuideList extends StatelessWidget {
+  const _GuideList();
 
   @override
   Widget build(BuildContext context) {
-    return OddoCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                    color: AppColors.primarySoft, shape: BoxShape.circle),
-                child: Icon(info.icon, size: 20, color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('$index. ${info.title}',
-                    style: AppTypography.body
-                        .copyWith(fontWeight: FontWeight.w700)),
-              ),
-              _DurationChip(info.duration),
-            ],
-          ),
-          Gap.h12,
-          Text(info.description, style: AppTypography.bodySecondary),
-          Gap.h12,
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final tag in info.tags) _Tag(tag),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DurationChip extends StatelessWidget {
-  const _DurationChip(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return const Column(
       children: [
-        const Icon(Icons.schedule_rounded, size: 13, color: AppColors.primary),
-        const SizedBox(width: 3),
-        Text(label,
-            style: AppTypography.caption.copyWith(
-                color: AppColors.primary, fontWeight: FontWeight.w600)),
+        IconInfoTile(
+          icon: Icons.schedule_rounded,
+          title: '50문항 · 약 10분',
+          description: '답을 고르면 다음 문항으로 바로 넘어가요.',
+        ),
+        Divider(color: AppColors.divider, height: 1),
+        IconInfoTile(
+          icon: Icons.check_circle_outline_rounded,
+          title: '정답은 없어요',
+          description: '평소의 나와 가장 가까운 답을 골라주세요.',
+        ),
+        Divider(color: AppColors.divider, height: 1),
+        IconInfoTile(
+          icon: Icons.lock_outline_rounded,
+          title: '답변은 이 기기에만 임시 저장해요',
+          description: '완료하면 답변은 지우고 계산된 점수만 계정에 저장해요.',
+        ),
+        Divider(color: AppColors.divider, height: 1),
+        IconInfoTile(
+          icon: Icons.pause_circle_outline_rounded,
+          title: '잠시 나가도 괜찮아요',
+          description: '다시 들어오면 멈춘 문항부터 이어서 할 수 있어요.',
+        ),
       ],
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundAlt,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(label, style: AppTypography.caption),
     );
   }
 }

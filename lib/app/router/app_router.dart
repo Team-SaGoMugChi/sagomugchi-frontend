@@ -40,7 +40,6 @@ import '../../features/psych_test/presentation/screens/mbti_screen.dart';
 import '../../features/psych_test/presentation/screens/psych_test_done_screen.dart';
 import '../../features/psych_test/presentation/screens/psych_test_list_screen.dart';
 import '../../features/psych_test/presentation/screens/psych_test_resume_screen.dart';
-import '../../features/psych_test/presentation/screens/psych_test_start_screen.dart';
 import '../../features/psych_test/presentation/screens/tendency_screen.dart';
 import '../../features/records/presentation/records_shell.dart';
 import '../../features/records/presentation/screens/counsel_record_screen.dart';
@@ -200,7 +199,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.psychTestStart,
         name: AppRoute.psychTestStart,
-        builder: (_, _) => const PsychTestStartScreen(),
+        // 안내 두 장(목록·시작)을 한 장으로 합쳤다.
+        builder: (_, _) => const PsychTestListScreen(),
       ),
       GoRoute(
         path: AppPath.psychTestBig5,
@@ -271,7 +271,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.diaryStep1Processing,
         name: AppRoute.diaryStep1Processing,
-        builder: (_, _) => const DiaryStep1ProcessingScreen(),
+        // 처리 중·마무리 화면은 뒤로 가지 않는다(분석·저장이 끊긴다).
+        builder: (_, _) =>
+            const PopScope(canPop: false, child: DiaryStep1ProcessingScreen()),
       ),
       GoRoute(
         path: AppPath.diaryStep2Confirm,
@@ -311,12 +313,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.reportGenerating,
         name: AppRoute.reportGenerating,
-        builder: (_, _) => const ReportGeneratingScreen(),
+        // 처리 중·마무리 화면은 뒤로 가지 않는다(분석·저장이 끊긴다).
+        builder: (_, _) =>
+            const PopScope(canPop: false, child: ReportGeneratingScreen()),
       ),
       GoRoute(
         path: AppPath.reportGuide,
         name: AppRoute.reportGuide,
-        builder: (_, _) => const ReportGuideScreen(),
+        // 처리 중·마무리 화면은 뒤로 가지 않는다(분석·저장이 끊긴다).
+        builder: (_, _) =>
+            const PopScope(canPop: false, child: ReportGuideScreen()),
       ),
 
       // ── Auxiliary ───────────────────────────────────────────────────────

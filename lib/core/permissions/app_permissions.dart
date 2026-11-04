@@ -9,11 +9,23 @@ abstract final class AppPermissions {
   /// Requests camera + microphone. Returns true when both are granted.
   static Future<bool> requestCameraAndMic() async {
     try {
-      final statuses =
-          await [Permission.camera, Permission.microphone].request();
+      final statuses = await [
+        Permission.camera,
+        Permission.microphone,
+      ].request();
       return statuses.values.every((s) => s.isGranted);
     } catch (_) {
       // Platform channel unavailable (tests) — treat as not granted.
+      return false;
+    }
+  }
+
+  /// Requests the notification permission (기록 리마인드). Optional — the
+  /// result doesn't block onboarding.
+  static Future<bool> requestNotification() async {
+    try {
+      return (await Permission.notification.request()).isGranted;
+    } catch (_) {
       return false;
     }
   }

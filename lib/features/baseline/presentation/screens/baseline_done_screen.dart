@@ -31,7 +31,8 @@ class BaselineDoneScreen extends ConsumerWidget {
 
     void remeasure() {
       ref.read(baselineUploadControllerProvider.notifier).startMeasurement();
-      context.pushReplacementNamed(AppRoute.baselineReady);
+      // 다시 측정은 안내 화면이 아니라 탄카츄와 따라 읽는 측정 화면으로 바로 간다.
+      context.pushReplacementNamed(AppRoute.baselineMeasuring);
     }
 
     return Scaffold(

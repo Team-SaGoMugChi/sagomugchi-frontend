@@ -107,7 +107,7 @@ class Big5Controller extends Notifier<Big5State> {
       return false;
     }
     if (!state.isLastQuestion) {
-      state = state.copyWith(currentIndex: state.currentIndex + 1);
+      state = state.copyWith(currentIndex: _nextIndex());
       await _queueProgressWrite();
       return false;
     }
@@ -135,6 +135,25 @@ class Big5Controller extends Notifier<Big5State> {
       );
       return false;
     }
+  }
+
+  /// 답한 뒤 갈 문항: 뒤쪽에서 아직 답하지 않은 첫 문항, 없으면 앞쪽의 빈 문항, 모두 답했으면 마지막 문항.
+  /// 빈 문항을 채우거나 이전 문항을 고친 뒤 이미 답한 문항을 하나씩 다시 넘기지 않고 바로 돌아간다.
+  int _nextIndex() {
+    final answers = state.answers;
+    for (var i = state.currentIndex + 1; i < answers.length; i++) {
+      if (answers[i] == null) return i;
+    }
+    final before = answers.indexWhere((a) => a == null);
+    return before >= 0 ? before : answers.length - 1;
+  }
+
+  /// 비어 있는 첫 문항으로 간다. 모두 답했으면 false. 마지막 문항에서 저장하려는데 앞 문항이 비어 있을 때 쓴다.
+  bool goToFirstUnanswered() {
+    final missing = state.answers.indexWhere((a) => a == null);
+    if (missing < 0 || state.isSaving) return false;
+    state = state.copyWith(currentIndex: missing, clearError: true);
+    return true;
   }
 
   void previous() {

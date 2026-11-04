@@ -174,7 +174,8 @@ class _BaselineMeasuringScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('녹음을 다시 시작하지 못했어요. 측정을 다시 진행해주세요.')),
     );
-    context.pushReplacementNamed(AppRoute.baselineReady);
+    // 다시 측정은 안내 화면이 아니라 탄카츄와 따라 읽는 측정 화면으로 바로 간다.
+    context.pushReplacementNamed(AppRoute.baselineMeasuring);
   }
 
   @override

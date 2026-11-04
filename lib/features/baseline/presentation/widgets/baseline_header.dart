@@ -6,15 +6,20 @@ import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/step_progress_bar.dart';
+import '../../../../widgets/step_title.dart';
 
 /// Top bar for the baseline flow: leading (back/close) + centered title + help
-/// icon, with the labeled step-progress bar below. Light + dark variants.
+/// icon, with the labeled step-progress bar below (labels가 비어 있으면 숨김).
+/// Light + dark variants.
 class BaselineHeader extends StatelessWidget {
   const BaselineHeader({
     super.key,
     required this.title,
-    required this.stepLabels,
-    required this.activeStep,
+    this.stepLabels = const [],
+    this.activeStep = 0,
+    this.showLeading = true,
+    this.previousStep,
+    this.nextStep,
     this.dark = false,
     this.leadingIcon = Icons.arrow_back_ios_new_rounded,
     this.onLeading,
@@ -27,6 +32,13 @@ class BaselineHeader extends StatelessWidget {
   final IconData leadingIcon;
   final VoidCallback? onLeading;
 
+  /// false면 뒤로가기 자리를 비워 둔다(제목은 가운데 그대로).
+  final bool showLeading;
+
+  /// 제목 왼쪽(지난 단계)·오른쪽(다음 단계)에 작고 흐리게 보여 줄 단계 이름([StepTitle]).
+  final String? previousStep;
+  final String? nextStep;
+
   @override
   Widget build(BuildContext context) {
     final fg = dark ? AppColors.callTextPrimary : AppColors.textStrong;
@@ -34,19 +46,26 @@ class BaselineHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(
-              icon: Icon(leadingIcon, size: 20, color: fg),
-              onPressed: onLeading ??
-                  () {
-                    if (context.canPop()) context.pop();
-                  },
-            ),
+            if (showLeading)
+              IconButton(
+                icon: Icon(leadingIcon, size: 20, color: fg),
+                onPressed:
+                    onLeading ??
+                    () {
+                      if (context.canPop()) context.pop();
+                    },
+              )
+            else
+              const SizedBox(width: kMinInteractiveDimension),
             Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyLarge
-                    .copyWith(color: fg, fontWeight: FontWeight.w600),
+              child: StepTitle(
+                title: title,
+                previous: previousStep,
+                next: nextStep,
+                style: AppTypography.bodyLarge.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             IconButton(
@@ -64,15 +83,17 @@ class BaselineHeader extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          child: StepProgressBar(
-            labels: stepLabels,
-            currentIndex: activeStep,
-            onDark: dark,
+        if (stepLabels.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: StepProgressBar(
+              labels: stepLabels,
+              currentIndex: activeStep,
+              onDark: dark,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
