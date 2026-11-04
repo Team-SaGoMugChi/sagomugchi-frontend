@@ -20,7 +20,7 @@ abstract final class AuthDummy {
   static const String birthHint = 'YYYY.MM.DD';
 
   /// Gender options (회원가입 / 추가 정보 입력).
-  static const List<String> genders = ['여성', '남성', '선택 안 함'];
+  static const List<String> genders = ['여성', '남성'];
 
   /// Consent items (전체 동의 + list). Order matches the mockups.
   static const List<TermItem> terms = [

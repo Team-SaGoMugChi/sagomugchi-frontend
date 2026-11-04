@@ -11,6 +11,7 @@ import '../../../../data/dummy/auth_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/birth_date_picker.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/oddo_text_field.dart';
 import '../../../../widgets/primary_button.dart';
@@ -45,13 +46,7 @@ class _SocialExtraInfoScreenState extends ConsumerState<SocialExtraInfoScreen> {
   }
 
   Future<void> _pickBirth() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _birth ?? DateTime(now.year - 20),
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
+    final picked = await showBirthDatePicker(context, initial: _birth);
     if (picked != null) setState(() => _birth = picked);
   }
 
@@ -60,9 +55,9 @@ class _SocialExtraInfoScreenState extends ConsumerState<SocialExtraInfoScreen> {
     setState(() => _nicknameError = Validators.nickname(nickname));
     if (_nicknameError != null) return;
     if (!_requiredTermsChecked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 약관에 동의해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('필수 약관에 동의해주세요.')));
       return;
     }
 
@@ -73,22 +68,28 @@ class _SocialExtraInfoScreenState extends ConsumerState<SocialExtraInfoScreen> {
       if (mounted) context.goNamed(AppRoute.home);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading =
-        ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final isLoading = ref.watch(
+      authControllerProvider.select((s) => s.isLoading),
+    );
 
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.xl),
+              AppSpacing.screenH,
+              AppSpacing.xs,
+              AppSpacing.screenH,
+              AppSpacing.xl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -116,8 +117,11 @@ class _SocialExtraInfoScreenState extends ConsumerState<SocialExtraInfoScreen> {
                         prefixIcon: Icons.calendar_today_outlined,
                         readOnly: true,
                         onTap: _pickBirth,
-                        suffix: const Icon(Icons.calendar_month_rounded,
-                            size: 20, color: AppColors.primary),
+                        suffix: const Icon(
+                          Icons.calendar_month_rounded,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Gap.h12,
                       const GenderSelector(),

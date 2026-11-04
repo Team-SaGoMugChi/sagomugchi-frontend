@@ -5,7 +5,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_typography.dart';
 
-/// Segmented selector for 성별 (여성 / 남성 / 선택 안 함). Manages its own
+/// Segmented selector for 성별 (여성 / 남성). Manages its own
 /// selection — purely UI for the prototype.
 class GenderSelector extends StatefulWidget {
   const GenderSelector({
@@ -26,8 +26,7 @@ class _GenderSelectorState extends State<GenderSelector> {
 
   IconData _iconFor(String label) {
     if (label.contains('여')) return Icons.female_rounded;
-    if (label.contains('남')) return Icons.male_rounded;
-    return Icons.remove_rounded;
+    return Icons.male_rounded;
   }
 
   @override

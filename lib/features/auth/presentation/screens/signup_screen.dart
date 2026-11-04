@@ -12,6 +12,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
+import '../../../../widgets/birth_date_picker.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/oddo_text_field.dart';
 import '../../../../widgets/primary_button.dart';
@@ -52,13 +53,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _pickBirth() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _birth ?? DateTime(now.year - 20),
-      firstDate: DateTime(1900),
-      lastDate: now,
-    );
+    final picked = await showBirthDatePicker(context, initial: _birth);
     if (picked != null) setState(() => _birth = picked);
   }
 
@@ -70,7 +65,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _emailError = Validators.email(email);
       _passwordError = Validators.password(password);
       _passwordConfirmError = Validators.passwordConfirm(
-          _passwordConfirmController.text, password);
+        _passwordConfirmController.text,
+        password,
+      );
       _nicknameError = Validators.nickname(nickname);
     });
     if (_emailError != null ||
@@ -80,37 +77,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
     if (!_requiredTermsChecked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('필수 약관에 동의해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('필수 약관에 동의해주세요.')));
       return;
     }
 
     try {
-      await ref.read(authControllerProvider.notifier).signUp(
-            email: email,
-            password: password,
-            nickname: nickname,
-          );
+      await ref
+          .read(authControllerProvider.notifier)
+          .signUp(email: email, password: password, nickname: nickname);
       if (mounted) context.goNamed(AppRoute.home);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading =
-        ref.watch(authControllerProvider.select((s) => s.isLoading));
+    final isLoading = ref.watch(
+      authControllerProvider.select((s) => s.isLoading),
+    );
 
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, AppSpacing.xs, AppSpacing.screenH, AppSpacing.xl),
+              AppSpacing.screenH,
+              AppSpacing.xs,
+              AppSpacing.screenH,
+              AppSpacing.xl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -162,8 +163,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         prefixIcon: Icons.calendar_today_outlined,
                         readOnly: true,
                         onTap: _pickBirth,
-                        suffix: const Icon(Icons.calendar_month_rounded,
-                            size: 20, color: AppColors.primary),
+                        suffix: const Icon(
+                          Icons.calendar_month_rounded,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Gap.h12,
                       const GenderSelector(),
@@ -201,12 +205,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const Text('이미 계정이 있으신가요?', style: AppTypography.bodySecondary),
         const SizedBox(width: 6),
         GestureDetector(
-          onTap: () =>
-              context.canPop() ? context.pop() : context.goNamed(AppRoute.login),
+          onTap: () => context.canPop()
+              ? context.pop()
+              : context.goNamed(AppRoute.login),
           child: Text(
             '로그인',
-            style: AppTypography.bodySecondary
-                .copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+            style: AppTypography.bodySecondary.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
