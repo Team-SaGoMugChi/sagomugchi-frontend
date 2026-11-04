@@ -35,13 +35,7 @@ class MetricTile extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: AppColors.primary),
               Gap.w8,
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.caption,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              Expanded(child: Text(label, style: AppTypography.caption)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),

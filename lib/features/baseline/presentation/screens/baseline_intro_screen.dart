@@ -3,22 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/duration_chip.dart';
-import '../../../../widgets/icon_info_tile.dart';
-import '../../../../widgets/mascot_scene_card.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
-import '../../../../widgets/security_card.dart';
-import '../../../../widgets/tip_card.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
+import '../widgets/baseline_companion.dart';
 import '../widgets/baseline_header.dart';
 
 /// Screen 17 — 얼굴·음성 Baseline 안내. → 준비 체크.
@@ -39,8 +33,8 @@ class BaselineIntroScreen extends ConsumerWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 child: BaselineHeader(
-                  title: '베이스라인 측정 1/2',
-                  stepLabels: ['안내 진행', '측정 진행'],
+                  title: '나의 기준 만들기',
+                  stepLabels: ['안내', '준비', '측정'],
                   activeStep: 0,
                 ),
               ),
@@ -56,58 +50,76 @@ class BaselineIntroScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        '얼굴과 음성 baseline을\n측정할게요',
+                        '오또와 함께,\n평소의 나를 알려주세요',
                         style: AppTypography.display,
                       ),
                       Gap.h8,
                       const Text(
-                        '정확한 감정 분석을 위해 현재 당신의\n표정과 음성 데이터를 수집해요.',
-                        style: AppTypography.bodySecondary,
+                        '문장 6개를 평소 목소리로 읽어주세요.',
+                        style: AppTypography.bodyLarge,
                       ),
-                      Gap.h16,
-                      // TODO: 클립보드를 든 안내 포즈로 교체 예정 (character_sheet 13.클립보드)
-                      const MascotSceneCard(
-                        pose: MascotPose.clipboard,
-                        bubble: '화면의 문장 6개를\n평소 목소리로 읽어주세요!',
+                      const SizedBox(
+                        height: 180,
+                        child: BaselineCompanion(welcome: true),
                       ),
-                      Gap.h24,
                       const Text(
-                        '측정 항목 및 시간 안내',
+                        '천천히 읽어도 괜찮아요.',
+                        textAlign: TextAlign.center,
                         style: AppTypography.subtitle,
                       ),
-                      Gap.h12,
+                      Gap.h20,
                       OddoCard(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            for (
-                              var i = 0;
-                              i < BaselineDummy.measureItems.length;
-                              i++
-                            ) ...[
-                              if (i > 0)
-                                const Divider(
-                                  color: AppColors.divider,
-                                  height: 1,
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              spacing: AppSpacing.md,
+                              runSpacing: AppSpacing.xs,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.schedule_rounded,
+                                      size: AppSpacing.lg,
+                                      color: AppColors.primary,
+                                    ),
+                                    Gap.w8,
+                                    Text(
+                                      '약 1~2분',
+                                      style: AppTypography.subtitle.copyWith(
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              IconInfoTile(
-                                icon: BaselineDummy.measureItems[i].icon,
-                                title: BaselineDummy.measureItems[i].title,
-                                description:
-                                    BaselineDummy.measureItems[i].description,
-                                trailing: DurationChip(
-                                  BaselineDummy.measureItems[i].duration,
+                                const Text(
+                                  '문장 6개',
+                                  style: AppTypography.bodySecondary,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            Gap.h16,
+                            const Text('무엇을 기록하나요?', style: AppTypography.body),
+                            Gap.h4,
+                            const Text(
+                              '읽는 동안의 목소리와 얼굴 표정을 함께 기록해요.',
+                              style: AppTypography.bodySecondary,
+                            ),
+                            const Divider(
+                              height: AppSpacing.xl,
+                              color: AppColors.divider,
+                            ),
+                            const Text('왜 필요한가요?', style: AppTypography.body),
+                            Gap.h4,
+                            const Text(
+                              '앞으로의 감정 변화를 평소의 나와 비교하기 위해서예요.',
+                              style: AppTypography.bodySecondary,
+                            ),
                           ],
                         ),
                       ),
-                      Gap.h16,
-                      const SecurityCard(
-                        description: '모든 데이터는 안전하게 보호되며, 나만을 위한 분석에 사용돼요.',
-                      ),
-                      Gap.h12,
-                      const TipCard(tips: BaselineDummy.introTips),
                     ],
                   ),
                 ),
@@ -125,7 +137,7 @@ class BaselineIntroScreen extends ConsumerWidget {
                     PrimaryButton(
                       label: hasPendingMeasurement
                           ? '이전 측정 다시 저장하기'
-                          : '측정 시작하기',
+                          : '오또와 준비하기',
                       leadingIcon: hasPendingMeasurement
                           ? Icons.cloud_upload_rounded
                           : Icons.videocam_rounded,

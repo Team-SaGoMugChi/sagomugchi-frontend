@@ -368,8 +368,10 @@ void main() {
       },
     );
 
-    Future<void> show(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(390, 844);
+    Future<void> show(WidgetTester tester, {bool largeText = false}) async {
+      tester.view.physicalSize = largeText
+          ? const Size(320, 700)
+          : const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -381,6 +383,12 @@ void main() {
           ],
           child: MaterialApp(
             theme: AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(largeText ? 1.6 : 1)),
+              child: child!,
+            ),
             home: const BaselineDoneScreen(),
           ),
         ),
@@ -400,6 +408,18 @@ void main() {
       expect(find.text('심리테스트 시작하기'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'saved result remains readable with large text on a narrow screen',
+      (tester) async {
+        await show(tester, largeText: true);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('217 Hz'));
+        await tester.ensureVisible(find.text('3.2 음절/초'));
+        expect(tester.takeException(), isNull);
+        expect(find.text('심리테스트 시작하기'), findsOneWidget);
+      },
+    );
 
     testWidgets('does not claim completion while loading', (tester) async {
       final pending = Completer<BaselineProfile?>();

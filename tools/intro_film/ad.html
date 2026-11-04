@@ -223,10 +223,10 @@ const words=[['피곤함',150,740,.9],['서운함',690,660,.35],['답답함',140
 const chips=words.map(([w,x,y,z])=>{const e=add(`<div class="chip">${w}</div>`);css(e,{left:x+'px',top:y+'px'});return {e,x,y,z};});
 // S3
 const p3=pill('말하기',230);
-const s3=headline([{text:'탄카츄랑'},{text:'3분만 이야기해요',em:true}],320,{size:86});
+const s3=headline([{text:'오또랑'},{text:'3분만 이야기해요',em:true}],320,{size:86});
 const phone=add(`<div class="phone" style="left:230px;top:610px"><div class="screen"><img src="call_room_day.jpg"><div class="notch"></div>
- <div class="status"><b></b>탄카츄 · 02:41</div><div class="pip"><div class="hd"></div><div class="bd"></div></div>
- <div class="sub"><small>탄카츄</small><span id="q"></span></div><div class="wave">${'<span></span>'.repeat(18)}</div></div></div>`);
+ <div class="status"><b></b>오또 · 02:41</div><div class="pip"><div class="hd"></div><div class="bd"></div></div>
+ <div class="sub"><small>오또</small><span id="q"></span></div><div class="wave">${'<span></span>'.repeat(18)}</div></div></div>`);
 const scr=phone.querySelector('.screen'); const qEl=phone.querySelector('#q'); const waveBars=[...phone.querySelectorAll('.wave span')];
 const QTXT='오늘 하루 중에 제일 마음에 남은 순간은 뭐였어?';
 // S4

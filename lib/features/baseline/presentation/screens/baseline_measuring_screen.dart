@@ -299,9 +299,37 @@ class _BaselineMeasuringScreenState
                       liveRegion: true,
                       child: Text(
                         status,
+                        textAlign: TextAlign.center,
                         style: AppTypography.caption.copyWith(
                           color: AppColors.callTextSecondary,
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenH,
+                ),
+                child: Column(
+                  children: [
+                    LinearProgressIndicator(
+                      value: _advanced
+                          ? 1
+                          : _sentenceIndex /
+                                BaselineDummy.readingSentences.length,
+                      backgroundColor: AppColors.callSurface,
+                      color: AppColors.primarySoft,
+                      semanticsLabel:
+                          '${_advanced ? BaselineDummy.readingSentences.length : _sentenceIndex}/${BaselineDummy.readingSentences.length} 문장 완료',
+                    ),
+                    Gap.h8,
+                    Text(
+                      '안내가 끝나면 평소 목소리로 읽어주세요.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.callTextSecondary,
                       ),
                     ),
                   ],

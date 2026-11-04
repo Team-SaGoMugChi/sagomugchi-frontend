@@ -4,12 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/router/app_routes.dart';
-import '../../../../core/constants/app_assets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/mascot_image.dart';
+import '../../../../widgets/mascot_3d_preview.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../onboarding/application/onboarding_controller.dart';
@@ -102,7 +101,17 @@ class _SavedProfile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Center(child: MascotImage(pose: MascotPose.check, size: 140)),
+        const Center(
+          child: CircleAvatar(
+            radius: AppSpacing.xxxl,
+            backgroundColor: AppColors.primarySoft,
+            child: Icon(
+              Icons.check_rounded,
+              size: AppSpacing.xxxl,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
         Gap.h16,
         Text(
           returningUser ? '감정 기준을 새로 저장했어요!' : '첫 측정이 완료됐어요!',
@@ -115,49 +124,47 @@ class _SavedProfile extends StatelessWidget {
           textAlign: TextAlign.center,
           style: AppTypography.bodySecondary,
         ),
+        Gap.h12,
+        Center(
+          child: TextButton.icon(
+            onPressed: () => Mascot3dPreview.show(context),
+            icon: const Icon(Icons.view_in_ar_rounded),
+            label: const Text('오또와 인사하기'),
+          ),
+        ),
         Gap.h24,
         const Text('나의 감정 기준 요약', style: AppTypography.subtitle),
         Gap.h12,
-        Row(
+        _MetricPair(
           children: [
-            Expanded(
-              child: MetricTile(
-                icon: Icons.graphic_eq_rounded,
-                label: '평균 음성 높이',
-                value: '${pitch.toStringAsFixed(0)} Hz',
-              ),
+            MetricTile(
+              icon: Icons.graphic_eq_rounded,
+              label: '평균 음성 높이',
+              value: '${pitch.toStringAsFixed(0)} Hz',
             ),
-            Gap.w12,
-            Expanded(
-              child: MetricTile(
-                icon: Icons.mic_none_rounded,
-                label: '발화 속도 (추정)',
-                value: speechRate == null
-                    ? '확인 불가'
-                    : '${speechRate.toStringAsFixed(1)} 음절/초',
-              ),
+            MetricTile(
+              icon: Icons.mic_none_rounded,
+              label: '발화 속도 (추정)',
+              value: speechRate == null
+                  ? '확인 불가'
+                  : '${speechRate.toStringAsFixed(1)} 음절/초',
             ),
           ],
         ),
         Gap.h12,
-        Row(
+        _MetricPair(
           children: [
-            const Expanded(
-              child: MetricTile(
-                icon: Icons.face_rounded,
-                label: '얼굴 기준',
-                value: '저장 완료',
-              ),
+            const MetricTile(
+              icon: Icons.face_rounded,
+              label: '얼굴 기준',
+              value: '저장 완료',
             ),
-            Gap.w12,
-            Expanded(
-              child: MetricTile(
-                icon: Icons.schedule_rounded,
-                label: '측정 시각',
-                value: DateFormat(
-                  'M/d HH:mm',
-                ).format(profile.measuredAt.toLocal()),
-              ),
+            MetricTile(
+              icon: Icons.schedule_rounded,
+              label: '측정 시각',
+              value: DateFormat(
+                'M/d HH:mm',
+              ).format(profile.measuredAt.toLocal()),
             ),
           ],
         ),
@@ -194,6 +201,36 @@ class _SavedProfile extends StatelessWidget {
   }
 }
 
+/// Keep measured values readable on narrow screens and with large text.
+class _MetricPair extends StatelessWidget {
+  const _MetricPair({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          constraints.maxWidth < 320 ||
+          MediaQuery.textScalerOf(context).scale(16) > 20;
+      if (stacked) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [children.first, Gap.h12, children.last],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: children.first),
+          Gap.w12,
+          Expanded(child: children.last),
+        ],
+      );
+    },
+  );
+}
+
 class _Notice extends StatelessWidget {
   const _Notice({required this.text, required this.description});
 
@@ -203,7 +240,11 @@ class _Notice extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      const MascotImage(pose: MascotPose.thinking, size: 140),
+      const Icon(
+        Icons.info_outline_rounded,
+        size: AppSpacing.xxxl,
+        color: AppColors.primary,
+      ),
       Gap.h20,
       Text(text, textAlign: TextAlign.center, style: AppTypography.title),
       Gap.h12,
