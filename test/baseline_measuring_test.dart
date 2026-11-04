@@ -55,7 +55,8 @@ class _Tts implements TtsService {
   final utterance = ValueNotifier<TtsUtterance?>(null);
 
   @override
-  Future<void> speak(String line) => speaking.future;
+  Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) =>
+      speaking.future;
 
   @override
   Future<void> stop() async {}

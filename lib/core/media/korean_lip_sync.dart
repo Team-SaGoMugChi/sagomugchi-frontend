@@ -45,8 +45,9 @@ class MouthShape {
 /// 받침 ㅁㅂㅍ이면 다시 다문다. 문장부호는 쉼(다문 입)으로 둔다.
 ///
 /// 위치는 "음절 단위 박자"로 센다: 한글 음절 1, 띄어쓰기 0.4, 문장부호 1.5.
-/// 화면은 경과 시간 × [syllablesPerSecond]로 지금 박자를 구하고, TTS가 읽는
-/// 위치를 알려주면([beatAtChar]) 그 자리로 다시 맞춘다.
+/// 화면은 경과 시간 × 발화의 박자 속도(`TtsUtterance.syllablesPerSecond`)로
+/// 지금 박자를 구하고, TTS가 읽는 위치를 알려주면([beatAtChar]) 그 자리로
+/// 다시 맞춘다.
 class KoreanLipSync {
   KoreanLipSync(this.text) : _beats = _measure(text);
 
@@ -55,7 +56,8 @@ class KoreanLipSync {
   /// 각 글자가 시작되는 박자(누적). 길이는 text.length + 1.
   final List<double> _beats;
 
-  /// 기기 TTS 한국어, 말하기 속도 0.45 기준 대략값. 실기기에서 맞춘다.
+  /// 기기 TTS 한국어, 말하기 속도 0.45 기준 대략값 — 다른 속도는 비례해
+  /// 늘리고(`TtsPace`), 서버 음성은 재생 길이로 맞춘다.
   static const double syllablesPerSecond = 5.2;
 
   static const double _spaceBeat = 0.4;

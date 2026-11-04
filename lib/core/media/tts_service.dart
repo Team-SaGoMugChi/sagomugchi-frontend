@@ -6,14 +6,21 @@ import '../../features/persona/data/persona_providers.dart';
 import '../config/app_config_provider.dart';
 import '../network/api_client.dart';
 import 'clova_voice_player.dart';
+import 'korean_lip_sync.dart';
 
 /// 지금 소리로 읽고 있는 문장 — 탄카츄 입 모양이 이걸 따라 움직인다.
 ///
 /// [charIndex]는 TTS 엔진이 알려준 "지금 읽는 단어"의 시작 위치다. 엔진이
-/// 위치를 알려주지 않으면(일부 기기) null로 남고, 화면은 경과 시간으로 추정한다.
+/// 위치를 알려주지 않으면(일부 기기·서버 음성) null로 남고, 화면은 경과 시간
+/// × [syllablesPerSecond]로 추정한다.
 @immutable
 class TtsUtterance {
-  const TtsUtterance({required this.text, this.charIndex, this.serial = 0});
+  const TtsUtterance({
+    required this.text,
+    this.charIndex,
+    this.serial = 0,
+    this.syllablesPerSecond = KoreanLipSync.syllablesPerSecond,
+  });
 
   final String text;
   final int? charIndex;
@@ -21,8 +28,36 @@ class TtsUtterance {
   /// 같은 문장을 다시 읽어도 새 발화로 구분하기 위한 번호.
   final int serial;
 
-  TtsUtterance at(int index) =>
-      TtsUtterance(text: text, charIndex: index, serial: serial);
+  /// 입 박자 — 서버 음성은 실제 재생 길이로 맞춘 값, 기기 TTS는 말 속도 추정값.
+  final double syllablesPerSecond;
+
+  TtsUtterance at(int index) => TtsUtterance(
+    text: text,
+    charIndex: index,
+    serial: serial,
+    syllablesPerSecond: syllablesPerSecond,
+  );
+}
+
+/// 탄카츄 말 빠르기. 안내 문장은 또박또박, Step1 말하기는 대화처럼 조금 빠르게.
+enum TtsPace {
+  normal(clovaSpeed: 0, deviceRate: 0.45),
+
+  /// 실기기에서 맞춘다 — CLOVA는 음수일수록 빠르다(-5~5).
+  conversation(clovaSpeed: -2, deviceRate: 0.55);
+
+  const TtsPace({required this.clovaSpeed, required this.deviceRate});
+
+  /// 서버 CLOVA Voice `speed`.
+  final int clovaSpeed;
+
+  /// 서버가 안 될 때 쓰는 기기 TTS 속도.
+  final double deviceRate;
+
+  /// 기기 TTS로 읽을 때의 입 박자 — [KoreanLipSync.syllablesPerSecond]는
+  /// [normal] 속도 기준이라 빠르기에 비례해 늘린다.
+  double get deviceSyllablesPerSecond =>
+      KoreanLipSync.syllablesPerSecond * deviceRate / normal.deviceRate;
 }
 
 /// Speaks Korean guide prompts aloud for the video-call style screens
@@ -53,7 +88,7 @@ class TtsService {
 
   final FlutterTts _tts = FlutterTts()
     ..setLanguage('ko-KR')
-    ..setSpeechRate(0.45)
+    ..setSpeechRate(TtsPace.normal.deviceRate)
     ..setPitch(1.05)
     ..awaitSpeakCompletion(true);
 
@@ -72,32 +107,69 @@ class TtsService {
   void _clear() => _set(null);
 
   /// [line] 하나를 읽고, 다 읽을 때까지 기다린다.
-  Future<void> speak(String line) => _speak(line);
+  Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) =>
+      _speak(line, pace: pace);
 
   Future<void> preview(String line, String speaker) =>
       _speak(line, speaker: speaker);
 
-  Future<void> _speak(String line, {String? speaker}) async {
+  Future<void> _speak(
+    String line, {
+    String? speaker,
+    TtsPace pace = TtsPace.normal,
+  }) async {
     final serial = ++_serial;
-    _set(TtsUtterance(text: line, serial: serial));
     try {
       if (remote != null) {
         final selected = speaker ?? await voice?.call() ?? 'nara';
         if (_disposed || serial != _serial) return;
         try {
-          await remote!.speak(line, selected);
+          // 음성을 받아오는 동안은 입을 다물고 있다가, 소리가 나는 순간
+          // 재생 길이에 맞춘 박자로 움직이기 시작한다.
+          await remote!.speak(
+            line,
+            selected,
+            speed: pace.clovaSpeed,
+            onStart: (duration) {
+              if (_disposed || serial != _serial) return;
+              _set(
+                TtsUtterance(
+                  text: line,
+                  serial: serial,
+                  syllablesPerSecond: _fitToDuration(line, duration, pace),
+                ),
+              );
+            },
+          );
           return;
         } catch (_) {
           // A device voice keeps guides accessible during server outages.
           if (_disposed || serial != _serial) return;
         }
       }
+      _set(
+        TtsUtterance(
+          text: line,
+          serial: serial,
+          syllablesPerSecond: pace.deviceSyllablesPerSecond,
+        ),
+      );
+      await _tts.setSpeechRate(pace.deviceRate);
       await _tts.speak(line);
     } catch (_) {
       // TTS unavailable — the on-screen caption still carries the guide.
     } finally {
       if (serial == _serial) _clear();
     }
+  }
+
+  /// 재생 길이를 알면 문장 박자를 그 길이에 나눠 넣는다 — 서버 음성은 읽는
+  /// 위치를 알려주지 않아서, 추정 속도로 움직이면 문장이 길수록 입이 어긋난다.
+  static double _fitToDuration(String line, Duration? duration, TtsPace pace) {
+    final seconds = (duration?.inMilliseconds ?? 0) / 1000;
+    final beats = KoreanLipSync(line).totalBeats;
+    if (seconds <= 0 || beats <= 0) return pace.deviceSyllablesPerSecond;
+    return beats / seconds;
   }
 
   /// [lines]를 순서대로 읽는다. 각 줄이 끝날 때마다 [onLine]으로 알려줘서
