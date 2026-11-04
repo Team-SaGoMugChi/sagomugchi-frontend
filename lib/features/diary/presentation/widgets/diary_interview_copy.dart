@@ -10,7 +10,9 @@ abstract final class DiaryInterviewCopy {
   /// 서버에서 질문을 받지 못했을 때 — 기록은 계속 이어간다.
   static const String keepGoing = '잘 들었어요. 더 하고 싶은 이야기가 있으면 이어서 말해주세요.';
 
-  /// 37번 상단 상태 줄 — 지금 무엇을 하고 있는지 그대로 보여준다.
+  /// 37번 상단 상태 줄 — 통화 상대가 하는 말처럼 짧게. 녹음·STT·서버 같은
+  /// 처리 단계는 드러내지 않는다(말을 옮기는 중과 질문을 기다리는 중은 사용자
+  /// 입장에선 같은 "생각하는 중"이다).
   static String callStatus({
     required bool speaking,
     required bool listenFailed,
@@ -22,12 +24,11 @@ abstract final class DiaryInterviewCopy {
     required bool crisis,
   }) {
     if (crisis) return '대화를 잠시 멈췄어요';
-    if (ending) return '이야기를 정리하고 있어요';
+    if (ending) return '통화를 마무리하고 있어요';
     if (recording) return '듣고 있어요';
-    if (transcribing) return '말을 옮기고 있어요';
-    if (waiting) return '탄카츄가 질문을 고르고 있어요';
-    if (done) return '이야기를 다 들었어요. 정리하러 갈게요';
-    if (speaking) return '탄카츄가 말하고 있어요';
+    if (transcribing || waiting) return '생각하고 있어요';
+    if (done) return '이야기 잘 들었어요';
+    if (speaking) return '통화 중';
     if (listenFailed) return '말하기를 눌러 이어가세요';
     // 탄카츄 말이 끝나고 녹음이 켜지기까지의 짧은 틈 — 곧 듣는다.
     return '듣고 있어요';
