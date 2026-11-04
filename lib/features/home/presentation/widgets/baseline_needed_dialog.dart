@@ -9,7 +9,8 @@ import '../../../../theme/app_typography.dart';
 import '../../../../widgets/primary_button.dart';
 
 /// Screen 8 — Baseline 측정 필요 팝업. Centered card shown on first home entry
-/// → permission rationale.
+/// → permission rationale. 온보딩을 시작해야 앱을 쓸 수 있어 바깥을 눌러도,
+/// 뒤로가기로도 닫히지 않는다 — "시작하기"로만 넘어간다.
 Future<void> showBaselineNeededDialog(
   BuildContext context, {
   bool hasPendingMeasurement = false,
@@ -17,64 +18,68 @@ Future<void> showBaselineNeededDialog(
 }) {
   return showDialog<void>(
     context: context,
-    builder: (dialogContext) => Dialog(
-      backgroundColor: AppColors.surface,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      shape: const RoundedRectangleBorder(borderRadius: AppRadius.card),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.xl,
-          AppSpacing.lg,
-          AppSpacing.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: AppColors.primarySoft,
-                shape: BoxShape.circle,
+    barrierDismissible: false,
+    builder: (dialogContext) => PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.card),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xl,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: AppColors.primarySoft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
               ),
-              child: const Icon(
-                Icons.favorite_rounded,
-                size: 18,
-                color: AppColors.primary,
+              Gap.h16,
+              Text(
+                hasPendingMeasurement
+                    ? '이전 측정 결과가\n아직 저장되지 않았어요.'
+                    : 'Oddo에 오신 것을 환영해요!',
+                textAlign: TextAlign.center,
+                style: AppTypography.subtitle,
               ),
-            ),
-            Gap.h16,
-            Text(
-              hasPendingMeasurement
-                  ? '이전 측정 결과가\n아직 저장되지 않았어요.'
-                  : 'Oddo에 오신 것을 환영해요!',
-              textAlign: TextAlign.center,
-              style: AppTypography.subtitle,
-            ),
-            Gap.h8,
-            const Text(
-              '앱을 가볍게 둘러보고,\n나와 대화할 친구를 만나보세요.',
-              textAlign: TextAlign.center,
-              style: AppTypography.bodySecondary,
-            ),
-            Gap.h24,
-            PrimaryButton(
-              label: hasPendingMeasurement ? '이전 측정 다시 저장하기' : '시작하기',
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                context.pushNamed(
-                  hasPendingMeasurement
-                      ? AppRoute.baselineAnalyzing
-                      // 소개 영상을 이미 봤다면 바로 페르소나 설정으로.
-                      : (introFilmSeen
-                            ? AppRoute.personaIntro
-                            : AppRoute.appIntroduction),
-                );
-              },
-            ),
-          ],
+              Gap.h8,
+              const Text(
+                '앱을 가볍게 둘러보고,\n나와 대화할 친구를 만나보세요.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySecondary,
+              ),
+              Gap.h24,
+              PrimaryButton(
+                label: hasPendingMeasurement ? '이전 측정 다시 저장하기' : '시작하기',
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  context.pushNamed(
+                    hasPendingMeasurement
+                        ? AppRoute.baselineAnalyzing
+                        // 소개 영상을 이미 봤다면 바로 페르소나 설정으로.
+                        : (introFilmSeen
+                              ? AppRoute.personaIntro
+                              : AppRoute.appIntroduction),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     ),

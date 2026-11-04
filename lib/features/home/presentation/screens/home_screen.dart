@@ -11,6 +11,9 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../features/baseline/application/baseline_face_frames_provider.dart';
 import '../../../../features/baseline/application/baseline_face_image_provider.dart';
 import '../../../../features/baseline/application/baseline_recording_provider.dart';
+import '../../../../features/diary/application/diary_draft_provider.dart';
+import '../../../../features/diary/application/pending_diary_provider.dart';
+import '../../../../features/diary/application/video_job_controller.dart';
 import '../../../../features/diary/data/diary_providers.dart';
 import '../../../../features/onboarding/application/onboarding_controller.dart';
 import '../../../../features/records/application/recorded_days_provider.dart';
@@ -51,6 +54,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted && !ref.read(onboardingCompleteProvider)) {
         _showBaselineDialog();
       }
+      // 영상을 기다리던 일기가 있으면(앱을 다시 켠 경우 포함) 진행 상태를 다시 확인한다.
+      if (mounted) {
+        unawaited(ref.read(videoJobControllerProvider.notifier).resume());
+      }
     });
   }
 
@@ -84,55 +91,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final written = recorded.contains(
       DateTime(selected.year, selected.month, selected.day),
     );
-    final start = DateTime(
-      selected.year,
-      selected.month,
-      selected.day,
-    ).subtract(Duration(days: selected.weekday % 7));
-    final weekDays = List.generate(7, (i) => start.add(Duration(days: i)));
-    final recent =
-        recorded
-            .where(
-              (d) => d.isBefore(
-                DateTime(selected.year, selected.month, selected.day),
-              ),
-            )
-            .toList()
-          ..sort((a, b) => b.compareTo(a));
-    final weekCount = recorded
-        .where(
-          (d) =>
-              !d.isBefore(start) &&
-              d.isBefore(start.add(const Duration(days: 7))),
-        )
-        .length;
+    // 7-day strip centered on the selected date (selected in the middle).
+    final weekDays = List.generate(
+      7,
+      (i) => DateTime(selected.year, selected.month, selected.day + i - 3),
+    );
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final isToday = DateUtils.isSameDay(selected, today);
+    final isFuture = selected.isAfter(today);
+    final pending = ref.watch(pendingDiaryProvider);
+    final waiting = !written && pending != null && pending.isFor(selected);
     return Scaffold(
-      bottomNavigationBar: DiaryBottomNav(
-        currentIndex: 0,
-        onSelect: (i) {
-          if (i == 1) context.goNamed(AppRoute.monthlyCalendar);
-          if (i == 2) context.goNamed(AppRoute.recordsCounsel);
-          if (i == 3) context.goNamed(AppRoute.myPage);
-        },
-      ),
+      // 작성일에만 [일기][리포트][상담] 탭바가 보인다.
+      bottomNavigationBar: written
+          ? DiaryBottomNav(
+              currentIndex: 0,
+              onSelect: (i) {
+                if (i == 1) context.goNamed(AppRoute.recordsReport);
+                if (i == 2) context.goNamed(AppRoute.recordsCounsel);
+              },
+            )
+          : null,
       body: AppBackground(
         child: SafeArea(
           bottom: false,
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.screenH),
             children: [
-              HomeHeader(month: selected),
-              Gap.h12,
-              Text(
-                DateFormatter.monthDay(selected),
-                style: AppTypography.caption,
-              ),
-              Gap.h8,
-              Text(
-                written ? '오늘 남긴 이야기' : '오늘 일기는 아직이에요',
-                style: AppTypography.title,
-              ),
-              Gap.h24,
+              HomeHeader(date: selected),
+              Gap.h16,
               WeeklyCalendar(
                 days: weekDays,
                 today: DateTime.now(),
@@ -141,90 +129,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onSelect: (d) => ref.read(viewingDateProvider.notifier).set(d),
               ),
               Gap.h24,
-              if (written) ...[
-                _HomeCardShell(
-                  child: _WrittenContent(
-                    date: selected,
-                    onReadDiary: () => context.goNamed(AppRoute.recordsDiary),
-                  ),
-                ),
-                Gap.h16,
+              // 다른 날짜를 보고 있어도 마무리하지 않은 일기가 있다는 걸 알린다
+              // (앱을 다시 켜면 홈은 오늘로 열린다).
+              if (pending != null && !pending.isFor(selected)) ...[
                 OddoCard(
                   color: AppColors.backgroundAlt,
                   child: Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          '조금 더 이야기하고 싶다면',
+                          '${DateFormatter.monthDay(pending.date)} 일기가 남아 있어요',
                           style: AppTypography.body,
                         ),
                       ),
                       TextButton(
-                        onPressed: () =>
-                            context.goNamed(AppRoute.recordsCounsel),
-                        child: const Text('상담'),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                OddoCard(
-                  child: Row(
-                    children: [
-                      const MascotImage(pose: MascotPose.writing, size: 72),
-                      Gap.w16,
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              weekCount == 0
-                                  ? '오늘의 이야기를 들려주세요'
-                                  : '이번 주 $weekCount일 썼어요',
-                              style: AppTypography.subtitle,
-                            ),
-                            Gap.h4,
-                            const Text(
-                              '말로 남기면 한 편의 일기가 돼요.',
-                              style: AppTypography.bodySecondary,
-                            ),
-                          ],
-                        ),
+                        onPressed: () => ref
+                            .read(viewingDateProvider.notifier)
+                            .set(pending.date),
+                        child: const Text('보러 가기'),
                       ),
                     ],
                   ),
                 ),
                 Gap.h16,
-                PrimaryButton(
-                  label: '오늘 일기 말하기',
-                  leadingIcon: Icons.mic_none_rounded,
-                  onPressed: () => _onWritePressed(onboarded, selected),
-                ),
               ],
-              Gap.h24,
-              const Text('최근 기록', style: AppTypography.caption),
-              Gap.h8,
-              if (recent.isEmpty)
-                const OddoCard(
-                  child: Text(
-                    '아직 기록이 없어요. 첫 이야기를 남겨 보세요.',
-                    style: AppTypography.bodySecondary,
-                  ),
-                )
-              else
-                OddoCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < recent.take(3).length; i++) ...[
-                        if (i > 0) const Divider(),
-                        _RecentEntry(date: recent[i]),
-                      ],
-                    ],
-                  ),
-                ),
+              // 탄카츄(빼꼼 포즈)가 카드 윗변을 두 손으로 잡고 있는 홈 메인 카드.
+              _PeekingCard(
+                child: written
+                    ? _WrittenContent(
+                        date: selected,
+                        onReadDiary: () =>
+                            context.goNamed(AppRoute.recordsDiary),
+                      )
+                    : waiting
+                    ? _PendingContent(pending: pending)
+                    : isFuture
+                    ? const _CardMessage(
+                        title: '그날이 오면 만나요',
+                        body: '이날이 되면 이야기를 남길 수 있어요.',
+                      )
+                    // 큰 제목을 없애고 그 문구를 카드 제목으로 옮겼다(화면 위 공간을 줄이려고).
+                    : _EmptyDayContent(
+                        isToday: isToday,
+                        onWrite: () => _onWritePressed(onboarded, selected),
+                      ),
+              ),
             ],
           ),
         ),
@@ -233,35 +182,258 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _RecentEntry extends ConsumerWidget {
-  const _RecentEntry({required this.date});
-  final DateTime date;
+/// 영상을 기다리는 일기의 홈 카드. 진행률을 보여주고, 완성되면 영상을 본 뒤
+/// 상담으로 이어 가게 한다(영상을 먼저 봐야 상담이 의미 있다).
+class _PendingContent extends ConsumerWidget {
+  const _PendingContent({required this.pending});
+
+  final PendingDiary pending;
+
+  void _continue(BuildContext context, WidgetRef ref, bool done) {
+    // 앱을 다시 켰으면 작성 내용이 메모리에 없다 — 휴대폰에 남긴 값으로 되돌린다.
+    if (ref.read(diaryDraftProvider).transcript != pending.draft.transcript) {
+      ref.read(diaryDraftProvider.notifier).restore(pending.draft);
+    }
+    ref.read(viewingDateProvider.notifier).set(pending.date);
+    context.pushNamed(
+      done ? AppRoute.diaryStep3VideoDone : AppRoute.diaryStep3VideoLoading,
+    );
+  }
+
+  Future<void> _discard(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('이 일기를 지울까요?', style: AppTypography.subtitle),
+        content: const Text(
+          '정리한 일기와 만들던 영상이 기록에 남지 않아요.',
+          style: AppTypography.bodySecondary,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('지우기'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    // 기다리던 일기를 지우면 이 카드가 사라진다(ref도 함께) — 영상 상태부터 비운다.
+    ref.read(diaryDraftProvider.notifier).clear();
+    ref.invalidate(videoJobControllerProvider);
+    await ref.read(pendingDiaryProvider.notifier).clear();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entry = ref.watch(diaryEntryProvider(date)).value;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(DateFormatter.monthDay(date), style: AppTypography.body),
-      subtitle: entry == null || entry.emotionKeywords.isEmpty
-          ? null
-          : Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xxs),
-              child: Wrap(
-                spacing: AppSpacing.xxs,
-                children: entry.emotionKeywords
-                    .take(2)
-                    .map((e) => OddoChip(label: e))
-                    .toList(),
-              ),
+    final video = ref.watch(videoJobControllerProvider);
+    final job = video.job;
+    final mine = job?.jobId == pending.jobId;
+    final done = mine && video.isDone;
+    final failed = mine && video.isFailed;
+    final percent = mine ? (job!.progress * 100).floor() : 0;
+    final title = done
+        ? '영상이 완성됐어요'
+        : failed
+        ? '영상을 완성하지 못했어요'
+        : '영상을 만들고 있어요 · $percent%';
+    final body = done
+        ? '영상을 먼저 보고, 탄카츄와 상담을 이어서 해요.'
+        : failed
+        ? '다시 만들어야 영상을 보고 상담을 이어서 할 수 있어요.'
+        : '다 만들어지면 여기에서 이어서 할 수 있어요.';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(title, style: AppTypography.subtitle),
+        Gap.h4,
+        Text(body, style: AppTypography.bodySecondary),
+        if (!done && !failed) ...[
+          Gap.h12,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: LinearProgressIndicator(
+              value: mine ? job!.progress : null,
+              minHeight: 6,
+              backgroundColor: AppColors.primarySoftBorder,
+              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
             ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        color: AppColors.textTertiary,
-      ),
-      onTap: () {
-        ref.read(viewingDateProvider.notifier).set(date);
-        context.goNamed(AppRoute.recordsDiary);
-      },
+          ),
+        ],
+        Gap.h16,
+        PrimaryButton(
+          label: done
+              ? '영상 보고 이어서 하기'
+              : failed
+              ? '다시 만들러 가기'
+              : '진행 화면 보기',
+          onPressed: () => _continue(context, ref, done),
+        ),
+        TextButton(
+          onPressed: () => _discard(context, ref),
+          child: const Text('이 일기 지우기'),
+        ),
+      ],
+    );
+  }
+}
+
+/// 아직 쓰지 않은 날 카드 — 제목, 일기가 만들어지는 순서(말하기 → 확인하기 → 영상 → 상담), 시작 버튼.
+/// 문구와 버튼만 있을 때는 카드가 허전했다(2026-11 시안 9개 중 8안).
+class _EmptyDayContent extends StatelessWidget {
+  const _EmptyDayContent({required this.isToday, required this.onWrite});
+
+  final bool isToday;
+  final VoidCallback onWrite;
+
+  static const _steps = [
+    (Icons.mic_none_rounded, '말하기'),
+    (Icons.edit_note_rounded, '확인하기'),
+    (Icons.movie_creation_outlined, '영상'),
+    (Icons.chat_bubble_outline_rounded, '상담'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isToday ? '오늘 하루는 어땠나요?' : '이날은 아직 기록이 없어요',
+          textAlign: TextAlign.center,
+          style: AppTypography.title,
+        ),
+        Gap.h4,
+        const Text(
+          '이렇게 한 편의 일기가 만들어져요',
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySecondary,
+        ),
+        const Spacer(),
+        Row(
+          children: [
+            for (var i = 0; i < _steps.length; i++) ...[
+              if (i > 0)
+                const Expanded(
+                  child: Divider(
+                    color: AppColors.primarySoftBorder,
+                    thickness: 2,
+                  ),
+                ),
+              Column(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      // 첫 단계(지금 할 일)만 채워서 강조한다.
+                      color: i == 0
+                          ? AppColors.primary
+                          : AppColors.backgroundAlt,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _steps[i].$1,
+                      size: 22,
+                      color: i == 0
+                          ? AppColors.textOnPrimary
+                          : AppColors.primary,
+                    ),
+                  ),
+                  Gap.h4,
+                  Text(_steps[i].$2, style: AppTypography.caption),
+                ],
+              ),
+            ],
+          ],
+        ),
+        Gap.h12,
+        const Text(
+          '약 10분이면 영상과 상담까지 끝나요',
+          textAlign: TextAlign.center,
+          style: AppTypography.caption,
+        ),
+        const Spacer(),
+        PrimaryButton(
+          label: isToday ? '오늘 일기 말하기' : '이날 이야기 말하기',
+          leadingIcon: Icons.mic_none_rounded,
+          onPressed: onWrite,
+        ),
+      ],
+    );
+  }
+}
+
+/// 미래 날짜 카드 내용 — 제목, 설명.
+class _CardMessage extends StatelessWidget {
+  const _CardMessage({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(title, textAlign: TextAlign.center, style: AppTypography.title),
+        Gap.h8,
+        Text(
+          body,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySecondary,
+        ),
+      ],
+    );
+  }
+}
+
+/// 빼꼼 포즈 탄카츄가 카드 윗변을 잡는 연출. 그림 아래쪽 끝이 손끝이라
+/// 카드 내용을 가리지 않는다.
+class _PeekingCard extends StatelessWidget {
+  const _PeekingCard({required this.child});
+
+  /// 마스코트 그림 높이와, 손이 카드 윗변에 걸치는 만큼 겹치는 높이.
+  static const _mascotSize = 140.0;
+  static const _overlap = 12.0;
+
+  /// 쓴 날·안 쓴 날 카드를 같은 크기로 맞춘다(쓴 날 카드가 길어 스크롤해야 했다).
+  static const cardHeight = 390.0;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: _mascotSize - _overlap),
+          child: SizedBox(
+            height: cardHeight,
+            child: _HomeCardShell(child: child),
+          ),
+        ),
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: MascotImage(
+              pose: MascotPose.peeking,
+              size: _mascotSize,
+              alignment: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -316,101 +488,129 @@ class _WrittenContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final entry = ref.watch(diaryEntryProvider(date)).value;
+    final thumbnail = ref.watch(savedVideoThumbnailUrlProvider(date)).value;
+    final chips = Wrap(
+      spacing: AppSpacing.xxs,
+      runSpacing: AppSpacing.xxs,
+      children: [
+        for (final e in entry?.emotionKeywords ?? const <String>[])
+          OddoChip(label: e),
+      ],
+    );
+    final readDiary = _ActionTile(
+      icon: Icons.menu_book_rounded,
+      label: '일기 읽기',
+      onTap: onReadDiary,
+    );
+    final title = Text(
+      DateFormatter.monthDay(date),
+      style: AppTypography.title.copyWith(color: AppColors.primary),
+    );
+    // 날짜·감정 한 줄, 요약 2줄, 영상(가로로 남는 높이만큼), 일기 읽기. 스크롤 없이 한 화면에 들어간다.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
+        Row(
+          children: [
+            title,
+            Gap.w12,
+            Expanded(child: chips),
+          ],
+        ),
+        Gap.h8,
         Text(
-          DateFormatter.monthDay(date),
-          style: AppTypography.title.copyWith(color: AppColors.primary),
+          entry?.summary ?? '',
+          style: AppTypography.body,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        Gap.h4,
-        const Text(
-          '기록한 일기와 영상을 다시 볼 수 있어요.',
-          style: AppTypography.bodySecondary,
-        ),
-        if (entry != null) ...[
-          Gap.h16,
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: entry.emotionKeywords
-                .map((e) => OddoChip(label: e))
-                .toList(),
-          ),
-          Gap.h12,
-          Text(entry.summary, style: AppTypography.body),
-          TextButton(
-            onPressed: () => context.goNamed(AppRoute.recordsReport),
-            child: const Text('리포트 보기'),
-          ),
-        ],
-        Gap.h16,
-        GestureDetector(
-          onTap: () => _openVideo(context, ref),
-          child: ClipRRect(
-            borderRadius: AppRadius.card,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(color: AppColors.callBackground),
-                  // 그날 영상의 대표 장면 썸네일(가로 16:9). 없거나 못 불러오면 마스코트.
-                  _VideoThumbnail(
-                    url: ref.watch(savedVideoThumbnailUrlProvider(date)).value,
-                  ),
-                  const Center(
-                    child: Icon(
-                      Icons.play_circle_fill_rounded,
-                      size: 48,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        Gap.h12,
+        Expanded(
+          child: _VideoTile(
+            thumbnail: thumbnail,
+            onTap: () => _openVideo(context, ref),
           ),
         ),
-        Gap.h16,
-        GestureDetector(
-          onTap: onReadDiary,
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: const BoxDecoration(
-              color: AppColors.backgroundAlt,
-              borderRadius: AppRadius.button,
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.menu_book_rounded,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '작성한 일기 읽기',
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textTertiary,
-                ),
-              ],
-            ),
-          ),
-        ),
+        Gap.h12,
+        readDiary,
       ],
     );
   }
 }
 
-/// Shared white rounded card shell for both home states.
+/// 영상 썸네일 + 재생 아이콘. 받은 칸을 가득 채운다. 누르면 그날 영상을 연다.
+class _VideoTile extends StatelessWidget {
+  const _VideoTile({required this.thumbnail, required this.onTap});
+
+  final String? thumbnail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: AppRadius.card,
+        child: SizedBox.expand(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(color: AppColors.callBackground),
+              // 그날 영상의 대표 장면 썸네일. 없거나 못 불러오면 마스코트.
+              _VideoThumbnail(url: thumbnail),
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 44,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 카드 아래 버튼(일기 읽기).
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        decoration: const BoxDecoration(
+          color: AppColors.backgroundAlt,
+          borderRadius: AppRadius.button,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            Gap.w8,
+            Text(
+              label,
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeCardShell extends StatelessWidget {
   const _HomeCardShell({required this.child});
   final Widget child;

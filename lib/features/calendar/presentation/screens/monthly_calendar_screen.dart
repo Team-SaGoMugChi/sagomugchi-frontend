@@ -12,7 +12,6 @@ import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/diary_bottom_nav.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
@@ -32,6 +31,15 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
   DateTime _month = DateTime.now();
   DateTime _selected = DateTime.now();
 
+  static bool _isFuture(DateTime day) {
+    final now = DateTime.now();
+    return DateTime(
+      day.year,
+      day.month,
+      day.day,
+    ).isAfter(DateTime(now.year, now.month, now.day));
+  }
+
   @override
   Widget build(BuildContext context) {
     final recorded = ref.watch(recordedDaysProvider);
@@ -42,14 +50,6 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
       DateTime(_selected.year, _selected.month, _selected.day),
     );
     return Scaffold(
-      bottomNavigationBar: DiaryBottomNav(
-        currentIndex: 1,
-        onSelect: (i) {
-          if (i == 0) context.goNamed(AppRoute.home);
-          if (i == 2) context.goNamed(AppRoute.recordsCounsel);
-          if (i == 3) context.goNamed(AppRoute.myPage);
-        },
-      ),
       body: AppBackground(
         child: SafeArea(
           child: Column(
@@ -147,7 +147,10 @@ class _MonthlyCalendarScreenState extends ConsumerState<MonthlyCalendarScreen> {
                             },
                           )
                         : PrimaryButton(
-                            label: '이 날짜에 일기 작성하기',
+                            label: _isFuture(_selected)
+                                ? '아직 오지 않은 날이에요'
+                                : '이 날짜에 일기 작성하기',
+                            enabled: !_isFuture(_selected),
                             onPressed: () => showDiaryStartModal(
                               context,
                               ref,

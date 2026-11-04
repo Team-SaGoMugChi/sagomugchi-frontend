@@ -6,7 +6,8 @@ import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_typography.dart';
 
 /// Horizontal week strip: weekday labels + date cells. The selected day gets a
-/// blue ring; today's label reads "오늘"; days with a record show a dot.
+/// filled highlight; today's label reads "오늘"; days with a record show a dot.
+/// Swiping left/right moves the selection a week forward/back.
 class WeeklyCalendar extends StatelessWidget {
   const WeeklyCalendar({
     super.key,
@@ -23,12 +24,27 @@ class WeeklyCalendar extends StatelessWidget {
   final Set<DateTime> recordedDays;
   final ValueChanged<DateTime>? onSelect;
 
+  static const _swipeVelocity = 200.0;
+
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [for (final day in days) Expanded(child: _cell(day))]);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() < _swipeVelocity) return;
+        final days = velocity < 0 ? 7 : -7;
+        onSelect?.call(
+          DateTime(selected.year, selected.month, selected.day + days),
+        );
+      },
+      child: Row(
+        children: [for (final day in days) Expanded(child: _cell(day))],
+      ),
+    );
   }
 
   Widget _cell(DateTime day) {

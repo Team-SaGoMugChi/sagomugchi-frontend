@@ -148,8 +148,12 @@ class MonthlyCalendar extends StatelessWidget {
       );
     }
 
+    // 아직 오지 않은 날은 눈길이 가지 않게 흐리게(주말 색도 쓰지 않는다).
+    final isFuture = date.isAfter(today);
     final textColor = isSelected
         ? AppColors.textOnPrimary
+        : isFuture
+        ? AppColors.disabled
         : _weekdayColor(column) == AppColors.textSecondary
         ? AppColors.textStrong
         : _weekdayColor(column);
