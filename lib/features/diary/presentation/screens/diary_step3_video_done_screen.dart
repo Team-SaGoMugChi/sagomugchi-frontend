@@ -30,12 +30,12 @@ class DiaryStep3VideoDoneScreen extends ConsumerWidget {
     final videoUrl = job.videoUrl;
     final rating = ref.watch(diaryDraftProvider.select((d) => d.videoRating));
 
-    return Scaffold(
+    final page = Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: Column(
             children: [
-              const DiaryStepHeader(currentStep: 2),
+              const DiaryStepHeader(currentStep: 2, showBack: false),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(
@@ -105,6 +105,14 @@ class DiaryStep3VideoDoneScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+    // 영상을 본 다음 상담으로 간다. 뒤로가기는 홈으로 — 홈 카드에서 이어서 할 수 있다.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.goNamed(AppRoute.home);
+      },
+      child: page,
     );
   }
 }

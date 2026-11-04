@@ -60,6 +60,51 @@ class DiaryDraftState {
   final List<CounselMessage> counselMessages;
   final DateTime? counselStartedAt;
 
+  /// 영상을 기다리는 동안 앱을 꺼도 이어 쓸 수 있게 휴대폰에 남기는 값.
+  /// 영상 평가·상담은 영상 완성 뒤에 생기므로 남기지 않는다.
+  Map<String, dynamic> toJson() => {
+    'transcript': transcript,
+    'interview_messages': [for (final m in interviewMessages) m.toJson()],
+    'interview_slots': interviewSlots,
+    'diary_text': diaryText,
+    'summary': summary,
+    'recording_path': recordingPath,
+    'face_image_path': faceImagePath,
+    'face_image_paths': faceImagePaths,
+    'face_timestamps_ms': faceTimestampsMs,
+    'fusion_result': fusionResult?.toJson(),
+  };
+
+  factory DiaryDraftState.fromJson(Map<String, dynamic> json) {
+    final fusion = json['fusion_result'];
+    return DiaryDraftState(
+      transcript: json['transcript'] as String?,
+      interviewMessages: [
+        for (final m in (json['interview_messages'] as List? ?? const []))
+          InterviewMessage(
+            speaker: InterviewSpeaker.values.byName(m['speaker'] as String),
+            text: m['text'] as String,
+          ),
+      ],
+      interviewSlots: Map<String, String?>.from(
+        json['interview_slots'] as Map? ?? const {},
+      ),
+      diaryText: json['diary_text'] as String?,
+      summary: json['summary'] as String?,
+      recordingPath: json['recording_path'] as String?,
+      faceImagePath: json['face_image_path'] as String?,
+      faceImagePaths: List<String>.from(
+        json['face_image_paths'] as List? ?? const [],
+      ),
+      faceTimestampsMs: List<int>.from(
+        json['face_timestamps_ms'] as List? ?? const [],
+      ),
+      fusionResult: fusion is Map
+          ? FusionResult.fromJson(Map<String, dynamic>.from(fusion))
+          : null,
+    );
+  }
+
   DiaryDraftState copyWith({
     String? transcript,
     List<InterviewMessage>? interviewMessages,
@@ -163,6 +208,9 @@ class DiaryDraft extends Notifier<DiaryDraftState> {
     counselMessages: messages,
     counselStartedAt: startedAt,
   );
+
+  /// 홈에서 기다리던 일기를 이어 쓸 때 저장해 둔 값으로 되돌린다.
+  void restore(DiaryDraftState saved) => state = saved;
 
   void clear() => state = const DiaryDraftState();
 }

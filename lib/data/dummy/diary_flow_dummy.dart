@@ -21,19 +21,12 @@ abstract final class DiaryFlowDummy {
       text: '내 마음을 이해해주지 않고 바로 반박했을 때 속상했어.',
     ),
     CounselMessage(speaker: CounselSpeaker.oddo, text: '그때 기분은 어땠나요?'),
-    CounselMessage(
-      speaker: CounselSpeaker.user,
-      text: '정말 서운하고, 스트레스도 확 풀렸어.',
-    ),
+    CounselMessage(speaker: CounselSpeaker.user, text: '정말 서운하고, 스트레스도 확 풀렸어.'),
     CounselMessage(
       speaker: CounselSpeaker.oddo,
       text: '그 장면을 영상에서 어떻게 표현하면 좋을까요?\n(예: 밝은 분위기, 잔잔한 음악, 차분한 색감)',
     ),
   ];
-
-  /// 41 — AI diary summary shown while the video is being made.
-  static const String videoMakingSummary =
-      '친구와의 오해로 속상했지만, 마음을 돌아보며 내 감정을 이해하려고 노력한 하루였어요.';
 
   /// 42 — finished video summary + dummy playback times.
   static const String videoSummary =

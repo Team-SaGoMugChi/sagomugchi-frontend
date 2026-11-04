@@ -25,7 +25,9 @@ import '../../../../widgets/primary_button.dart';
 import '../../application/counsel_controller.dart';
 import '../../application/counsel_report_controller.dart';
 import '../../application/diary_draft_provider.dart';
+import '../../application/pending_diary_provider.dart';
 import '../../application/video_archive_controller.dart';
+import '../../application/video_job_controller.dart';
 import '../../data/diary_providers.dart';
 import '../../data/models/counsel_report.dart';
 import '../../data/models/counsel_session.dart';
@@ -66,9 +68,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
     if (!useDummyData &&
         (fusion == null || transcript == null || transcript.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('분석 결과가 없어 저장할 수 없어요. 일기 분석을 다시 진행해주세요.'),
-        ),
+        const SnackBar(content: Text('분석 결과가 없어 저장할 수 없어요. 일기 분석을 다시 진행해주세요.')),
       );
       return;
     }
@@ -129,6 +129,9 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
           .read(diaryRepositoryProvider)
           .saveRecord(entry: entry, report: report, counsel: counsel);
       ref.read(recordedDaysProvider.notifier).markRecorded(writtenDate);
+      // 홈에서 기다리던 일기가 이제 저장됐다.
+      await ref.read(pendingDiaryProvider.notifier).clear();
+      ref.invalidate(videoJobControllerProvider);
       // 감정 분석과 기록 저장이 끝났으므로 임시 얼굴 사진을 기기에서 정리한다.
       final facePaths = {
         ...draft.faceImagePaths,
@@ -155,14 +158,15 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       if (mounted) context.goNamed(AppRoute.homeWritten);
     } on AppException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-   /// 화면에 보여주고 저장할 리포트를 만든다.
+  /// 화면에 보여주고 저장할 리포트를 만든다.
   ///
   /// 감정 분포·강도는 Step2 분석에서, 글은 상담 리포트에서 온다. 실제 모드에서
   /// 서버가 만들지 않은 값은 빈 값이나 0으로 두고, 더미 모드에서만 샘플을 쓴다.
@@ -191,14 +195,15 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
       emotionDistribution: fusion != null
           ? _toDistribution(fusion.emotionScores)
           : (useSampleContent ? sample.emotionDistribution : const {}),
-      emotionIntensity: fusion?.emotionIntensity ??
+      emotionIntensity:
+          fusion?.emotionIntensity ??
           (useSampleContent ? sample.emotionIntensity : 0),
-      recoveryPossibility:
-          useSampleContent ? sample.recoveryPossibility : 0,
+      recoveryPossibility: useSampleContent ? sample.recoveryPossibility : 0,
       analysisComment: comment,
       behaviorGuides: guides,
-      recommendedActivities:
-          useSampleContent ? sample.recommendedActivities : const [],
+      recommendedActivities: useSampleContent
+          ? sample.recommendedActivities
+          : const [],
       headline: counsel?.headline ?? '',
       moments: counsel?.moments ?? const [],
       reframe: counsel?.reframe ?? '',
@@ -240,15 +245,20 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
                     onPressed: () {
                       if (context.canPop()) context.pop();
                     },
                   ),
                   const Expanded(
-                    child: Text('감정 리포트',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.subtitle),
+                    child: Text(
+                      '감정 리포트',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.subtitle,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.help_outline_rounded, size: 20),
@@ -266,8 +276,12 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.sm, AppSpacing.screenH, AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.sm,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -313,8 +327,9 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                       ],
                       Gap.h16,
                       _TabToggle(
-                          index: _tab,
-                          onChanged: (i) => setState(() => _tab = i)),
+                        index: _tab,
+                        onChanged: (i) => setState(() => _tab = i),
+                      ),
                       Gap.h16,
                       if (_tab == 0)
                         _ReportTab(
@@ -329,8 +344,12 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                ),
                 child: PrimaryButton(
                   label: '기록 완료하기',
                   loading: _saving,
@@ -349,9 +368,7 @@ class _ReportGuideScreenState extends ConsumerState<ReportGuideScreen> {
 ///
 /// 실패해도 분석 결과는 볼 수 있어 에러 화면으로 덮지 않고 배너로 알린다.
 class _ReportStatusCard extends StatelessWidget {
-  const _ReportStatusCard.loading()
-      : onRetry = null,
-        showingSample = false;
+  const _ReportStatusCard.loading() : onRetry = null, showingSample = false;
   const _ReportStatusCard.failed({
     required this.onRetry,
     required this.showingSample,
@@ -376,19 +393,24 @@ class _ReportStatusCard extends StatelessWidget {
               width: 16,
               height: 16,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.primary),
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
             )
           else
-            const Icon(Icons.error_outline_rounded,
-                size: 16, color: AppColors.primary),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 16,
+              color: AppColors.primary,
+            ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               loading
                   ? '상담 내용을 정리하고 있어요.'
                   : showingSample
-                      ? '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.'
-                      : '상담 리포트를 만들지 못했어요. 일기 분석 결과만 표시해요.',
+                  ? '상담 리포트를 만들지 못했어요. 아래 내용은 예시예요.'
+                  : '상담 리포트를 만들지 못했어요. 일기 분석 결과만 표시해요.',
               style: AppTypography.caption,
             ),
           ),
@@ -400,9 +422,13 @@ class _ReportStatusCard extends StatelessWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Text('다시 시도',
-                  style: AppTypography.caption.copyWith(
-                      color: AppColors.primary, fontWeight: FontWeight.w700)),
+              child: Text(
+                '다시 시도',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
         ],
       ),
@@ -473,7 +499,8 @@ class _ReportTab extends StatelessWidget {
 
   /// 비중이 큰 순으로 상위 [_shownEmotionCount]개. 0%인 감정은 뺀다.
   static List<MapEntry<String, double>> _topEmotions(
-          Map<String, double> distribution) =>
+    Map<String, double> distribution,
+  ) =>
       (distribution.entries.where((e) => e.value > 0).toList()
             ..sort((a, b) => b.value.compareTo(a.value)))
           .take(_shownEmotionCount)
@@ -493,7 +520,9 @@ class _ReportTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const CardSectionHeader(
-                  icon: Icons.pie_chart_outline_rounded, title: '오늘의 감정 요약'),
+                icon: Icons.pie_chart_outline_rounded,
+                title: '오늘의 감정 요약',
+              ),
               Gap.h12,
               for (final e in emotions)
                 Padding(
@@ -502,20 +531,27 @@ class _ReportTab extends StatelessWidget {
                 ),
               // 판단 불가(모든 감정 0) — 감정이 없다는 뜻이 아니라 근거가 부족하다는 뜻.
               if (emotions.isEmpty)
-                const Text('이번 일기에서는 감정을 뚜렷하게 읽지 못했어요.',
-                    style: AppTypography.bodySecondary),
+                const Text(
+                  '이번 일기에서는 감정을 뚜렷하게 읽지 못했어요.',
+                  style: AppTypography.bodySecondary,
+                ),
               const Divider(color: AppColors.divider, height: 20),
               Row(
                 children: [
                   Expanded(
-                      child: _StatTile(
-                          label: '감정 강도', value: report.emotionIntensity)),
+                    child: _StatTile(
+                      label: '감정 강도',
+                      value: report.emotionIntensity,
+                    ),
+                  ),
                   if (showSampleMetrics) ...[
                     Gap.w12,
                     Expanded(
-                        child: _StatTile(
-                            label: '회복 가능성',
-                            value: report.recoveryPossibility)),
+                      child: _StatTile(
+                        label: '회복 가능성',
+                        value: report.recoveryPossibility,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -533,7 +569,9 @@ class _ReportTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CardSectionHeader(
-                    icon: Icons.auto_awesome_rounded, title: 'AI 분석 코멘트'),
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'AI 분석 코멘트',
+                ),
                 Gap.h8,
                 Text(report.analysisComment, style: AppTypography.body),
               ],
@@ -547,7 +585,9 @@ class _ReportTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CardSectionHeader(
-                    icon: Icons.lightbulb_outline_rounded, title: '오늘 알아차린 것'),
+                  icon: Icons.lightbulb_outline_rounded,
+                  title: '오늘 알아차린 것',
+                ),
                 Gap.h8,
                 for (final m in moments)
                   Padding(
@@ -557,8 +597,11 @@ class _ReportTab extends StatelessWidget {
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
-                          child: Icon(Icons.circle,
-                              size: 5, color: AppColors.primary),
+                          child: Icon(
+                            Icons.circle,
+                            size: 5,
+                            color: AppColors.primary,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(child: Text(m, style: AppTypography.body)),
@@ -576,7 +619,9 @@ class _ReportTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CardSectionHeader(
-                    icon: Icons.swap_horiz_rounded, title: '다르게 보기'),
+                  icon: Icons.swap_horiz_rounded,
+                  title: '다르게 보기',
+                ),
                 Gap.h8,
                 Text(reframe, style: AppTypography.body),
               ],
@@ -603,13 +648,17 @@ class _GuideTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CardSectionHeader(
-                    icon: Icons.flag_outlined, title: '오늘의 행동 가이드'),
+                  icon: Icons.flag_outlined,
+                  title: '오늘의 행동 가이드',
+                ),
                 Gap.h12,
                 for (var i = 0; i < report.behaviorGuides.length; i++)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _NumberedItem(
-                        number: i + 1, text: report.behaviorGuides[i]),
+                      number: i + 1,
+                      text: report.behaviorGuides[i],
+                    ),
                   ),
               ],
             ),
@@ -621,15 +670,20 @@ class _GuideTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CardSectionHeader(
-                    icon: Icons.spa_outlined, title: '추천 활동'),
+                  icon: Icons.spa_outlined,
+                  title: '추천 활동',
+                ),
                 Gap.h12,
                 for (final activity in report.recommendedActivities)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle_outline_rounded,
-                            size: 18, color: AppColors.primary),
+                        const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(activity, style: AppTypography.body),
                       ],
@@ -661,7 +715,10 @@ class _EmotionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(width: 52, child: Text(name, style: AppTypography.bodySecondary)),
+        SizedBox(
+          width: 52,
+          child: Text(name, style: AppTypography.bodySecondary),
+        ),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -676,10 +733,11 @@ class _EmotionRow extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
           width: 36,
-          child: Text('${(value * 100).round()}%',
-              textAlign: TextAlign.right,
-              style: AppTypography.caption
-                  .copyWith(fontWeight: FontWeight.w700)),
+          child: Text(
+            '${(value * 100).round()}%',
+            textAlign: TextAlign.right,
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
@@ -704,8 +762,10 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(label, style: AppTypography.caption),
           const SizedBox(height: 2),
-          Text('$value',
-              style: AppTypography.subtitle.copyWith(color: AppColors.primary)),
+          Text(
+            '$value',
+            style: AppTypography.subtitle.copyWith(color: AppColors.primary),
+          ),
         ],
       ),
     );
@@ -727,8 +787,7 @@ class _ChangeChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const CardSectionHeader(
-            icon: Icons.show_chart_rounded, title: '감정 변화'),
+        const CardSectionHeader(icon: Icons.show_chart_rounded, title: '감정 변화'),
         Gap.h16,
         SizedBox(
           height: 90,
@@ -757,8 +816,7 @@ class _ChangeChart extends StatelessWidget {
           ),
         ),
         Gap.h8,
-        const Text('상담을 지나며 속상함이 조금씩 가라앉았어요.',
-            style: AppTypography.caption),
+        const Text('상담을 지나며 속상함이 조금씩 가라앉았어요.', style: AppTypography.caption),
       ],
     );
   }
@@ -778,11 +836,17 @@ class _NumberedItem extends StatelessWidget {
           width: 22,
           height: 22,
           decoration: const BoxDecoration(
-              color: AppColors.primary, shape: BoxShape.circle),
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
           alignment: Alignment.center,
-          child: Text('$number',
-              style: AppTypography.caption.copyWith(
-                  color: AppColors.textOnPrimary, fontWeight: FontWeight.w700)),
+          child: Text(
+            '$number',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textOnPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(text, style: AppTypography.body)),

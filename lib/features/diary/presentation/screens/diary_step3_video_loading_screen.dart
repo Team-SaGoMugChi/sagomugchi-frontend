@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../data/dummy/diary_flow_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
@@ -14,12 +15,13 @@ import '../../../../widgets/card_section_header.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
+import '../../application/diary_draft_provider.dart';
 import '../../application/video_job_controller.dart';
 import '../widgets/diary_step_header.dart';
 
 /// Screen 41 — Step 3. 영상 제작 로딩. 서버에 영상 생성 작업을 등록하고
 /// 진행률을 보여주다가, 완성되면 42번 화면으로 넘어간다. 실패하면 다시
-/// 시도하거나 영상 없이 Step4로 넘어갈 수 있다.
+/// 시도하거나 홈으로 간다 — 상담은 영상을 본 뒤에 하므로 영상 없이 넘어가지 않는다.
 class DiaryStep3VideoLoadingScreen extends ConsumerStatefulWidget {
   const DiaryStep3VideoLoadingScreen({super.key});
 
@@ -39,9 +41,37 @@ class _DiaryStep3VideoLoadingScreenState
     'done': '영상이 완성됐어요',
   };
 
+  static const _tick = Duration(milliseconds: 500);
+
+  Timer? _ticker;
+  double _shown = 0;
+
+  void _advance() {
+    final job = ref.read(videoJobControllerProvider).job;
+    if (job == null) {
+      _shown = 0; // 다시 시도하면 처음부터 센다.
+      return;
+    }
+    setState(() {
+      _shown = nextDisplayedProgress(
+        current: _shown,
+        serverProgress: job.progress,
+        stage: job.stage,
+        elapsed: _tick,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _ticker = Timer.periodic(_tick, (_) => _advance());
     // initState 안에서 바로 start()를 부르면 상태 변경이 빌드 도중 일어날 수
     // 있어 다음 마이크로태스크로 미룬다(step1 처리 화면과 동일).
     Future.microtask(
@@ -59,38 +89,52 @@ class _DiaryStep3VideoLoadingScreenState
 
     final video = ref.watch(videoJobControllerProvider);
     final job = video.job;
+    final summary =
+        ref.watch(diaryDraftProvider.select((d) => d.summary))?.trim() ?? '';
 
-    return Scaffold(
+    final page = Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: Column(
             children: [
-              const DiaryStepHeader(currentStep: 2),
+              const DiaryStepHeader(currentStep: 2, showBack: false),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.md, AppSpacing.screenH, AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Center(
-                        child: Text('Step 3. 영상 제작',
-                            style: AppTypography.bodySecondary.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700)),
+                        child: Text(
+                          'Step 3. 영상 제작',
+                          style: AppTypography.bodySecondary.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                       Gap.h8,
-                      const Text('영상을 만들고 있어요',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.title),
+                      const Text(
+                        '영상을 만들고 있어요',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.title,
+                      ),
                       Gap.h8,
-                      const Text('모든 내용을 종합해\n오늘의 이야기를 영상으로 제작하고 있어요.',
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodySecondary),
+                      const Text(
+                        '모든 내용을 종합해\n오늘의 이야기를 영상으로 제작하고 있어요.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodySecondary,
+                      ),
                       Gap.h24,
                       // TODO: 카메라/노트북으로 영상을 만드는 포즈로 교체 예정
                       const Center(
-                          child: MascotImage(pose: MascotPose.camera, size: 160)),
+                        child: MascotImage(pose: MascotPose.camera, size: 160),
+                      ),
                       Gap.h24,
                       if (video.isFailed)
                         _ErrorContent(
@@ -98,50 +142,70 @@ class _DiaryStep3VideoLoadingScreenState
                           onRetry: () => ref
                               .read(videoJobControllerProvider.notifier)
                               .retry(),
-                          onSkip: () => context.pushReplacementNamed(
-                              AppRoute.diaryStep4CounselIntro),
+                          onHome: () => context.goNamed(AppRoute.home),
                         )
                       else ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                           child: LinearProgressIndicator(
                             // 등록 전(job == null)에는 움직이는 막대로 보여준다.
-                            value: job?.progress,
+                            value: job == null ? null : _shown,
                             minHeight: 8,
                             backgroundColor: AppColors.primarySoftBorder,
-                            valueColor:
-                                const AlwaysStoppedAnimation(AppColors.primary),
+                            valueColor: const AlwaysStoppedAnimation(
+                              AppColors.primary,
+                            ),
                           ),
                         ),
                         Gap.h8,
                         Center(
                           child: Text(
-                              job == null
-                                  ? '영상 제작을 준비하고 있어요'
-                                  : '${_stageLabels[job.stage] ?? '영상을 만들고 있어요'}'
-                                      ' · ${(job.progress * 100).round()}%',
-                              style: AppTypography.caption),
+                            job == null
+                                ? '영상 제작을 준비하고 있어요'
+                                : '${_stageLabels[job.stage] ?? '영상을 만들고 있어요'}'
+                                      ' · ${(_shown * 100).floor()}%',
+                            style: AppTypography.caption,
+                          ),
                         ),
                         Gap.h4,
                         const Center(
-                          child: Text('영상은 몇 분 정도 걸릴 수 있어요.',
-                              style: AppTypography.caption),
+                          child: Text(
+                            '영상은 몇 분 정도 걸릴 수 있어요.',
+                            style: AppTypography.caption,
+                          ),
+                        ),
+                        if (job != null) ...[
+                          Gap.h16,
+                          SecondaryButton(
+                            label: '홈에서 기다리기',
+                            onPressed: () => context.goNamed(AppRoute.home),
+                          ),
+                          Gap.h4,
+                          const Center(
+                            child: Text(
+                              '다 만들어지면 홈에서 영상을 보고 이어서 할 수 있어요.',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.caption,
+                            ),
+                          ),
+                        ],
+                      ],
+                      if (summary.isNotEmpty) ...[
+                        Gap.h24,
+                        OddoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const CardSectionHeader(
+                                icon: Icons.auto_awesome_rounded,
+                                title: 'AI 일기 요약',
+                              ),
+                              Gap.h8,
+                              Text(summary, style: AppTypography.body),
+                            ],
+                          ),
                         ),
                       ],
-                      Gap.h24,
-                      const OddoCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CardSectionHeader(
-                                icon: Icons.auto_awesome_rounded,
-                                title: 'AI 일기 요약'),
-                            Gap.h8,
-                            Text(DiaryFlowDummy.videoMakingSummary,
-                                style: AppTypography.body),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -151,6 +215,15 @@ class _DiaryStep3VideoLoadingScreenState
         ),
       ),
     );
+    // 일기를 고치러 돌아가면 영상을 새로 만들게 되어(비용 두 번) 뒤로 가지 않는다.
+    // 뒤로가기는 "홈에서 기다리기"와 같다 — 작성 내용은 휴대폰에 남아 있다.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && job != null) context.goNamed(AppRoute.home);
+      },
+      child: page,
+    );
   }
 }
 
@@ -158,14 +231,14 @@ class _ErrorContent extends StatelessWidget {
   const _ErrorContent({
     required this.message,
     required this.onRetry,
-    required this.onSkip,
+    required this.onHome,
   });
 
   final String message;
   final VoidCallback onRetry;
 
-  /// 영상은 선택 단계다 — 계속 실패해도 상담(Step4)은 할 수 있어야 한다.
-  final VoidCallback onSkip;
+  /// 일기는 휴대폰에 남아 있어 홈 카드에서 나중에 다시 시도할 수 있다.
+  final VoidCallback onHome;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +265,13 @@ class _ErrorContent extends StatelessWidget {
         Gap.h16,
         PrimaryButton(label: '다시 시도하기', onPressed: onRetry),
         Gap.h8,
-        SecondaryButton(label: '영상 없이 다음 단계로', onPressed: onSkip),
+        SecondaryButton(label: '홈으로 가기', onPressed: onHome),
+        Gap.h4,
+        const Text(
+          '작성한 일기는 남아 있어요. 홈에서 다시 시도할 수 있어요.',
+          textAlign: TextAlign.center,
+          style: AppTypography.caption,
+        ),
       ],
     );
   }

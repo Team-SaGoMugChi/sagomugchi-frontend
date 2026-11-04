@@ -15,6 +15,13 @@ class FeatureDelta {
   /// baseline이 0에 가까워 상대 변화율을 못 낼 때 null.
   final double? relativeDelta;
 
+  Map<String, dynamic> toJson() => {
+    'baseline_value': baselineValue,
+    'current_value': currentValue,
+    'delta': delta,
+    'relative_delta': relativeDelta,
+  };
+
   factory FeatureDelta.fromJson(Map<String, dynamic> json) {
     final relativeDelta = json['relative_delta'];
     return FeatureDelta(
@@ -59,6 +66,18 @@ class FusionResult {
   /// 텍스트 감정과 음성·표정 신호가 서로 어긋난다고 서버가 판단한 경우.
   final bool incongruent;
 
+  /// [FusionResult.fromJson]이 다시 읽을 수 있는 서버 응답 형태.
+  Map<String, dynamic> toJson() => {
+    'emotion_keywords': emotionKeywords,
+    'emotion_scores': emotionScores,
+    'emotion_intensity': emotionIntensity,
+    'text_emotion_scores': textEmotionScores,
+    'voice_delta': voiceDelta.map((k, v) => MapEntry(k, v.toJson())),
+    'face_delta': faceDelta.map((k, v) => MapEntry(k, v.toJson())),
+    'signals': signals,
+    'incongruent': incongruent,
+  };
+
   factory FusionResult.fromJson(Map<String, dynamic> json) {
     final emotionKeywords = _stringList(
       json['emotion_keywords'],
@@ -72,10 +91,14 @@ class FusionResult {
     );
     final intensity = json['emotion_intensity'];
     if (intensity is! int || intensity < 0 || intensity > 100) {
-      throw const FormatException('emotion_intensity must be an integer from 0 to 100');
+      throw const FormatException(
+        'emotion_intensity must be an integer from 0 to 100',
+      );
     }
     if (emotionKeywords.any((keyword) => !emotionScores.containsKey(keyword))) {
-      throw const FormatException('emotion_keywords must exist in emotion_scores');
+      throw const FormatException(
+        'emotion_keywords must exist in emotion_scores',
+      );
     }
 
     final rawIncongruent = json['incongruent'];
@@ -143,7 +166,8 @@ double _finiteDouble(Object? raw, String fieldName) {
 }
 
 List<String> _stringList(Object? raw, String fieldName) {
-  if (raw is! List || raw.any((value) => value is! String || value.trim().isEmpty)) {
+  if (raw is! List ||
+      raw.any((value) => value is! String || value.trim().isEmpty)) {
     throw FormatException('$fieldName must contain non-empty strings');
   }
   return List<String>.unmodifiable(raw.cast<String>());

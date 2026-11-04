@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
+import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/diary/application/diary_draft_provider.dart';
 import 'package:oddo/features/diary/application/diary_handoff_controller.dart';
 import 'package:oddo/features/diary/application/video_job_controller.dart';
@@ -17,6 +18,7 @@ import 'package:oddo/features/diary/data/models/video_job_status.dart';
 import 'package:oddo/features/diary/data/repositories/diary_handoff_repository.dart';
 import 'package:oddo/features/diary/data/repositories/video_repository.dart';
 import 'package:oddo/features/records/application/viewing_date_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _fusion = FusionResult(
   emotionKeywords: ['상처', '기쁨'],
@@ -59,7 +61,12 @@ class _VideoClient implements ApiClient {
   @override
   Future<Map<String, dynamic>> post(String path, {Object? body}) async {
     this.body = body;
-    return {'job_id': 'job', 'status': 'running', 'stage': 'storyboard', 'progress': 0.0};
+    return {
+      'job_id': 'job',
+      'status': 'running',
+      'stage': 'storyboard',
+      'progress': 0.0,
+    };
   }
 
   @override
@@ -128,10 +135,18 @@ class _Repository implements DiaryHandoffRepository {
   }
 
   @override
-  Future<void> save({required DateTime date, required DiaryHandoff handoff}) async {
+  Future<void> save({
+    required DateTime date,
+    required DiaryHandoff handoff,
+  }) async {
     await saving?.future;
     saved = (date: date, handoff: handoff);
   }
+}
+
+Future<SharedPreferences> _prefs() {
+  SharedPreferences.setMockInitialValues({});
+  return SharedPreferences.getInstance();
 }
 
 void main() {
@@ -201,7 +216,9 @@ void main() {
     setUp(() {
       repository = _Repository();
       container = ProviderContainer(
-        overrides: [diaryHandoffRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          diaryHandoffRepositoryProvider.overrideWithValue(repository),
+        ],
       );
       container.read(viewingDateProvider.notifier).set(DateTime(2026, 9, 29));
     });
@@ -253,17 +270,20 @@ void main() {
     DiaryHandoffController controller() =>
         container.read(diaryHandoffControllerProvider.notifier);
 
-    test('latest hands over the file as soon as it is built, before saving', () async {
-      container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
-      repository.saving = Completer();
+    test(
+      'latest hands over the file as soon as it is built, before saving',
+      () async {
+        container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
+        repository.saving = Completer();
 
-      unawaited(submit());
-      final handoff = await controller().latest();
+        unawaited(submit());
+        final handoff = await controller().latest();
 
-      expect(handoff?.video, {'v': 1});
-      expect(repository.saved, isNull);
-      repository.saving!.complete();
-    });
+        expect(handoff?.video, {'v': 1});
+        expect(repository.saved, isNull);
+        repository.saving!.complete();
+      },
+    );
 
     test('latest gives null when building fails or takes too long', () async {
       container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
@@ -290,30 +310,39 @@ void main() {
         overrides: [
           videoRepositoryProvider.overrideWithValue(video),
           diaryHandoffRepositoryProvider.overrideWithValue(handoff),
+          localStoreProvider.overrideWithValue(LocalStore(await _prefs())),
         ],
       );
       addTearDown(container.dispose);
       container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
 
-      unawaited(container.read(diaryHandoffControllerProvider.notifier).submit());
+      unawaited(
+        container.read(diaryHandoffControllerProvider.notifier).submit(),
+      );
       await container.read(videoJobControllerProvider.notifier).start();
 
       expect(video.sentHandoff, {'v': 1});
     });
 
-    test('the video request goes without the file when there is none', () async {
-      final video = _VideoRepository();
-      final container = ProviderContainer(
-        overrides: [videoRepositoryProvider.overrideWithValue(video)],
-      );
-      addTearDown(container.dispose);
-      container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
+    test(
+      'the video request goes without the file when there is none',
+      () async {
+        final video = _VideoRepository();
+        final container = ProviderContainer(
+          overrides: [
+            videoRepositoryProvider.overrideWithValue(video),
+            localStoreProvider.overrideWithValue(LocalStore(await _prefs())),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.read(diaryDraftProvider.notifier).setTranscript('회의요.');
 
-      await container.read(videoJobControllerProvider.notifier).start();
+        await container.read(videoJobControllerProvider.notifier).start();
 
-      expect(video.created, isTrue);
-      expect(video.sentHandoff, isNull);
-    });
+        expect(video.created, isTrue);
+        expect(video.sentHandoff, isNull);
+      },
+    );
 
     test('VideoRemoteDataSource sends the file as diary_handoff', () async {
       final client = _VideoClient();
