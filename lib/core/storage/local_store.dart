@@ -28,6 +28,7 @@ class LocalStore {
   static const String kBig5Progress = 'psych_big5_progress_v1';
 
   /// 첫 실행 소개 영상을 끝까지 봤거나 건너뛰었는지(기기 단위, 계정과 무관).
+  static const String kPendingDiary = 'pending_diary'; // 영상을 기다리는 일기(JSON)
   static const String kIntroFilmSeen = 'intro_film_seen';
 
   /// 일기 리마인더 알림 on/off (Phase 7 로컬 푸시의 스위치).

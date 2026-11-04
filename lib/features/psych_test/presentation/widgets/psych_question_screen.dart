@@ -11,7 +11,7 @@ import '../../../../widgets/app_background.dart';
 import '../../../../widgets/help_sheet.dart';
 import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/primary_button.dart';
-import '../../../../widgets/step_progress_bar.dart';
+import '../../../../widgets/step_title.dart';
 
 /// How the answer options are laid out.
 enum PsychOptionLayout {
@@ -44,10 +44,14 @@ class PsychQuestionScreen extends StatefulWidget {
     this.onBack,
     this.isSaving = false,
     this.nextLabel = '다음',
+    this.autoAdvance = false,
+    this.onPrevious,
+    this.previousStep,
+    this.nextStep,
   });
 
   final String testTitle;
-  final int journeyIndex; // index in PsychTestDummy.journeySteps
+  final int journeyIndex; // index in PsychTestDummy.journeySteps (단계 표시줄은 없앴다)
   final int questionNumber;
   final int totalQuestions;
   final PsychQuestion question;
@@ -60,6 +64,17 @@ class PsychQuestionScreen extends StatefulWidget {
   final VoidCallback? onBack;
   final bool isSaving;
   final String nextLabel;
+
+  /// true면 답을 고르면 바로 [onNext]로 넘어간다(마지막 문항 제외 — 그때만 [nextLabel] 버튼이 나온다).
+  /// 아래에는 다음 버튼 대신 "이전 문제" 버튼([onPrevious])이 있다. 50문항마다 다음을 누르기 번거로웠다.
+  final bool autoAdvance;
+
+  /// 이전 문항으로. null이면 첫 문항이라 버튼을 끈다.
+  final VoidCallback? onPrevious;
+
+  /// 제목 왼쪽(지난 단계)·오른쪽(다음 단계)에 작고 흐리게 보여 줄 단계 이름([StepTitle]).
+  final String? previousStep;
+  final String? nextStep;
 
   @override
   State<PsychQuestionScreen> createState() => _PsychQuestionScreenState();
@@ -83,10 +98,20 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
     }
   }
 
+  bool get _isLast => widget.questionNumber >= widget.totalQuestions;
+
   void _select(int index) {
     setState(() => _selected = index);
     widget.onSelected?.call(index);
+    if (widget.autoAdvance && !_isLast) {
+      // 고른 답이 잠깐 보이게 한 뒤 넘어간다.
+      Future.delayed(_advanceDelay, () {
+        if (mounted && _selected == index) widget.onNext();
+      });
+    }
   }
+
+  static const _advanceDelay = Duration(milliseconds: 220);
 
   @override
   Widget build(BuildContext context) {
@@ -95,18 +120,18 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _Header(title: widget.testTitle, onBack: widget.onBack),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: StepProgressBar(
-                  labels: PsychTestDummy.journeySteps,
-                  currentIndex: widget.journeyIndex,
-                ),
+              _Header(
+                title: widget.testTitle,
+                onBack: widget.autoAdvance ? null : widget.onBack,
+                showBack: !widget.autoAdvance,
+                previousStep: widget.previousStep,
+                nextStep: widget.nextStep,
               ),
-              Gap.h16,
+              Gap.h8,
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenH,
+                ),
                 child: _QuestionProgress(
                   number: widget.questionNumber,
                   total: widget.totalQuestions,
@@ -114,8 +139,12 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                      AppSpacing.md, AppSpacing.screenH, AppSpacing.md),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -123,8 +152,10 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Text(widget.question.text,
-                                style: AppTypography.title),
+                            child: Text(
+                              widget.question.text,
+                              style: AppTypography.title,
+                            ),
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           // TODO: 검사별 어울리는 포즈로 교체 예정 (call site 지정)
@@ -140,15 +171,39 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                    AppSpacing.xs, AppSpacing.screenH, AppSpacing.xs),
-                child: PrimaryButton(
-                  label: widget.nextLabel,
-                  trailingIcon: Icons.chevron_right_rounded,
-                  onPressed: widget.onNext,
-                  enabled: _selected != null,
-                  loading: widget.isSaving,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
+                  AppSpacing.screenH,
+                  AppSpacing.xs,
                 ),
+                child: widget.autoAdvance
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isLast && _selected != null) ...[
+                            PrimaryButton(
+                              label: widget.nextLabel,
+                              onPressed: widget.onNext,
+                              loading: widget.isSaving,
+                            ),
+                            Gap.h8,
+                          ],
+                          SecondaryButton(
+                            label: '이전 문제',
+                            onPressed: widget.isSaving
+                                ? null
+                                : widget.onPrevious,
+                          ),
+                        ],
+                      )
+                    : PrimaryButton(
+                        label: widget.nextLabel,
+                        trailingIcon: Icons.chevron_right_rounded,
+                        onPressed: widget.onNext,
+                        enabled: _selected != null,
+                        loading: widget.isSaving,
+                      ),
               ),
             ],
           ),
@@ -201,26 +256,45 @@ class _PsychQuestionScreenState extends State<PsychQuestionScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.title, this.onBack});
+  const _Header({
+    required this.title,
+    this.onBack,
+    this.showBack = true,
+    this.previousStep,
+    this.nextStep,
+  });
   final String title;
   final VoidCallback? onBack;
+  final String? previousStep;
+  final String? nextStep;
+
+  /// false면 화면 뒤로가기 버튼 없이 제목만 가운데 둔다(문항 이동은 "이전 문제" 버튼으로).
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: onBack ??
-              () {
-                if (context.canPop()) context.pop();
-              },
-        ),
+        if (showBack)
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed:
+                onBack ??
+                () {
+                  if (context.canPop()) context.pop();
+                },
+          )
+        else
+          const SizedBox(width: kMinInteractiveDimension),
         Expanded(
-          child: Text(title,
-              textAlign: TextAlign.center,
-              style: AppTypography.bodyLarge
-                  .copyWith(fontWeight: FontWeight.w600)),
+          child: StepTitle(
+            title: title,
+            previous: previousStep,
+            next: nextStep,
+            style: AppTypography.bodyLarge.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         IconButton(
           icon: const Icon(Icons.help_outline_rounded, size: 20),
@@ -259,9 +333,13 @@ class _QuestionProgress extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text('Q$number / $total',
-            style: AppTypography.caption
-                .copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+        Text(
+          'Q$number / $total',
+          style: AppTypography.caption.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -304,8 +382,11 @@ BoxDecoration _optionDecoration(bool selected) {
 }
 
 class _LikertOption extends StatelessWidget {
-  const _LikertOption(
-      {required this.text, required this.selected, required this.onTap});
+  const _LikertOption({
+    required this.text,
+    required this.selected,
+    required this.onTap,
+  });
   final String text;
   final bool selected;
   final VoidCallback onTap;
@@ -321,10 +402,13 @@ class _LikertOption extends StatelessWidget {
           children: [
             _OptionRadio(selected: selected),
             const SizedBox(width: 12),
-            Text(text,
-                style: AppTypography.body.copyWith(
-                    color: selected ? AppColors.primary : AppColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
+            Text(
+              text,
+              style: AppTypography.body.copyWith(
+                color: selected ? AppColors.primary : AppColors.textPrimary,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),
@@ -333,8 +417,11 @@ class _LikertOption extends StatelessWidget {
 }
 
 class _DuoOption extends StatelessWidget {
-  const _DuoOption(
-      {required this.option, required this.selected, required this.onTap});
+  const _DuoOption({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
   final PsychOption option;
   final bool selected;
   final VoidCallback onTap;
@@ -357,11 +444,17 @@ class _DuoOption extends StatelessWidget {
                     color: AppColors.primarySoft,
                     alignment: Alignment.center,
                     // TODO: 실제 일러스트로 교체 예정
-                    child: Icon(option.illustration ?? Icons.image_outlined,
-                        size: 48, color: AppColors.primary),
+                    child: Icon(
+                      option.illustration ?? Icons.image_outlined,
+                      size: 48,
+                      color: AppColors.primary,
+                    ),
                   ),
                   Positioned(
-                      top: 10, left: 10, child: _OptionRadio(selected: selected)),
+                    top: 10,
+                    left: 10,
+                    child: _OptionRadio(selected: selected),
+                  ),
                 ],
               ),
             ),
@@ -371,8 +464,9 @@ class _DuoOption extends StatelessWidget {
                 option.text,
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
-                    color: selected ? AppColors.primary : AppColors.textStrong,
-                    fontWeight: FontWeight.w600),
+                  color: selected ? AppColors.primary : AppColors.textStrong,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -383,8 +477,11 @@ class _DuoOption extends StatelessWidget {
 }
 
 class _IllustratedOption extends StatelessWidget {
-  const _IllustratedOption(
-      {required this.option, required this.selected, required this.onTap});
+  const _IllustratedOption({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
   final PsychOption option;
   final bool selected;
   final VoidCallback onTap;
@@ -406,15 +503,21 @@ class _IllustratedOption extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               // TODO: 실제 일러스트로 교체 예정
-              child: Icon(option.illustration ?? Icons.image_outlined,
-                  size: 22, color: AppColors.primary),
+              child: Icon(
+                option.illustration ?? Icons.image_outlined,
+                size: 22,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(option.text,
-                  style: AppTypography.body.copyWith(
-                      color: selected ? AppColors.primary : AppColors.textPrimary,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400)),
+              child: Text(
+                option.text,
+                style: AppTypography.body.copyWith(
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
             _OptionRadio(selected: selected),
@@ -440,8 +543,11 @@ class _HintRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.lightbulb_outline_rounded,
-              size: 16, color: AppColors.primary),
+          const Icon(
+            Icons.lightbulb_outline_rounded,
+            size: 16,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 6),
           Expanded(child: Text(text, style: AppTypography.caption)),
         ],

@@ -37,6 +37,11 @@ class CameraSelfViewState extends State<CameraSelfView>
     }
   }
 
+  /// 카메라를 켤 때마다 1씩 오른다. 켜는 도중 화면을 나가거나 앱이 잠깐 비활성이 되면 숫자가 바뀌어,
+  /// 늦게 끝난 초기화는 그 카메라를 바로 끈다. 예전에는 켜는 도중에 또 켜서 카메라를 여러 번 열었고,
+  /// 끈 카메라를 플러그인이 계속 준비하다 오류가 나며 앱이 멈췄다(2026-11 에뮬레이터, ANR).
+  int _generation = 0;
+
   @override
   void initState() {
     super.initState();
@@ -45,9 +50,10 @@ class CameraSelfViewState extends State<CameraSelfView>
   }
 
   Future<void> _init() async {
+    final generation = ++_generation;
     try {
       final cameras = await availableCameras();
-      if (cameras.isEmpty) return;
+      if (cameras.isEmpty || generation != _generation) return;
       final front = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
@@ -58,7 +64,7 @@ class CameraSelfViewState extends State<CameraSelfView>
         enableAudio: false, // 녹음은 AudioRecorderService가 담당.
       );
       await controller.initialize();
-      if (!mounted) {
+      if (!mounted || generation != _generation) {
         await controller.dispose();
         return;
       }
@@ -68,15 +74,21 @@ class CameraSelfViewState extends State<CameraSelfView>
     }
   }
 
+  /// 켜져 있는 카메라를 끄고, 켜는 중인 초기화도 무효로 만든다.
+  void _release() {
+    _generation++;
+    final controller = _controller;
+    _controller = null;
+    controller?.dispose();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Release the camera in background; re-init on resume (plugin guidance).
-    final controller = _controller;
-    if (controller == null) return;
-    if (state == AppLifecycleState.inactive) {
-      _controller = null;
-      controller.dispose();
-    } else if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      if (_controller != null && mounted) setState(_release);
+    } else if (state == AppLifecycleState.resumed && _controller == null) {
       _init();
     }
   }
@@ -84,7 +96,7 @@ class CameraSelfViewState extends State<CameraSelfView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    _release();
     super.dispose();
   }
 
@@ -96,8 +108,11 @@ class CameraSelfViewState extends State<CameraSelfView>
           Container(
             color: AppColors.callSurface,
             alignment: Alignment.center,
-            child: const Icon(Icons.person_rounded,
-                size: 34, color: AppColors.callTextSecondary),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 34,
+              color: AppColors.callTextSecondary,
+            ),
           );
     }
     // Cover-fit the preview into whatever box the parent gives us.
@@ -108,7 +123,8 @@ class CameraSelfViewState extends State<CameraSelfView>
           clipBehavior: Clip.hardEdge,
           child: SizedBox(
             width: controller.value.previewSize?.height ?? constraints.maxWidth,
-            height: controller.value.previewSize?.width ?? constraints.maxHeight,
+            height:
+                controller.value.previewSize?.width ?? constraints.maxHeight,
             child: CameraPreview(controller),
           ),
         ),

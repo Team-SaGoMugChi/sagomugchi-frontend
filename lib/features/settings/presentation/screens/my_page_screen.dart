@@ -12,7 +12,6 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
-import '../../../../widgets/diary_bottom_nav.dart';
 import '../../../../widgets/oddo_app_bar.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/oddo_text_field.dart';
@@ -188,14 +187,6 @@ class MyPageScreen extends ConsumerWidget {
             icon: const Icon(Icons.tune_rounded),
           ),
         ],
-      ),
-      bottomNavigationBar: DiaryBottomNav(
-        currentIndex: 3,
-        onSelect: (i) {
-          if (i == 0) context.goNamed(AppRoute.home);
-          if (i == 1) context.goNamed(AppRoute.monthlyCalendar);
-          if (i == 2) context.goNamed(AppRoute.recordsCounsel);
-        },
       ),
       body: AppBackground(
         child: SafeArea(

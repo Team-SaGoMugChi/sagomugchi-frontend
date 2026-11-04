@@ -38,9 +38,10 @@ abstract final class PersonaDummy {
   static const List<String> defaultTraits = ['공감 잘해주는'];
 
   /// 32 — onboarding completion summary.
+  // 온보딩에서 진행한 순서대로(페르소나 → 첫 측정 → 심리테스트).
   static const List<String> onboardingSummary = [
+    '페르소나 설정 완료',
     '첫 측정 완료',
     '심리테스트 완료',
-    '페르소나 설정 완료',
   ];
 }

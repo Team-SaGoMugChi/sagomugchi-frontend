@@ -17,6 +17,7 @@ import '../../../../widgets/mascot_image.dart';
 import '../../../../widgets/oddo_card.dart';
 import '../../../../widgets/primary_button.dart';
 import '../../../../widgets/security_note.dart';
+import '../../application/onboarding_controller.dart';
 
 /// Screen 9 — 권한 요청 안내. Explains why each OS permission is needed, then
 /// fires the real camera/mic prompts. → 문장 읽기 베이스라인 안내.
@@ -37,6 +38,8 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen> {
   Future<void> _requestAndContinue() async {
     setState(() => _requesting = true);
     final granted = await AppPermissions.requestCameraAndMic();
+    // 알림은 선택이라 결과와 상관없이 넘어간다.
+    await AppPermissions.requestNotification();
     if (!mounted) return;
     setState(() => _requesting = false);
 
@@ -82,94 +85,100 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
+    // 온보딩 중에는 페르소나 설정이 끝난 뒤라 그 화면들로 돌아가지 않는다(버튼·시스템 뒤로가기 모두).
+    // 설정 화면에서 들어왔으면 평소처럼 뒤로 간다.
+    final onboarding = !ref.watch(onboardingCompleteProvider);
+    return PopScope(
+      canPop: !onboarding,
+      child: Scaffold(
+        body: AppBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      0,
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _header(context, showBack: !onboarding),
+                        Gap.h20,
+                        OddoCard(
+                          child: Column(
+                            children: [
+                              for (
+                                var i = 0;
+                                i < BaselineDummy.permissions.length;
+                                i++
+                              ) ...[
+                                if (i > 0)
+                                  const Divider(
+                                    color: AppColors.divider,
+                                    height: 1,
+                                  ),
+                                IconInfoTile(
+                                  icon: BaselineDummy.permissions[i].icon,
+                                  title: BaselineDummy.permissions[i].title,
+                                  description:
+                                      BaselineDummy.permissions[i].description,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Gap.h16,
+                        const SecurityNote(
+                          text: '모든 권한은 안전하게 보호되며, 기능 제공 목적 외에는 사용되지 않아요.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
-                    0,
+                    AppSpacing.xs,
                     AppSpacing.screenH,
-                    AppSpacing.md,
+                    AppSpacing.xs,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _header(context),
-                      Gap.h20,
-                      OddoCard(
-                        child: Column(
-                          children: [
-                            for (
-                              var i = 0;
-                              i < BaselineDummy.permissions.length;
-                              i++
-                            ) ...[
-                              if (i > 0)
-                                const Divider(
-                                  color: AppColors.divider,
-                                  height: 1,
-                                ),
-                              IconInfoTile(
-                                icon: BaselineDummy.permissions[i].icon,
-                                title: BaselineDummy.permissions[i].title,
-                                description:
-                                    BaselineDummy.permissions[i].description,
-                                trailing: const Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      Gap.h16,
-                      const SecurityNote(
-                        text: '모든 권한은 안전하게 보호되며, 기능 제공 목적 외에는 사용되지 않아요.',
-                      ),
-                    ],
+                  child: PrimaryButton(
+                    label: '권한 허용하기',
+                    loading: _requesting,
+                    onPressed: _requestAndContinue,
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                ),
-                child: PrimaryButton(
-                  label: '권한 허용하기',
-                  loading: _requesting,
-                  onPressed: _requestAndContinue,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _header(BuildContext context, {required bool showBack}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              padding: EdgeInsets.zero,
-              alignment: Alignment.centerLeft,
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              onPressed: () {
-                if (context.canPop()) context.pop();
-              },
-            ),
+            if (showBack)
+              IconButton(
+                padding: EdgeInsets.zero,
+                alignment: Alignment.centerLeft,
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () {
+                  if (context.canPop()) context.pop();
+                },
+              )
+            else
+              // 뒤로가기 버튼 자리 — 제목·마스코트 배치를 그대로 둔다.
+              const SizedBox(height: kMinInteractiveDimension),
             Gap.h8,
             const Padding(
               padding: EdgeInsets.only(right: 96),
@@ -179,7 +188,7 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen> {
                   Text('권한 안내', style: AppTypography.display),
                   Gap.h8,
                   Text(
-                    'Oddo가 정확하게 기록하고 분석할 수 있도록\n다음 권한이 필요해요.',
+                    '정확하게 기록하고 분석하려면\n다음 권한이 필요해요.',
                     style: AppTypography.bodySecondary,
                   ),
                 ],

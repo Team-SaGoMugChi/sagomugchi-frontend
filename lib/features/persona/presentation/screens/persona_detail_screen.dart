@@ -9,7 +9,6 @@ import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/app_background.dart';
 import '../../../../widgets/primary_button.dart';
-import '../../../../widgets/progress_dots.dart';
 import '../../data/models/persona_config.dart';
 import '../../data/persona_providers.dart';
 import '../widgets/persona_form.dart';
@@ -70,65 +69,59 @@ class _PersonaDetailScreenState extends ConsumerState<PersonaDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 20,
+    // 페르소나는 꼭 설정해야 하는 단계라 이 화면에서는 뒤로 나가지 않는다(버튼·시스템 뒤로가기 모두).
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: AppBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                const Row(
+                  children: [
+                    SizedBox(width: 48),
+                    Expanded(
+                      child: Text(
+                        '페르소나 설정',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.subtitle,
+                      ),
                     ),
-                    onPressed: () {
-                      if (context.canPop()) context.pop();
-                    },
-                  ),
-                  const Expanded(
-                    child: Text(
-                      '페르소나 설정',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.subtitle,
+                    SizedBox(width: 48),
+                  ],
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenH,
+                      AppSpacing.lg,
+                      AppSpacing.screenH,
+                      AppSpacing.md,
+                    ),
+                    child: PersonaForm(
+                      onChanged: (tone, traits, name) {
+                        _toneIndex = tone;
+                        _traits = traits;
+                        _name = name;
+                      },
                     ),
                   ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const ProgressDots(count: 3, current: 1),
-              Expanded(
-                child: SingleChildScrollView(
+                ),
+                Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenH,
-                    AppSpacing.lg,
+                    AppSpacing.xs,
                     AppSpacing.screenH,
-                    AppSpacing.md,
+                    AppSpacing.xs,
                   ),
-                  child: PersonaForm(
-                    onChanged: (tone, traits, name) {
-                      _toneIndex = tone;
-                      _traits = traits;
-                      _name = name;
-                    },
+                  child: PrimaryButton(
+                    label: '완료',
+                    loading: _saving,
+                    onPressed: _saveAndContinue,
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                  AppSpacing.screenH,
-                  AppSpacing.xs,
-                ),
-                child: PrimaryButton(
-                  label: '다음',
-                  loading: _saving,
-                  onPressed: _saveAndContinue,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

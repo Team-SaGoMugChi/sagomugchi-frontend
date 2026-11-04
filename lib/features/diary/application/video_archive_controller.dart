@@ -22,15 +22,22 @@ class VideoArchiveController extends Notifier<AsyncValue<String?>> {
 
   /// 같은 영상([sourceUrl])은 한 번만 올린다 — 폴링이 완료 상태를 여러 번 알려준다.
   /// [thumbnailUrl]·[subtitlesUrl]이 있으면 대표 장면 썸네일·자막도 같이 보관한다.
-  void archive(String sourceUrl, {String? thumbnailUrl, String? subtitlesUrl}) {
+  /// [date]는 일기를 쓰는 날짜다. 영상을 기다리는 동안 홈에서 다른 날짜를 보고
+  /// 있을 수 있어, 완성 순간의 화면 날짜가 아니라 작업을 등록한 날짜를 받는다.
+  void archive(
+    String sourceUrl, {
+    DateTime? date,
+    String? thumbnailUrl,
+    String? subtitlesUrl,
+  }) {
     if (_archivedFor == sourceUrl) return;
     _archivedFor = sourceUrl;
-    final date = ref.read(viewingDateProvider);
+    final DateTime day = date ?? ref.read(viewingDateProvider);
     state = const AsyncLoading();
     final uploading = ref
         .read(videoArchiveRepositoryProvider)
         .archive(
-          date: date,
+          date: day,
           sourceUrl: sourceUrl,
           thumbnailUrl: thumbnailUrl,
           subtitlesUrl: subtitlesUrl,

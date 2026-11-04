@@ -72,18 +72,37 @@ void main() {
       ),
     );
 
-    ElevatedButton nextButton() =>
-        tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-    expect(nextButton().onPressed, isNull);
+    // 답을 고르면 바로 다음 문항으로 넘어가고, 첫 문항에서는 "이전 문제"가 꺼져 있다.
+    expect(find.text('결과 저장하기'), findsNothing);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, '이전 문제'))
+          .onPressed,
+      isNull,
+    );
 
-    for (var question = 1; question <= 50; question++) {
+    for (var question = 1; question < 50; question++) {
       expect(find.text('Q$question / 50'), findsOneWidget);
       await tester.tap(find.text('보통이다'));
-      await tester.pump();
-      expect(nextButton().onPressed, isNotNull);
-      await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(milliseconds: 300));
     }
+
+    // 이전 문제로 돌아갔다가 다시 답하면 앞으로 간다.
+    expect(find.text('Q50 / 50'), findsOneWidget);
+    await tester.tap(find.text('이전 문제'));
+    await tester.pumpAndSettle();
+    expect(find.text('Q49 / 50'), findsOneWidget);
+    expect(find.byIcon(Icons.circle), findsOneWidget); // 이미 고른 답이 표시된다
+    await tester.tap(find.text('보통이다'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 300));
+
+    // 마지막 문항은 답을 골라야 결과 저장하기가 나온다.
+    expect(find.text('Q50 / 50'), findsOneWidget);
+    expect(find.text('결과 저장하기'), findsNothing);
+    await tester.tap(find.text('보통이다'));
+    await tester.pump();
+    await tester.tap(find.text('결과 저장하기'));
+    await tester.pumpAndSettle();
 
     expect(find.text('검사 완료'), findsOneWidget);
     expect(repository.savedScores, {

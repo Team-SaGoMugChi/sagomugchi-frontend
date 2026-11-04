@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
@@ -15,12 +14,16 @@ class DiaryStepHeader extends StatelessWidget {
     required this.currentStep,
     this.showHelp = true,
     this.leadingClose = false,
+    this.showBack = true,
   });
 
   final String title;
   final int currentStep; // 0=말하기 .. 3=상담하기
   final bool showHelp;
   final bool leadingClose;
+
+  /// 영상 만들기처럼 되돌아가면 안 되는 화면은 뒤로 버튼을 숨긴다.
+  final bool showBack;
 
   static const List<String> steps = ['말하기', '확인하기', '영상 제작', '상담하기'];
 
@@ -54,19 +57,25 @@ class DiaryStepHeader extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(
-              icon: Icon(
+            if (showBack)
+              IconButton(
+                icon: Icon(
                   leadingClose
                       ? Icons.close_rounded
                       : Icons.arrow_back_ios_new_rounded,
-                  size: 20),
-              onPressed: () {
-                if (context.canPop()) context.pop();
-              },
-            ),
+                  size: 20,
+                ),
+                // maybePop: 화면의 PopScope(나가기 확인 등)를 거친다.
+                onPressed: () => Navigator.of(context).maybePop(),
+              )
+            else
+              const SizedBox(width: 48),
             Expanded(
-              child: Text(title,
-                  textAlign: TextAlign.center, style: AppTypography.subtitle),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: AppTypography.subtitle,
+              ),
             ),
             if (showHelp)
               IconButton(
@@ -83,7 +92,9 @@ class DiaryStepHeader extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH, vertical: AppSpacing.xs),
+            horizontal: AppSpacing.screenH,
+            vertical: AppSpacing.xs,
+          ),
           child: StepIndicator(steps: steps, currentIndex: currentStep),
         ),
       ],

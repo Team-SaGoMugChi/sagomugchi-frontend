@@ -39,7 +39,8 @@ class _DiaryStep2ConfirmScreenState
   // Step1 처리에서 정제한 일기. 정제에 실패했으면 원 답변, 화면 시연용 더미
   // 모드에서만 샘플로 폴백.
   late final TextEditingController _controller = TextEditingController(
-    text: ref.read(diaryDraftProvider).diaryText ??
+    text:
+        ref.read(diaryDraftProvider).diaryText ??
         ref.read(diaryDraftProvider).transcript ??
         (ref.read(appConfigProvider).useDummyData
             ? DummySeed.diaryJan14.transcript
@@ -58,6 +59,33 @@ class _DiaryStep2ConfirmScreenState
     super.dispose();
   }
 
+  Future<void> _confirmLeave() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('일기 작성을 그만둘까요?', style: AppTypography.subtitle),
+        content: const Text(
+          '지금 나가면 정리한 일기가 저장되지 않아요.',
+          style: AppTypography.bodySecondary,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('계속 쓰기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('나가기'),
+          ),
+        ],
+      ),
+    );
+    if (leave != true || !mounted) return;
+    ref.read(diaryDraftProvider.notifier).clear();
+    context.goNamed(AppRoute.home);
+  }
+
   @override
   Widget build(BuildContext context) {
     final entry = DummySeed.diaryJan14;
@@ -68,15 +96,17 @@ class _DiaryStep2ConfirmScreenState
     final fusionResult = draft.fusionResult;
     final summary = (draft.summary ?? (useDummyData ? entry.summary : ''))
         .trim();
-    final hasConversation =
-        draft.interviewMessages.isNotEmpty || useDummyData;
-    final emotionKeywords = fusionResult?.emotionKeywords ??
+    final hasConversation = draft.interviewMessages.isNotEmpty || useDummyData;
+    final emotionKeywords =
+        fusionResult?.emotionKeywords ??
         (useDummyData ? entry.emotionKeywords : const <String>[]);
     final emotionIntensity =
-        fusionResult?.emotionIntensity ?? (useDummyData ? entry.emotionIntensity : 0);
+        fusionResult?.emotionIntensity ??
+        (useDummyData ? entry.emotionIntensity : 0);
     final canContinue =
-        (useDummyData || fusionResult != null) && _controller.text.trim().isNotEmpty;
-    return Scaffold(
+        (useDummyData || fusionResult != null) &&
+        _controller.text.trim().isNotEmpty;
+    final page = Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: Column(
@@ -220,6 +250,14 @@ class _DiaryStep2ConfirmScreenState
         ),
       ),
     );
+    // 일기는 기록 완료 때 저장된다. 여기서 나가면 정리한 일기가 사라지므로 묻는다.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmLeave());
+      },
+      child: page,
+    );
   }
 }
 
@@ -235,10 +273,7 @@ class _DiaryCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              CardSectionHeader(
-                icon: Icons.menu_book_rounded,
-                title: '오늘의 일기',
-              ),
+              CardSectionHeader(icon: Icons.menu_book_rounded, title: '오늘의 일기'),
               Spacer(),
               // TODO: 노트를 든 포즈로 교체 예정
               MascotImage(pose: MascotPose.writing, size: 44),

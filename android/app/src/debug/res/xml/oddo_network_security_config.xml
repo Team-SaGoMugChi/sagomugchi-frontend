@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 디버그 빌드 전용. main의 같은 이름 설정을 덮어쓴다. networkSecurityConfig가 있으면
+     usesCleartextTraffic이 무시되어 플레이어가 로컬 AI 서버(http://10.0.2.2)의 mp4를 못 받는다. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

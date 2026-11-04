@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/error/app_exception.dart';
 import 'package:oddo/core/network/api_client.dart';
+import 'package:oddo/core/storage/local_store.dart';
 import 'package:oddo/features/diary/application/diary_draft_provider.dart';
+import 'package:oddo/features/diary/application/pending_diary_provider.dart';
 import 'package:oddo/features/diary/application/video_archive_controller.dart';
 import 'package:oddo/features/diary/application/video_job_controller.dart';
 import 'package:oddo/features/diary/data/datasources/video_remote_data_source.dart';
@@ -12,6 +14,7 @@ import 'package:oddo/features/diary/data/models/video_job_status.dart';
 import 'package:oddo/features/diary/data/repositories/video_archive_repository.dart';
 import 'package:oddo/features/diary/data/repositories/video_repository.dart';
 import 'package:oddo/features/records/application/viewing_date_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _Client implements ApiClient {
   String? path;
@@ -146,6 +149,8 @@ class _Archive implements VideoArchiveRepository {
   Future<String?> subtitlesUrl(String storagePath) async => null;
 }
 
+late SharedPreferences _prefs;
+
 ProviderContainer _container(
   VideoRepository repository, {
   String? text,
@@ -155,6 +160,7 @@ ProviderContainer _container(
     overrides: [
       videoRepositoryProvider.overrideWithValue(repository),
       videoArchiveRepositoryProvider.overrideWithValue(archive ?? _Archive()),
+      localStoreProvider.overrideWithValue(LocalStore(_prefs)),
     ],
   );
   if (text != null) {
@@ -166,6 +172,67 @@ ProviderContainer _container(
 }
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    _prefs = await SharedPreferences.getInstance();
+  });
+
+  group('홈에서 기다리기', () {
+    testWidgets('작업을 등록하면 날짜·작성 내용을 남기고, 다른 날짜를 보고 있어도 그날에 보관한다', (
+      tester,
+    ) async {
+      final archive = _Archive();
+      final repository = _Repository(pollsUntilDone: 1);
+      final container = _container(repository, text: '일기', archive: archive);
+      addTearDown(container.dispose);
+      container.read(viewingDateProvider.notifier).set(DateTime(2026, 11, 1));
+
+      await container.read(videoJobControllerProvider.notifier).start();
+      final pending = container.read(pendingDiaryProvider)!;
+      expect(pending.jobId, 'job');
+      expect(pending.date, DateTime(2026, 11, 1));
+      expect(pending.draft.transcript, '일기');
+      expect(_prefs.getString(LocalStore.kPendingDiary), isNotNull);
+
+      // 기다리는 동안 홈에서 다른 날짜를 본다.
+      container.read(viewingDateProvider.notifier).set(DateTime(2026, 10, 20));
+      await tester.pump(VideoJobController.pollInterval);
+      expect(archive.uploads.map((u) => u.$1), [DateTime(2026, 11, 1)]);
+    });
+
+    testWidgets('앱을 다시 켜면 남긴 작업을 이어서 확인한다', (tester) async {
+      final repository = _Repository(pollsUntilDone: 2);
+      final first = _container(repository, text: '일기');
+      await first.read(videoJobControllerProvider.notifier).start();
+      first.dispose();
+
+      final again = _container(repository); // 메모리는 비어 있다
+      addTearDown(again.dispose);
+      expect(again.read(pendingDiaryProvider)?.jobId, 'job');
+      await again.read(videoJobControllerProvider.notifier).resume();
+      expect(again.read(videoJobControllerProvider).job?.jobId, 'job');
+      await tester.pump(VideoJobController.pollInterval);
+      expect(again.read(videoJobControllerProvider).isDone, isTrue);
+      expect(repository.created, 1);
+    });
+
+    testWidgets('실패한 작업에 다시 들어와도 저절로 새로 만들지 않는다', (tester) async {
+      final repository = _Repository(failWith: const NetworkException());
+      final container = _container(repository, text: '일기');
+      addTearDown(container.dispose);
+      final controller = container.read(videoJobControllerProvider.notifier);
+
+      await controller.start();
+      for (var i = 0; i < VideoJobController.maxPollFailures; i++) {
+        await tester.pump(VideoJobController.pollInterval);
+      }
+      expect(container.read(videoJobControllerProvider).isFailed, isTrue);
+
+      await controller.start(); // 로딩 화면에 다시 들어옴
+      expect(repository.created, 1);
+    });
+  });
+
   group('VideoRemoteDataSource', () {
     test('Step2 결과를 snake_case로 보내고 영상 경로를 절대 URL로 만든다', () async {
       final client = _Client();
@@ -341,6 +408,37 @@ void main() {
         await container.read(videoArchiveControllerProvider.notifier).latest(),
         isNull,
       );
+    });
+  });
+
+  group('nextDisplayedProgress', () {
+    double run(double current, double server, String stage, int seconds) {
+      var shown = current;
+      for (var i = 0; i < seconds; i++) {
+        shown = nextDisplayedProgress(
+          current: shown,
+          serverProgress: server,
+          stage: stage,
+          elapsed: const Duration(seconds: 1),
+        );
+      }
+      return shown;
+    }
+
+    test('서버 값이 그대로여도 조금씩 오른다', () {
+      final later = run(0.05, 0.05, 'images', 30);
+      expect(later, greaterThan(0.05));
+      expect(run(0.05, 0.05, 'images', 60), greaterThan(later));
+    });
+
+    test('오래 걸려도 그 단계 상한을 넘지 않고 100%가 되지 않는다', () {
+      expect(run(0.05, 0.05, 'images', 7200), lessThanOrEqualTo(0.70));
+      expect(run(0.96, 0.96, 'compose', 7200), lessThan(1));
+    });
+
+    test('내려가지 않고 서버 값이 앞서면 따라간다', () {
+      expect(run(0.6, 0.3, 'images', 1), greaterThanOrEqualTo(0.6));
+      expect(run(0.1, 0.7, 'videos', 1), greaterThanOrEqualTo(0.7));
     });
   });
 }

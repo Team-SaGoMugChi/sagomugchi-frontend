@@ -120,6 +120,64 @@ void main() {
     expect(setup.prefs.getString(LocalStore.kBig5Progress), isNull);
   });
 
+  test('saving with a skipped question goes back to that question', () async {
+    final repository = _Repository();
+    final setup = await createContainer(repository: repository);
+    addTearDown(setup.container.dispose);
+    final controller = setup.container.read(big5ControllerProvider.notifier);
+
+    for (var index = 0; index < ipipBig5Items.length - 1; index++) {
+      await controller.selectAnswer(3);
+      await controller.next();
+    }
+    // 마지막 문항은 비워 둔 채 49번으로 돌아왔다 — 비어 있는 50번으로 데려가야 한다.
+    controller.previous();
+    final state = setup.container.read(big5ControllerProvider);
+    expect(state.currentIndex, ipipBig5Items.length - 2);
+    expect(controller.goToFirstUnanswered(), isTrue);
+    expect(
+      setup.container.read(big5ControllerProvider).currentIndex,
+      ipipBig5Items.length - 1,
+    );
+    expect(repository.scores, isNull);
+  });
+
+  test(
+    'after filling a skipped question it goes straight to the next empty one, then the last',
+    () async {
+      final repository = _Repository();
+      final setup = await createContainer(repository: repository);
+      addTearDown(setup.container.dispose);
+      final controller = setup.container.read(big5ControllerProvider.notifier);
+      int index() => setup.container.read(big5ControllerProvider).currentIndex;
+
+      // 1~10번에 답하고 2번으로 돌아가 고치면, 이미 답한 3~10번을 건너뛰고 11번으로 간다.
+      for (var i = 0; i < 10; i++) {
+        await controller.selectAnswer(3);
+        await controller.next();
+      }
+      for (var i = 0; i < 9; i++) {
+        controller.previous();
+      }
+      expect(index(), 1);
+      await controller.selectAnswer(4);
+      await controller.next();
+      expect(index(), 10);
+
+      // 나머지에 모두 답하면 마지막(50번)에서 끝나고, 앞을 고쳐도 바로 50번으로 돌아온다.
+      for (var i = 10; i < ipipBig5Items.length - 1; i++) {
+        await controller.selectAnswer(3);
+        await controller.next();
+      }
+      await controller.selectAnswer(3);
+      controller.previous();
+      controller.previous();
+      await controller.selectAnswer(2);
+      await controller.next();
+      expect(index(), ipipBig5Items.length - 1);
+    },
+  );
+
   test('device progress write failure is reported without advancing', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

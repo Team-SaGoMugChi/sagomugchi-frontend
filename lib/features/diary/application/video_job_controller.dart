@@ -3,11 +3,40 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/app_exception.dart';
+import '../../records/application/viewing_date_provider.dart';
 import '../data/diary_providers.dart';
 import '../data/models/video_job_status.dart';
 import 'diary_draft_provider.dart';
 import 'diary_handoff_controller.dart';
+import 'pending_diary_provider.dart';
 import 'video_archive_controller.dart';
+
+/// 로딩 화면에 보여줄 진행률. 서버 값은 산출물이 생길 때만 올라 한참 멈춰 보이므로,
+/// [serverProgress]를 바닥으로 그 단계의 상한까지 조금씩 올린다. 상한에 가까울수록
+/// 느려져 넘지 않고, 내려가지 않는다. 완성 전에는 100%가 되지 않는다.
+double nextDisplayedProgress({
+  required double current,
+  required double serverProgress,
+  required String stage,
+  required Duration elapsed,
+}) {
+  final (ceiling, seconds) = _stagePace[stage] ?? (0.99, 60.0);
+  final base = current > serverProgress ? current : serverProgress;
+  if (base >= ceiling) return base;
+  final step = (ceiling - base) * elapsed.inMilliseconds / 1000 / seconds;
+  final next = base + step;
+  return next > ceiling ? ceiling : next;
+}
+
+/// 단계 → (다음 단계가 시작되는 진행률, 남은 거리가 줄어드는 시간 상수 초).
+/// 서버 `VideoJobManager._progress` 비중과 맞춘 값이다.
+const _stagePace = <String, (double, double)>{
+  'storyboard': (0.05, 40),
+  'images': (0.70, 300),
+  'videos': (0.92, 90),
+  'narration': (0.96, 15),
+  'compose': (0.99, 20),
+};
 
 /// Step3 영상 제작 상태 — 서버 작업 상태와, 작업을 못 만들었거나 폴링이
 /// 끊겼을 때의 오류 문구.
@@ -60,7 +89,9 @@ class VideoJobController extends Notifier<VideoJobUiState> {
       state = const VideoJobUiState(error: '일기 내용을 찾지 못해 영상을 만들 수 없어요.');
       return;
     }
-    if (_startedFor == text && state.job != null && !state.isFailed) return;
+    // 같은 일기의 작업이 있으면 실패했더라도 새로 만들지 않는다 — 다시 만들기(과금)는
+    // 사용자가 "다시 시도하기"를 눌렀을 때만([retry]).
+    if (_startedFor == text && state.job != null) return;
 
     _stopPolling();
     _startedFor = text;
@@ -83,9 +114,41 @@ class VideoJobController extends Notifier<VideoJobUiState> {
             emotionIntensity: fusion?.emotionIntensity,
             diaryHandoff: handoff?.video,
           );
+      // 홈에서 기다리거나 앱을 껐다 켜도 이어지도록 작성 내용과 함께 남긴다.
+      await ref
+          .read(pendingDiaryProvider.notifier)
+          .save(
+            PendingDiary(
+              date: ref.read(viewingDateProvider),
+              jobId: job.jobId,
+              draft: ref.read(diaryDraftProvider),
+            ),
+          );
       _apply(job);
     } on AppException catch (e) {
       state = VideoJobUiState(error: _messageFor(e));
+    }
+  }
+
+  /// 휴대폰에 남은 작업([PendingDiary])을 다시 확인한다. 앱을 다시 켰을 때 홈이
+  /// 부른다. 이미 확인 중이면 아무것도 하지 않는다.
+  Future<void> resume() async {
+    final pending = ref.read(pendingDiaryProvider);
+    if (pending == null || state.job?.jobId == pending.jobId) return;
+    _stopPolling();
+    _startedFor = pending.draft.transcript?.trim();
+    _pollFailures = 0;
+    state = VideoJobUiState(
+      job: VideoJobStatus(
+        jobId: pending.jobId,
+        state: VideoJobState.running,
+        stage: 'storyboard',
+        progress: 0,
+      ),
+    );
+    await _poll();
+    if (state.job != null && !state.isDone && !state.isFailed) {
+      _timer ??= Timer.periodic(pollInterval, (_) => _poll());
     }
   }
 
@@ -114,6 +177,7 @@ class VideoJobController extends Notifier<VideoJobUiState> {
             .read(videoArchiveControllerProvider.notifier)
             .archive(
               url,
+              date: ref.read(pendingDiaryProvider)?.date,
               thumbnailUrl: job.thumbnailUrl,
               subtitlesUrl: job.subtitlesUrl,
             );
