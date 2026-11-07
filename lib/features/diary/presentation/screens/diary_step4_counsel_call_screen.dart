@@ -25,6 +25,7 @@ import '../../data/diary_providers.dart';
 import '../../data/models/counsel_session.dart';
 import '../widgets/counsel_copy.dart';
 import '../widgets/counsel_crisis_banner.dart';
+import '../widgets/counsel_done_card.dart';
 
 /// Screen 44 — Step 4. 영상통화 상담. 상담 종료 → 리포트 생성.
 ///
@@ -205,6 +206,10 @@ class _DiaryStep4CounselCallScreenState
 
     final counsel = ref.watch(counselControllerProvider);
 
+    // CBT 5단계까지 끝남 — 마이크를 막고 마무리 카드를 띄운다.
+    // 위기 안내가 떠 있으면 그쪽이 먼저다.
+    final done = counsel.cbt.done && !counsel.crisis;
+
     // 마지막 탄카츄 발화 — 아직 대화 전이면 기본 인사말.
     final lastOddo = counsel.messages.lastWhere(
       (m) => m.speaker == CounselSpeaker.oddo,
@@ -304,6 +309,17 @@ class _DiaryStep4CounselCallScreenState
                         bottom: 176,
                         child: CounselCrisisBanner(riskAxis: counsel.riskAxis),
                       ),
+                    // 상담을 다 마쳤으면 리포트로 넘어가는 카드를 띄운다.
+                    if (done)
+                      Positioned(
+                        left: AppSpacing.screenH,
+                        right: AppSpacing.screenH,
+                        bottom: 176,
+                        child: CounselDoneCard(
+                          mission: counsel.cbt.mission,
+                          onFinish: _endCounsel,
+                        ),
+                      ),
                     // 말풍선 — 컨트롤 버튼 위로 띄운다.
                     Positioned(
                       left: AppSpacing.screenH,
@@ -328,7 +344,7 @@ class _DiaryStep4CounselCallScreenState
                                   : _transcribing
                                   ? '옮기는 중'
                                   : '말하기',
-                              onTap: counsel.crisis || _transcribing
+                              onTap: counsel.crisis || done || _transcribing
                                   ? null
                                   : _toggleRecording,
                             ),

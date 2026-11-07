@@ -15,6 +15,7 @@ import '../../application/diary_draft_provider.dart';
 import '../../data/models/counsel_session.dart';
 import '../widgets/counsel_copy.dart';
 import '../widgets/counsel_crisis_banner.dart';
+import '../widgets/counsel_done_card.dart';
 
 /// Screen 44-B — Step 4. 채팅 상담.
 ///
@@ -97,6 +98,10 @@ class _DiaryStep4CounselChatScreenState
 
     final counsel = ref.watch(counselControllerProvider);
 
+    // CBT 5단계까지 끝남 — 입력을 막고 마무리 카드를 띄운다.
+    // 위기 안내가 떠 있으면 그쪽이 먼저다.
+    final done = counsel.cbt.done && !counsel.crisis;
+
     // 대화 전이면 인사말 하나를 띄워 빈 화면을 보여주지 않는다.
     final messages = counsel.messages.isEmpty
         ? const [
@@ -160,13 +165,21 @@ class _DiaryStep4CounselChatScreenState
                       riskAxis: counsel.riskAxis,
                       margin: const EdgeInsets.only(top: 4, bottom: 12),
                     ),
+                  // 상담을 다 마쳤으면 리포트로 넘어가는 카드를 띄운다.
+                  if (done)
+                    CounselDoneCard(
+                      mission: counsel.cbt.mission,
+                      onFinish: _endCounsel,
+                      margin: const EdgeInsets.only(top: 4, bottom: 12),
+                    ),
                 ],
               ),
             ),
             _ChatInputBar(
               controller: _input,
               sending: counsel.sending,
-              enabled: !counsel.crisis,
+              enabled: !counsel.crisis && !done,
+              disabledHint: done ? '오늘 상담을 마무리했어요' : '상담을 잠시 멈췄어요',
               onSend: _send,
               onEnd: _endCounsel,
             ),
@@ -194,6 +207,7 @@ class _ChatInputBar extends StatelessWidget {
     required this.controller,
     required this.sending,
     required this.enabled,
+    required this.disabledHint,
     required this.onSend,
     required this.onEnd,
   });
@@ -201,8 +215,11 @@ class _ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
   final bool sending;
 
-  /// 위기 안내 중에는 입력을 막는다.
+  /// 위기 안내 중이거나 상담을 마쳤으면 입력을 막는다.
   final bool enabled;
+
+  /// 입력을 막았을 때 입력칸에 보여줄 문구.
+  final String disabledHint;
 
   final VoidCallback onSend;
   final VoidCallback onEnd;
@@ -243,7 +260,7 @@ class _ChatInputBar extends StatelessWidget {
                 onSubmitted: (_) => onSend(),
                 style: AppTypography.body,
                 decoration: InputDecoration(
-                  hintText: enabled ? '하고 싶은 말을 적어보세요' : '상담을 잠시 멈췄어요',
+                  hintText: enabled ? '하고 싶은 말을 적어보세요' : disabledHint,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 10,
