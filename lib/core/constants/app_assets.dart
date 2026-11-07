@@ -53,4 +53,5 @@ abstract final class AppAssets {
 
   /// 체형 전용 리그와 동작 클립(Idle·Wave·Nod·Hop)을 넣은 3D 탄카츄.
   static const String mascotModel = 'assets/models/tankachu_animated.glb';
+  static const String callMascotModel = 'assets/models/oddo_call_face.glb';
 }

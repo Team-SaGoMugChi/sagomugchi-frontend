@@ -13,7 +13,7 @@ import '../../../onboarding/application/onboarding_controller.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
 import '../../application/baseline_recording_provider.dart';
-import '../widgets/baseline_companion.dart';
+import '../widgets/baseline_guide_film.dart';
 import '../widgets/baseline_header.dart';
 
 /// Screen 17 — 얼굴·음성 Baseline 안내. → 준비 체크.
@@ -67,10 +67,7 @@ class BaselineIntroScreen extends ConsumerWidget {
                           '문장 6개를 평소 목소리로 읽어주세요.',
                           style: AppTypography.bodyLarge,
                         ),
-                        const SizedBox(
-                          height: 180,
-                          child: BaselineCompanion(welcome: true),
-                        ),
+                        const SizedBox(child: BaselineGuideFilm()),
                         const Text(
                           '천천히 읽어도 괜찮아요.',
                           textAlign: TextAlign.center,

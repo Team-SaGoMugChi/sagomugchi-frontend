@@ -17,9 +17,13 @@ class _Recorder implements AudioRecorderService {
   int stops = 0;
   int pauses = 0;
   int resumes = 0;
+  int starts = 0;
 
   @override
-  Future<bool> start({required String fileName}) => started.future;
+  Future<bool> start({required String fileName}) {
+    starts++;
+    return started.future;
+  }
 
   @override
   Future<String?> stop() {
@@ -50,13 +54,17 @@ class _Recorder implements AudioRecorderService {
 
 class _Tts implements TtsService {
   final speaking = Completer<void>();
+  final opening = Completer<void>();
+  final lines = <String>[];
 
   @override
   final utterance = ValueNotifier<TtsUtterance?>(null);
 
   @override
-  Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) =>
-      speaking.future;
+  Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) {
+    lines.add(line);
+    return lines.length == 1 ? opening.future : speaking.future;
+  }
 
   @override
   Future<void> stop() async {}
@@ -87,11 +95,25 @@ void main() {
     expect(find.text('60%'), findsNothing);
     expect(find.text('45%'), findsNothing);
     expect(find.text('듣고 있어요 · 녹음 중'), findsNothing);
-    expect(find.text('통화를 준비하고 있어요'), findsOneWidget);
+    expect(find.text('오또가 안내하고 있어요'), findsOneWidget);
+    expect(tts.lines.single, contains('문장 여섯 개'));
+    expect(
+      recorder.starts,
+      0,
+      reason: 'guide audio must never enter the baseline',
+    );
     await tester.tap(find.byTooltip('다 읽었어요'));
     expect(recorder.stops, 0);
 
+    tts.opening.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(recorder.starts, 1);
+    expect(find.text('통화를 준비하고 있어요'), findsOneWidget);
+
     recorder.started.complete(true);
+    await tester
+        .pump(); // Flush recorder completion before building its caption.
     await tester.pump();
     expect(find.text(BaselineDummy.readingSentences.first), findsOneWidget);
     expect(recorder.pauses, 0);
@@ -108,6 +130,11 @@ void main() {
     await tester.tap(find.byTooltip('다 읽었어요'));
     await tester.pump();
     expect(recorder.pauses, 1);
+    expect(
+      tts.lines,
+      hasLength(2),
+      reason: 'reading sentences are not spoken by the app',
+    );
     tts.speaking.complete();
     await tester.pump();
     await tester.pump();

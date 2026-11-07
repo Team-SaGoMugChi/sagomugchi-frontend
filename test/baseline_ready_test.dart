@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_ready_screen.dart';
+import 'package:oddo/features/baseline/presentation/widgets/baseline_guide_film.dart';
 import 'package:oddo/widgets/primary_button.dart';
 
 void main() {
@@ -42,23 +43,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('help expands independently of confirmation and can collapse', (
+  testWidgets('preparation has only three checks without repeating the video', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: BaselineReadyScreen()));
-    final help = find.byKey(const ValueKey('baseline-help-0'));
-    await tester.ensureVisible(help);
-    await tester.tap(help);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('눈·코·입이 모두'), findsOneWidget);
+    expect(find.byType(BaselineGuideFilm), findsNothing);
+    expect(find.byType(CheckboxListTile), findsNWidgets(3));
+    expect(find.byType(TextButton), findsNothing);
     expect(
       tester.widget<PrimaryButton>(find.byType(PrimaryButton)).enabled,
       isFalse,
     );
     expect(find.text('준비 확인 0/3'), findsOneWidget);
-    await tester.tap(help);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('눈·코·입이 모두'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
