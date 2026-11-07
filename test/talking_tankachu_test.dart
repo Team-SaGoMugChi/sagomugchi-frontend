@@ -65,7 +65,21 @@ void main() {
     const channel = MethodChannel('flutter_tts');
     setUp(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (_) async => 1);
+          .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'speak') {
+              await TestDefaultBinaryMessengerBinding
+                  .instance
+                  .defaultBinaryMessenger
+                  .handlePlatformMessage(
+                    'flutter_tts',
+                    const StandardMethodCodec().encodeMethodCall(
+                      const MethodCall('speak.onStart'),
+                    ),
+                    (_) {},
+                  );
+            }
+            return 1;
+          });
     });
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -80,10 +94,7 @@ void main() {
       await tts.speak('안녕');
       await tts.speak('안녕');
 
-      expect(seen.whereType<TtsUtterance>().map((u) => u.text), [
-        '안녕',
-        '안녕',
-      ]);
+      expect(seen.whereType<TtsUtterance>().map((u) => u.text), ['안녕', '안녕']);
       // 같은 문장을 다시 읽어도 새 발화로 구분된다.
       final serials = seen.whereType<TtsUtterance>().map((u) => u.serial);
       expect(serials.toSet(), hasLength(2));

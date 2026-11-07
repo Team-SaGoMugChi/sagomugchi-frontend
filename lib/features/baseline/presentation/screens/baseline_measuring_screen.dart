@@ -54,6 +54,7 @@ class _BaselineMeasuringScreenState
 
   int _sentenceIndex = 0;
   Completer<void>? _readDone;
+  final _mascotReady = Completer<void>();
 
   void _nextSentence() {
     if (_readDone?.isCompleted == false) _readDone!.complete();
@@ -74,6 +75,18 @@ class _BaselineMeasuringScreenState
   }
 
   Future<void> _runGuideThenAdvance() async {
+    // Let the actual 3D character appear before it greets the user. The guide
+    // finishes before recording starts, so it cannot enter the voice baseline.
+    await _mascotReady.future;
+    if (!mounted || _advanced) return;
+    const opening =
+        '안녕하세요, 오또예요. 화면에 나오는 문장 여섯 개를 평소 목소리로 읽어주세요. 한 문장을 다 읽으면, 다 읽었어요 버튼을 눌러주세요.';
+    setState(
+      () => _turn = const ConversationTurn(caption: opening, speaking: true),
+    );
+    await ref.read(ttsServiceProvider).speak(opening);
+    if (!mounted || _advanced) return;
+    setState(() => _turn = null);
     final recorder = ref.read(audioRecorderProvider);
     // 문장 읽기는 한 번의 연속 녹음으로 수집한다. 앱은 문장을 읽어주지 않는다.
     final started = await recorder.start(
@@ -185,6 +198,7 @@ class _BaselineMeasuringScreenState
     _nextSentence();
     _faceCaptureTimer?.cancel();
     _speech.dispose();
+    if (!_mascotReady.isCompleted) _mascotReady.complete();
     super.dispose();
   }
 
@@ -267,11 +281,13 @@ class _BaselineMeasuringScreenState
     final listening = _recording && !_advanced && !(_turn?.speaking ?? true);
     final status = _advanced
         ? '측정을 마무리하고 있어요'
+        : (_turn?.speaking ?? false)
+        ? '오또가 안내하고 있어요'
         : !_recording
         ? '통화를 준비하고 있어요'
         : listening
         ? '듣고 있어요 · 녹음 중'
-        : '탄카츄가 안내하고 있어요';
+        : '오또가 안내하고 있어요';
 
     return Scaffold(
       backgroundColor: AppColors.callBackground,
@@ -290,7 +306,7 @@ class _BaselineMeasuringScreenState
                 child: Column(
                   children: [
                     Text(
-                      '탄카츄',
+                      '오또',
                       style: AppTypography.subtitle.copyWith(
                         color: AppColors.callTextPrimary,
                       ),
@@ -342,6 +358,13 @@ class _BaselineMeasuringScreenState
                     children: [
                       Positioned.fill(
                         child: TankachuCallStage(
+                          use3d: true,
+                          onReady: () {
+                            if (!_mascotReady.isCompleted) {
+                              _mascotReady.complete();
+                            }
+                          },
+                          reaction: _sentenceIndex,
                           speech: _speech,
                           mood: listening
                               ? TankachuMood.listening
@@ -394,9 +417,7 @@ class _BaselineMeasuringScreenState
                                 children: [
                                   IconButton.filled(
                                     tooltip: '다 읽었어요',
-                                    onPressed: _recording && !_advanced
-                                        ? _nextSentence
-                                        : null,
+                                    onPressed: listening ? _nextSentence : null,
                                     style: IconButton.styleFrom(
                                       fixedSize: const Size.square(
                                         AppSpacing.xxxl + AppSpacing.md,

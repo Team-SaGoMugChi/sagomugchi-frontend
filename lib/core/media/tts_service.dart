@@ -71,6 +71,12 @@ class TtsService {
       _tts
         // 실제로 소리가 나기 시작한 순간 — 입 모양을 문장 처음으로 다시 맞춘다.
         ..setStartHandler(() {
+          final pending = _pendingDevice;
+          if (!_disposed && pending != null && pending.serial == _serial) {
+            _pendingDevice = null;
+            _set(pending.at(0));
+            return;
+          }
           final current = _disposed ? null : utterance.value;
           if (current != null) _set(current.at(0));
         })
@@ -99,12 +105,16 @@ class TtsService {
   final Future<String> Function()? voice;
   int _serial = 0;
   bool _disposed = false;
+  TtsUtterance? _pendingDevice;
 
   void _set(TtsUtterance? value) {
     if (!_disposed) utterance.value = value;
   }
 
-  void _clear() => _set(null);
+  void _clear() {
+    _pendingDevice = null;
+    _set(null);
+  }
 
   /// [line] 하나를 읽고, 다 읽을 때까지 기다린다.
   Future<void> speak(String line, {TtsPace pace = TtsPace.normal}) =>
@@ -147,14 +157,13 @@ class TtsService {
           if (_disposed || serial != _serial) return;
         }
       }
-      _set(
-        TtsUtterance(
-          text: line,
-          serial: serial,
-          syllablesPerSecond: pace.deviceSyllablesPerSecond,
-        ),
+      _pendingDevice = TtsUtterance(
+        text: line,
+        serial: serial,
+        syllablesPerSecond: pace.deviceSyllablesPerSecond,
       );
       await _tts.setSpeechRate(pace.deviceRate);
+      if (_disposed || serial != _serial) return;
       await _tts.speak(line);
     } catch (_) {
       // TTS unavailable — the on-screen caption still carries the guide.

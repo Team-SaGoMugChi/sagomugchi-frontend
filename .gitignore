@@ -38,6 +38,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/output/
 /coverage/
 
 # DevTools local settings (auto-generated per developer)

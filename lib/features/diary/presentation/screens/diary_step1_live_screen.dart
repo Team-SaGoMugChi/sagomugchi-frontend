@@ -553,6 +553,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                     // 탄카츄 — 영상통화 상대처럼 상반신을 크게(입은 말풍선 바로 위).
                     Positioned.fill(
                       child: TankachuCallStage(
+                        use3d: true,
                         speech: _speech,
                         mood: _recording
                             ? TankachuMood.listening
@@ -636,10 +637,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                                         onTap: _submitTurn,
                                       )
                                     : _listenFailed && !micLocked
-                                    ? _TurnButton(
-                                        label: '말하기',
-                                        onTap: _listen,
-                                      )
+                                    ? _TurnButton(label: '말하기', onTap: _listen)
                                     : null,
                               ),
                             ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/media/tts_service.dart';
 import '../theme/app_colors.dart';
+import 'call_mascot_3d.dart';
 import 'talking_tankachu.dart';
 
 /// 영상통화 화면의 탄카츄 자리 — 상반신을 크게 두고, 입이 말풍선 바로 위에
@@ -18,10 +19,16 @@ class TankachuCallStage extends StatelessWidget {
     super.key,
     required this.speech,
     this.mood = TankachuMood.idle,
+    this.use3d = false,
+    this.reaction = 0,
+    this.onReady,
   });
 
   final ValueListenable<TtsUtterance?> speech;
   final TankachuMood mood;
+  final bool use3d;
+  final int reaction;
+  final VoidCallback? onReady;
 
   /// 화면 아래 ~ 입 (말풍선·버튼 높이).
   static const _mouthGap = 186.0;
@@ -37,35 +44,45 @@ class TankachuCallStage extends StatelessWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: LayoutBuilder(
-            builder: (context, box) {
-              final width = min(
-                box.maxWidth * 1.22,
-                (box.maxHeight - _mouthGap - _earGap) /
-                    (TalkingTankachu.mouthBottomFactor -
-                        TalkingTankachu.earTopFactor),
-              );
-              // 키보드가 올라오면 뒤에 깔린 통화 화면까지 세로로 줄어든다 —
-              // 공간이 거의 없으면 폭이 음수가 되어 레이아웃이 깨지므로 숨긴다.
-              if (!(width >= _minWidth)) return const SizedBox.shrink();
-              return Stack(
-                children: [
-                  Positioned(
-                    left: (box.maxWidth - width) / 2,
-                    top:
-                        box.maxHeight -
-                        _mouthGap -
-                        width * TalkingTankachu.mouthBottomFactor,
-                    child: TalkingTankachu(
-                      speech: speech,
-                      mood: mood,
-                      width: width,
-                    ),
+          child: use3d
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 30, bottom: 145),
+                  child: CallMascot3d(
+                    speech: speech,
+                    mood: mood,
+                    reaction: reaction,
+                    onReady: onReady,
                   ),
-                ],
-              );
-            },
-          ),
+                )
+              : LayoutBuilder(
+                  builder: (context, box) {
+                    final width = min(
+                      box.maxWidth * 1.22,
+                      (box.maxHeight - _mouthGap - _earGap) /
+                          (TalkingTankachu.mouthBottomFactor -
+                              TalkingTankachu.earTopFactor),
+                    );
+                    // 키보드가 올라오면 뒤에 깔린 통화 화면까지 세로로 줄어든다 —
+                    // 공간이 거의 없으면 폭이 음수가 되어 레이아웃이 깨지므로 숨긴다.
+                    if (!(width >= _minWidth)) return const SizedBox.shrink();
+                    return Stack(
+                      children: [
+                        Positioned(
+                          left: (box.maxWidth - width) / 2,
+                          top:
+                              box.maxHeight -
+                              _mouthGap -
+                              width * TalkingTankachu.mouthBottomFactor,
+                          child: TalkingTankachu(
+                            speech: speech,
+                            mood: mood,
+                            width: width,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
         // 아래쪽을 어둡게 — 말풍선·버튼이 잘 보이고 몸통이 화면 끝으로 이어진다.
         Positioned(
