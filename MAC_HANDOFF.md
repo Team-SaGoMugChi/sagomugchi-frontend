@@ -1,10 +1,11 @@
-## 2026-11-08 완료 화면 원복·팀 PR 준비 (#112)
+## 2026-11-08 완료 화면 원복·팀 PR #113 게시 (이슈 #112)
 
 - 사용자 요청으로 직전 온보딩 완료 화면 디자인을 HEAD 원본으로 되돌렸다. 새 일러스트/상수/제작 문서는 앱·PR에서 제외했고 build/rejected-onboarding-design/에 로컬 보관한다. 기존 베이스라인·통화 3D·음성 안내 개선은 유지한다.
 - 팀 이슈 #112 생성 후 최신 teamfront/develop dd8d463에서 112-baseline-call-3d 브랜치를 만들었다. 기존 미커밋 변경과 사용자 설정은 보존한다. 이전 91-demo-finish는 이슈 #91과 범위가 달라 새 작업 브랜치를 사용한다.
-- 최근 #108/#106/#105/#103을 확인했다. develop에 새로 추가된 것은 #108의 CBT 상태 테스트이며, 열린 PR #111은 persona_config.dart/persona_form.dart 두 파일을 변경한다. 이번 PR은 해당 두 파일을 수정하지 않는다. 최종 병합 트리 검사와 최신 기준 전체 검증 후 게시한다.
+- 최근 #108/#106/#105/#103을 확인했다. develop에 새로 추가된 것은 #108의 CBT 상태 테스트이며, 열린 PR #111은 persona_config.dart/persona_form.dart 두 파일을 변경한다. 이번 PR은 해당 두 파일을 수정하지 않는다. 실제 HEAD와 #111 head f3b3908의 merge-tree 검사도 충돌 없이 통과했다. develop dd8d463이 현재 HEAD의 조상임을 확인하고 게시 후 다시 fetch해 기준 변경이 없음을 확인했다.
 - 사용하지 않는 입 없는 통화 모델/이전 모델 검사 테스트는 build/legacy-call-motion/에 보관하고 배포 대상에서 제외했다. 현재 얼굴 모델 검사에 기존 동작 보존 확인을 합쳤다. output/ 실험·캡처와 build/ 샘플 진입점·APK·인증용 로컬 도구는 Git 제외다.
-- 완료 화면 원복 이후 일반 앱과 로컬 샘플 앱을 재빌드해 폰도 원래 완료 화면으로 복원할 예정이다. PR 게시와 develop 병합은 구분하며 이번 요청은 PR 게시까지만 수행한다.
+- 완료 화면 원복 이후 dart fix 추가 수정 없음, 정적 분석 이슈 없음, 최신 develop 기준 전체 Flutter 테스트 297개와 얼굴 드라이버 Node 검증 통과. 일반 앱/로컬 샘플 APK 모두 재빌드했고 일반 APK에 거절한 일러스트가 없는 것도 확인했다. 폰에는 원래 완료 화면이 들어간 샘플 앱 데이터 유지 업데이트/실행 성공. 폰이 다시 잠금/절전 상태여서 마지막 표시 캡처는 검게 나왔으며 최종 육안 확인은 하지 못했다.
+- PR: https://github.com/Team-SaGoMugChi/sagomugchi-frontend/pull/113 (base develop, head 112-baseline-call-3d). GitHub API에서 mergeable=true를 확인했다. mergeable_state=blocked는 충돌 없음과 별개이며 리뷰/저장소 병합 조건은 남아 있다. GitHub check-runs는 아직 표시되지 않아 CI 통과로 주장하지 않는다. PR 게시만 완료했으며 develop 병합·운영 배포는 하지 않았다. 로컬 CLAUDE.md의 커밋 표기 선호와 pubspec.lock의 내용 변화 없는 상태는 PR에서 제외하고 보존했다.
 
 ## 2026-11-08 준비 화면 단순화·측정 시작 안내·등장/입 모양 보완
 
