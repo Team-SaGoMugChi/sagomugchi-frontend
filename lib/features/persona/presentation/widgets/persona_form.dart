@@ -121,7 +121,7 @@ class _PersonaFormState extends ConsumerState<PersonaForm> {
           label: Text(_previewing ? '목소리를 들려드리고 있어요' : '선택한 목소리 들어보기'),
         ),
         const Text(
-          'CLOVA 목소리 4종 · 음성 서버 연결이 어려우면 기기 기본 음성으로 안내해요.',
+          '말투마다 탄카츄 목소리가 달라요 · 음성 서버 연결이 어려우면 기기 기본 음성으로 안내해요.',
           style: AppTypography.caption,
         ),
         Gap.h24,

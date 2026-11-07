@@ -20,7 +20,9 @@ class PersonaConfig {
   /// 성격 (신규 설정은 하나, 기존 다중 선택은 읽기 호환) (e.g. ['공감 잘해주는', '따뜻한']).
   final List<String> traits;
 
-  /// Four CLOVA voices, consistently paired with the selected conversation tone.
+  /// 말투별 목소리 이름 4종. 이름은 CLOVA 것을 그대로 보내고, 서버 `/tts`가
+  /// Fish Audio 목소리로 바꿔 읽는다(백엔드 `FISH_VOICES`).
+  /// ⚠ 지금 Fish 목소리는 상업 이용 미확인 — 앱 배포 전 서버에서 교체해야 한다.
   String get clovaVoice => voiceForTone(tone);
 
   static String voiceForTone(String tone) => switch (tone) {
