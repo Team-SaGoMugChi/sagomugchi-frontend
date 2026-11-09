@@ -45,13 +45,14 @@ class AnswerEmotion {
 ///
 /// 서버는 대화에서 육하원칙 칸([slots])을 채우고 빈 칸([missing])만 묻는다.
 /// [done]이면 칸이 다 찼거나 질문 상한에 닿은 것 — 앱은 원문 확인으로 넘어간다.
-/// [crisis]면 서버가 위기 표현을 먼저 걸러낸 것이고, [reply]에는 질문 대신
-/// 전문 기관 안내가 담긴다 (서버 `counsel_guardrail.py` — 상담과 같은 기준).
+///
+/// 위험 발화가 있어도 대화는 멈추지 않는다 — 서버가 그 차례에 공감·걱정하는
+/// 말을 [reply]로 주고, 감지 결과는 상담 전달 JSON(`diary_risk`)으로 넘긴다
+/// (#115). 응답의 `crisis`는 항상 false라 읽지 않는다.
 class InterviewTurnResult {
   const InterviewTurnResult({
     required this.reply,
     this.done = false,
-    this.crisis = false,
     this.slots = const {},
     this.missing = const [],
     this.summary,
@@ -59,7 +60,6 @@ class InterviewTurnResult {
 
   final String reply;
   final bool done;
-  final bool crisis;
 
   /// 칸 이름(누가·언제·어디서·무엇을·어떻게·왜) → 사용자가 말한 내용, 빈 칸은
   /// null. 서버가 칸을 알 수 없던 차례(LLM 실패 등)면 비어 있다.
@@ -74,7 +74,6 @@ class InterviewTurnResult {
       InterviewTurnResult(
         reply: json['reply'] as String,
         done: json['done'] as bool? ?? false,
-        crisis: json['crisis'] as bool? ?? false,
         slots: (json['slots'] as Map<String, dynamic>? ?? const {}).map(
           (key, value) => MapEntry(key, value as String?),
         ),

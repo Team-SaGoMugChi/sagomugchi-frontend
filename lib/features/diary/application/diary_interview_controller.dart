@@ -19,7 +19,10 @@ class AnswerEmotionRecord {
 }
 
 /// 37번 말하기 대화 상태 — 주고받은 말, 차례별 녹음, 채워진 육하원칙 칸,
-/// 답변별 감정, 질문 대기·마무리·위기 여부.
+/// 답변별 감정, 질문 대기·마무리 여부.
+///
+/// 위험 발화가 있어도 대화를 멈추지 않는다 — 탄카츄가 공감·걱정하며 이어가고,
+/// 감지 결과는 서버가 상담 전달 JSON으로 넘긴다(#115).
 class DiaryInterviewState {
   const DiaryInterviewState({
     this.messages = const [],
@@ -29,7 +32,6 @@ class DiaryInterviewState {
     this.summary,
     this.waiting = false,
     this.done = false,
-    this.crisis = false,
   });
 
   final List<InterviewMessage> messages;
@@ -57,9 +59,6 @@ class DiaryInterviewState {
   /// 원문 확인으로 넘어간다.
   final bool done;
 
-  /// 위기 발화 — 대화를 멈추고 전문 기관을 안내한다.
-  final bool crisis;
-
   /// 감정 분석 원문 — 사용자가 한 말만, 차례마다 줄을 바꿔 잇는다.
   String get transcript => messages
       .where((m) => m.speaker == InterviewSpeaker.user)
@@ -74,7 +73,6 @@ class DiaryInterviewState {
     String? summary,
     bool? waiting,
     bool? done,
-    bool? crisis,
   }) => DiaryInterviewState(
     messages: messages ?? this.messages,
     recordingPaths: recordingPaths ?? this.recordingPaths,
@@ -83,7 +81,6 @@ class DiaryInterviewState {
     summary: summary ?? this.summary,
     waiting: waiting ?? this.waiting,
     done: done ?? this.done,
-    crisis: crisis ?? this.crisis,
   );
 }
 
@@ -102,8 +99,8 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
   /// 한 차례 답변(STT 결과와 그 녹음)을 싣고 다음 질문을 받는다.
   ///
   /// [askNext]가 false면(통화를 끝내면서 마지막 답을 싣는 경우) 묻지 않는다.
-  /// 마무리([DiaryInterviewState.done])나 위기 안내 뒤에도 묻지 않는다 — 답은
-  /// 기록에 계속 쌓인다. 질문을 받지 못하면 [keepGoing]으로 이어간다.
+  /// 마무리([DiaryInterviewState.done]) 뒤에도 묻지 않는다 — 답은 기록에 계속
+  /// 쌓인다. 질문을 받지 못하면 [keepGoing]으로 이어간다.
   ///
   /// 질문을 받는 답변은 감정도 따로 분석한다 — 질문과 동시에 보내고 기다리지
   /// 않아서, 분석이 늦거나 실패해도 다음 질문은 늦어지지 않는다.
@@ -114,7 +111,7 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
     bool askNext = true,
   }) async {
     final history = List<InterviewMessage>.unmodifiable(state.messages);
-    final ask = askNext && !state.done && !state.crisis;
+    final ask = askNext && !state.done;
     state = state.copyWith(
       messages: [
         ...history,
@@ -131,7 +128,6 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
 
     InterviewMessage reply;
     var done = false;
-    var crisis = false;
     Map<String, String?>? slots;
     String? summary;
     try {
@@ -140,7 +136,6 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
           .sendTurn(userText: text, history: history);
       reply = InterviewMessage(speaker: InterviewSpeaker.oddo, text: result.reply);
       done = result.done;
-      crisis = result.crisis;
       if (result.slots.isNotEmpty) slots = result.slots;
       if (result.summary?.trim().isNotEmpty ?? false) summary = result.summary;
     } catch (_) {
@@ -153,7 +148,6 @@ class DiaryInterviewController extends Notifier<DiaryInterviewState> {
       summary: summary,
       waiting: false,
       done: done,
-      crisis: crisis,
     );
   }
 
