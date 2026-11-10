@@ -142,16 +142,16 @@ void main() {
       expect(state().recordingPaths, hasLength(2));
     });
 
-    test('stops asking after a crisis reply', () async {
+    test('keeps asking after a caring reply to risky words (#115)', () async {
       repository.result = const InterviewTurnResult(
-        reply: '109에서 24시간 이야기를 들어줘요.',
-        crisis: true,
+        reply: '그런 마음까지 들었다니 걱정돼요. 지금은 좀 괜찮아요?',
       );
-      await answer('다 끝내고 싶어요.');
-      await answer('그냥요.');
+      await answer('너무 힘들어서 죽고 싶었어요.');
+      await answer('지금은 좀 나아요.');
 
-      expect(state().crisis, isTrue);
-      expect(repository.calls, hasLength(1));
+      expect(repository.calls, hasLength(2));
+      expect(state().done, isFalse);
+      expect(state().messages.last.speaker, InterviewSpeaker.oddo);
     });
 
     test('keeps the conversation going when the server fails', () async {

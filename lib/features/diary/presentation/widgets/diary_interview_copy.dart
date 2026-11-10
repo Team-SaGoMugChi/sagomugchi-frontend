@@ -21,9 +21,7 @@ abstract final class DiaryInterviewCopy {
     required bool waiting,
     required bool ending,
     required bool done,
-    required bool crisis,
   }) {
-    if (crisis) return '대화를 잠시 멈췄어요';
     if (ending) return '통화를 마무리하고 있어요';
     if (recording) return '듣고 있어요';
     if (transcribing || waiting) return '생각하고 있어요';

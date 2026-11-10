@@ -167,7 +167,8 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
   bool _listenFailed = false;
 
   /// 탄카츄 말이 끝나면 자동으로 듣기 시작한다 — 마이크 버튼을 누를 필요가 없다.
-  /// 마무리·위기 안내 뒤나 통화를 끝내는 중이면 듣지 않는다.
+  /// 마무리 뒤나 통화를 끝내는 중이면 듣지 않는다. 위험 발화가 있었어도 탄카츄가
+  /// 공감한 뒤 계속 듣는다(#115).
   Future<void> _listen() async {
     final interview = ref.read(diaryInterviewControllerProvider);
     if (!mounted ||
@@ -175,8 +176,7 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
         _transcribing ||
         _ending ||
         interview.waiting ||
-        interview.done ||
-        interview.crisis) {
+        interview.done) {
       return;
     }
     await _startRecording();
@@ -479,7 +479,6 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
         ? DiaryInterviewCopy.thinking
         : lastOddo.text;
     final micLocked =
-        interview.crisis ||
         interview.waiting ||
         interview.done ||
         _transcribing ||
@@ -543,7 +542,6 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                   waiting: interview.waiting,
                   ending: _ending,
                   done: interview.done,
-                  crisis: interview.crisis,
                 ),
                 dotColor: _recording ? AppColors.error : AppColors.success,
               ),
@@ -591,14 +589,6 @@ class _DiaryStep1LiveScreenState extends ConsumerState<DiaryStep1LiveScreen> {
                       right: AppSpacing.screenH,
                       child: CallUserPreview(cameraKey: _cameraKey),
                     ),
-                    // 위기 발화가 감지되면 대화를 멈추고 전문 기관 안내를 띄운다.
-                    if (interview.crisis)
-                      const Positioned(
-                        left: AppSpacing.screenH,
-                        right: AppSpacing.screenH,
-                        bottom: 176,
-                        child: _CrisisBanner(),
-                      ),
                     // 말풍선 — 컨트롤 버튼 위로 띄운다.
                     Positioned(
                       left: AppSpacing.screenH,
@@ -709,38 +699,6 @@ class _OddoBubble extends StatelessWidget {
         style: AppTypography.bodySecondary.copyWith(
           color: AppColors.textPrimary,
         ),
-      ),
-    );
-  }
-}
-
-/// 위기 발화 감지 시 안내 — 질문 대신 전문 기관 연결을 먼저 보여준다.
-class _CrisisBanner extends StatelessWidget {
-  const _CrisisBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.error),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.favorite_rounded, size: 18, color: AppColors.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '지금은 전문가와 이야기하는 게 좋겠어요.\n'
-              '자살예방 상담전화 109 · 24시간 연결돼요.',
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
