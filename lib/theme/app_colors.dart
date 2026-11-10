@@ -48,6 +48,9 @@ abstract final class AppColors {
   static const Color callTextPrimary = Color(0xFFFFFFFF);
   static const Color callTextSecondary = Color(0xFFB9ADA2);
 
+  /// 숏폼 영상 자막 글자 테두리(밝은 화면에서도 읽히게).
+  static const Color videoCaptionStroke = Color(0xFF000000);
+
   // --- Text --------------------------------------------------------------
   static const Color textStrong = Color(0xFF302823);
   static const Color textPrimary = Color(0xFF43372F);

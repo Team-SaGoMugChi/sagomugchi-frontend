@@ -70,6 +70,15 @@ abstract final class AppTypography {
     color: AppColors.textTertiary,
   );
 
+  /// 숏폼 영상 자막 — 릴스처럼 크고 굵은 흰 글씨. 테두리는 [AppColors.videoCaptionStroke].
+  static const TextStyle videoCaption = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 21,
+    height: 1.35,
+    fontWeight: FontWeight.w800,
+    color: AppColors.callTextPrimary,
+  );
+
   static const TextStyle button = TextStyle(
     fontFamily: fontFamily,
     fontSize: 16,

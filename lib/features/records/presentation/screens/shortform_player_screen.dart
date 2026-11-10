@@ -9,7 +9,6 @@ import 'package:video_player/video_player.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
 import '../../../../widgets/mascot_image.dart';
@@ -239,38 +238,39 @@ class _ShortformPlayerScreenState extends ConsumerState<ShortformPlayerScreen> {
   }
 
   /// 지금 시각의 자막 한 줄. 조작부(재생바) 위에 띄워 가리지 않게 한다.
+  /// 릴스처럼 배경 상자 없이 크고 굵은 흰 글씨에 검은 테두리를 둘러 어느 화면에서도 읽힌다.
   Widget _caption() {
     final text = _controller!.value.caption.text;
     if (text.isEmpty) return const SizedBox.shrink();
+    const style = AppTypography.videoCaption;
     return Positioned(
       left: AppSpacing.screenH,
       right: AppSpacing.screenH,
       bottom: _captionBottom,
       child: IgnorePointer(
-        child: Center(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.overlayDim,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyLarge.copyWith(
-                  color: AppColors.callTextPrimary,
-                ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: style.copyWith(
+                color: null,
+                foreground: Paint()
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = _captionStrokeWidth
+                  ..strokeJoin = StrokeJoin.round
+                  ..color = AppColors.videoCaptionStroke,
               ),
             ),
-          ),
+            Text(text, textAlign: TextAlign.center, style: style),
+          ],
         ),
       ),
     );
   }
+
+  static const double _captionStrokeWidth = 4;
 
   /// 재생바·시간 표시가 차지하는 높이만큼 자막을 띄운다.
   static const double _captionBottom = 120;
