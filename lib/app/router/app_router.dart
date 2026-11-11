@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/dummy/terms_dummy.dart';
+import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/screens/find_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
@@ -130,37 +131,51 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppPath.tutorialIntro,
         name: AppRoute.tutorialIntro,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialCall,
         name: AppRoute.tutorialCall,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialSelfIntro,
         name: AppRoute.tutorialSelfIntro,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialVoice,
         name: AppRoute.tutorialVoice,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialFace,
         name: AppRoute.tutorialFace,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialMethod,
         name: AppRoute.tutorialMethod,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
       GoRoute(
         path: AppPath.tutorialDone,
         name: AppRoute.tutorialDone,
-        redirect: (_, _) => AppPath.appIntroduction,
+        redirect: (_, _) => ref.read(authControllerProvider).isLoggedIn
+            ? AppPath.baselineIntro
+            : AppPath.appIntroduction,
       ),
 
       // ── Onboarding: baseline ────────────────────────────────────────────

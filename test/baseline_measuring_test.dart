@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oddo/core/media/audio_recorder_service.dart';
 import 'package:oddo/core/media/tts_service.dart';
 import 'package:oddo/core/storage/local_store.dart';
-import 'package:oddo/data/dummy/baseline_dummy.dart';
+import 'package:oddo/features/baseline/application/baseline_reading_script.dart';
 import 'package:oddo/features/baseline/presentation/screens/baseline_measuring_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -115,18 +115,39 @@ void main() {
     await tester
         .pump(); // Flush recorder completion before building its caption.
     await tester.pump();
-    expect(find.text(BaselineDummy.readingSentences.first), findsOneWidget);
+    expect(
+      find.textContaining(baselineReadingScript('').first),
+      findsOneWidget,
+    );
     expect(recorder.pauses, 0);
     expect(find.text('듣고 있어요 · 녹음 중'), findsOneWidget);
     // Silence never skips text or submits a partial measurement.
     await tester.pump(const Duration(seconds: 10));
-    expect(find.text(BaselineDummy.readingSentences.first), findsOneWidget);
-    for (var i = 0; i < 5; i++) {
-      await tester.tap(find.byTooltip('다 읽었어요'));
-      await tester.pump();
-      expect(find.text(BaselineDummy.readingSentences[i + 1]), findsOneWidget);
-      expect(recorder.stops, 0);
+    expect(
+      find.textContaining(baselineReadingScript('').first),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('다 읽었어요'));
+    await tester.pump();
+    expect(
+      find.textContaining(baselineReadingScript('').first),
+      findsOneWidget,
+    );
+    expect(find.textContaining('목소리를 충분히'), findsOneWidget);
+    for (final sentence in baselineReadingScript('')) {
+      expect(find.textContaining(sentence), findsOneWidget);
     }
+    for (var sample = 0; sample < 4; sample++) {
+      recorder.amplitude.add(-20);
+    }
+    await tester.pump();
+    await tester.tap(find.byTooltip('다 읽었어요'));
+    await tester.pump();
+    expect(recorder.pauses, 0);
+    for (var sample = 0; sample < 20; sample++) {
+      recorder.amplitude.add(-20);
+    }
+    await tester.pump();
     await tester.tap(find.byTooltip('다 읽었어요'));
     await tester.pump();
     expect(recorder.pauses, 1);
