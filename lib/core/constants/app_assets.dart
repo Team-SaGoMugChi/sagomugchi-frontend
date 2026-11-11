@@ -22,6 +22,7 @@ enum MascotPose {
   camera,
   counselor,
   wink,
+  peace,
 }
 
 /// Centralized asset path constants.
@@ -31,6 +32,8 @@ abstract final class AppAssets {
   static const String _imageBase = 'assets/images';
   static const String _characterBase = '$_imageBase/character';
   static const String _iconBase = 'assets/icons';
+
+  static const String personaFriends = 'assets/images/persona_friends_2d.png';
 
   static const String logo = '$_imageBase/oddo_logo.png';
 

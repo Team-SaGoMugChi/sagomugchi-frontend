@@ -42,6 +42,8 @@ void main() {
   for (final item in [
     ('login', AppPath.login),
     ('introduction', AppPath.appIntroduction),
+    ('persona', AppPath.personaIntro),
+    ('persona-done', AppPath.personaDone),
     ('home', AppPath.home),
     ('calendar', AppPath.monthlyCalendar),
     ('my', AppPath.myPage),
@@ -119,6 +121,7 @@ void main() {
               debugShowCheckedModeBanner: false,
               builder: (context, child) => MediaQuery(
                 data: MediaQuery.of(context).copyWith(
+                  disableAnimations: true,
                   textScaler: const TextScaler.linear(screenshots ? 1 : 1.25),
                 ),
                 child: child!,

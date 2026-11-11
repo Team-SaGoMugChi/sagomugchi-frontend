@@ -13,6 +13,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_radius.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
+import '../../../../widgets/oddo_wordmark.dart';
 import '../../../../widgets/primary_button.dart';
 
 /// 첫 실행 소개: 3D 탄카츄가 나오는 27초 브랜드 영상 → 시작하기.
@@ -55,7 +56,7 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
       videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
     );
     try {
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 12));
       if (!mounted) {
         unawaited(_safeDispose(controller));
         return;
@@ -243,7 +244,7 @@ class _AppIntroductionScreenState extends ConsumerState<AppIntroductionScreen> {
                               fit: BoxFit.cover,
                               errorBuilder: (_, _, _) => const SizedBox(),
                             )
-                          : const SizedBox()),
+                          : const Center(child: OddoWordmark(fontSize: 56))),
               ),
             ),
           ),
@@ -378,109 +379,110 @@ class _FilmControlsState extends State<_FilmControls> {
       '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
-  Widget build(BuildContext context) =>
-      ValueListenableBuilder<VideoPlayerValue>(
-        valueListenable: widget.controller,
-        builder: (context, v, _) {
-          final total = v.duration.inMilliseconds;
-          final played = total == 0 ? 0.0 : v.position.inMilliseconds / total;
-          final value = (_dragging ?? played).clamp(0.0, 1.0);
-          final theme = SliderTheme.of(context).copyWith(
-            trackHeight: 4,
-            activeTrackColor: AppColors.primary,
-            inactiveTrackColor: AppColors.primarySoftBorder,
-            thumbColor: AppColors.primary,
-            overlayColor: AppColors.primary.withValues(alpha: .12),
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-          );
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: .94),
-              borderRadius: AppRadius.card,
-              border: Border.all(color: AppColors.primarySoftBorder),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxs,
-                AppSpacing.xxs,
-                AppSpacing.sm,
-                AppSpacing.xxs,
-              ),
-              child: SliderTheme(
-                data: theme,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+  Widget build(
+    BuildContext context,
+  ) => ValueListenableBuilder<VideoPlayerValue>(
+    valueListenable: widget.controller,
+    builder: (context, v, _) {
+      final total = v.duration.inMilliseconds;
+      final played = total == 0 ? 0.0 : v.position.inMilliseconds / total;
+      final value = (_dragging ?? played).clamp(0.0, 1.0);
+      final theme = SliderTheme.of(context).copyWith(
+        trackHeight: 4,
+        activeTrackColor: AppColors.primary,
+        inactiveTrackColor: AppColors.primarySoftBorder,
+        thumbColor: AppColors.primary,
+        overlayColor: AppColors.primary.withValues(alpha: .12),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+      );
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface.withValues(alpha: .94),
+          borderRadius: AppRadius.card,
+          border: Border.all(color: AppColors.primarySoftBorder),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxs,
+            AppSpacing.xxs,
+            AppSpacing.sm,
+            AppSpacing.xxs,
+          ),
+          child: SliderTheme(
+            data: theme,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1줄: 재생/멈춤 · 진행 막대 · 시간
+                Row(
                   children: [
-                    // 1줄: 재생/멈춤 · 진행 막대 · 시간
-                    Row(
-                      children: [
-                        IconButton(
-                          tooltip: v.isPlaying ? '일시정지' : '재생',
-                          onPressed: widget.onTogglePlay,
-                          icon: Icon(
-                            v.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: AppColors.primary,
-                            size: 30,
-                          ),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: value,
-                            semanticFormatterCallback: (_) =>
-                                '${_clock(v.position)} / ${_clock(v.duration)}',
-                            onChangeStart: (x) => setState(() => _dragging = x),
-                            onChanged: (x) {
-                              setState(() => _dragging = x);
-                              widget.onSeek(x);
-                            },
-                            onChangeEnd: (x) {
-                              widget.onSeek(x);
-                              setState(() => _dragging = null);
-                            },
-                          ),
-                        ),
-                        Text(
-                          '${_clock(Duration(milliseconds: (value * total).round()))}'
-                          ' / ${_clock(v.duration)}',
-                          style: AppTypography.caption,
-                        ),
-                      ],
+                    IconButton(
+                      tooltip: v.isPlaying ? '일시정지' : '재생',
+                      onPressed: widget.onTogglePlay,
+                      icon: Icon(
+                        v.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: AppColors.primary,
+                        size: 30,
+                      ),
                     ),
-                    // 2줄: 소리 끄기/켜기 · 소리 크기
-                    Row(
-                      children: [
-                        IconButton(
-                          tooltip: widget.volume == 0 ? '소리 켜기' : '소리 끄기',
-                          onPressed: widget.onToggleMute,
-                          icon: Icon(
-                            widget.volume == 0
-                                ? Icons.volume_off_rounded
-                                : (widget.volume < .5
-                                      ? Icons.volume_down_rounded
-                                      : Icons.volume_up_rounded),
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: widget.volume,
-                            semanticFormatterCallback: (x) =>
-                                '소리 ${(x * 100).round()}%',
-                            onChanged: widget.onVolume,
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Slider(
+                        value: value,
+                        semanticFormatterCallback: (_) =>
+                            '${_clock(v.position)} / ${_clock(v.duration)}',
+                        onChangeStart: (x) => setState(() => _dragging = x),
+                        onChanged: (x) {
+                          setState(() => _dragging = x);
+                          widget.onSeek(x);
+                        },
+                        onChangeEnd: (x) {
+                          widget.onSeek(x);
+                          setState(() => _dragging = null);
+                        },
+                      ),
+                    ),
+                    Text(
+                      '${_clock(Duration(milliseconds: (value * total).round()))}'
+                      ' / ${_clock(v.duration)}',
+                      style: AppTypography.caption,
                     ),
                   ],
                 ),
-              ),
+                // 2줄: 소리 끄기/켜기 · 소리 크기
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: widget.volume == 0 ? '소리 켜기' : '소리 끄기',
+                      onPressed: widget.onToggleMute,
+                      icon: Icon(
+                        widget.volume == 0
+                            ? Icons.volume_off_rounded
+                            : (widget.volume < .5
+                                  ? Icons.volume_down_rounded
+                                  : Icons.volume_up_rounded),
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: widget.volume,
+                        semanticFormatterCallback: (x) =>
+                            '소리 ${(x * 100).round()}%',
+                        onChanged: widget.onVolume,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       );
+    },
+  );
 }
 
 class _StartPanel extends StatelessWidget {

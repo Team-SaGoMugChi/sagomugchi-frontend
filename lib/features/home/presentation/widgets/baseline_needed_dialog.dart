@@ -71,10 +71,7 @@ Future<void> showBaselineNeededDialog(
                   context.pushNamed(
                     hasPendingMeasurement
                         ? AppRoute.baselineAnalyzing
-                        // 소개 영상을 이미 봤다면 바로 페르소나 설정으로.
-                        : (introFilmSeen
-                              ? AppRoute.personaIntro
-                              : AppRoute.appIntroduction),
+                        : AppRoute.personaIntro,
                   );
                 },
               ),

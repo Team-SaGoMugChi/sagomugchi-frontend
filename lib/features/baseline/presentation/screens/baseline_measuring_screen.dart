@@ -10,7 +10,6 @@ import '../../../../core/media/audio_recorder_service.dart';
 import '../../../../core/media/guided_conversation_controller.dart';
 import '../../../../core/media/mascot_speech.dart';
 import '../../../../core/media/tts_service.dart';
-import '../../../../data/dummy/baseline_dummy.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../theme/app_typography.dart';
@@ -23,6 +22,8 @@ import '../../../../widgets/video_call_widgets.dart';
 import '../../application/baseline_camera_guidance.dart';
 import '../../application/baseline_face_frames_provider.dart';
 import '../../application/baseline_face_image_provider.dart';
+import '../../application/baseline_reading_gate.dart';
+import '../../application/baseline_reading_script.dart';
 import '../../application/baseline_recording_provider.dart';
 import '../../application/baseline_upload_controller.dart';
 
@@ -52,12 +53,28 @@ class _BaselineMeasuringScreenState
   Future<void>? _faceCapture;
   Stopwatch? _recordingClock;
 
-  int _sentenceIndex = 0;
+  final _readingGate = BaselineReadingGate(requiredSamples: 24);
+  StreamSubscription<double>? _amplitudeSubscription;
+  String? _readingHint;
   Completer<void>? _readDone;
-  final _mascotReady = Completer<void>();
 
   void _nextSentence() {
     if (_readDone?.isCompleted == false) _readDone!.complete();
+  }
+
+  void _finishSentence() {
+    if (_turn?.speaking != false ||
+        !_recording ||
+        _readDone?.isCompleted != false) {
+      return;
+    }
+    if (!_readingGate.canContinue) {
+      setState(
+        () => _readingHint = '목소리를 충분히 확인하지 못했어요. 마이크를 확인하고 문장을 소리 내어 읽어주세요.',
+      );
+      return;
+    }
+    _nextSentence();
   }
 
   /// 튜토리얼과 같은 통화 무대에서 탄카츄 입이 따라갈 문장.
@@ -75,12 +92,7 @@ class _BaselineMeasuringScreenState
   }
 
   Future<void> _runGuideThenAdvance() async {
-    // Let the actual 3D character appear before it greets the user. The guide
-    // finishes before recording starts, so it cannot enter the voice baseline.
-    await _mascotReady.future;
-    if (!mounted || _advanced) return;
-    const opening =
-        '안녕하세요, 오또예요. 화면에 나오는 문장 여섯 개를 평소 목소리로 읽어주세요. 한 문장을 다 읽으면, 다 읽었어요 버튼을 눌러주세요.';
+    const opening = '문장 여섯 개를 평소 목소리로 읽어주세요. 다 읽으면 아래 완료 버튼을 눌러주세요.';
     setState(
       () => _turn = const ConversationTurn(caption: opening, speaking: true),
     );
@@ -102,6 +114,13 @@ class _BaselineMeasuringScreenState
     }
     setState(() => _recording = true);
     _recordingClock = Stopwatch()..start();
+    _amplitudeSubscription = recorder
+        .amplitudeStream(interval: BaselineReadingGate.sampleInterval)
+        .listen((value) {
+          if (mounted && !_advanced && _turn?.speaking == false) {
+            _readingGate.add(value);
+          }
+        }, onError: (_) {});
     _faceCaptureTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_lastCameraCheck != null &&
           DateTime.now().difference(_lastCameraCheck!) >
@@ -113,19 +132,22 @@ class _BaselineMeasuringScreenState
       }
       _captureFace();
     });
-    for (var i = 0; i < BaselineDummy.readingSentences.length; i++) {
-      if (!mounted || _advanced) return;
-      final done = Completer<void>();
-      _readDone = done;
-      setState(() {
-        _sentenceIndex = i;
-        _turn = ConversationTurn(
-          caption: BaselineDummy.readingSentences[i],
-          speaking: false,
-        );
-      });
-      await done.future;
-    }
+    final done = Completer<void>();
+    _readDone = done;
+    setState(() {
+      _readingGate.reset();
+      _readingHint = null;
+      _turn = ConversationTurn(
+        caption: ref
+            .read(baselineReadingScriptProvider)
+            .asMap()
+            .entries
+            .map((entry) => '${entry.key + 1}. ${entry.value}')
+            .join('\n\n'),
+        speaking: false,
+      );
+    });
+    await done.future;
     if (!mounted || _advanced) return;
     const closing = '감사합니다, 측정을 마칠게요.';
     setState(
@@ -172,6 +194,7 @@ class _BaselineMeasuringScreenState
     });
     _nextSentence();
     _faceCaptureTimer?.cancel();
+    unawaited(_amplitudeSubscription?.cancel());
     _recordingClock?.stop();
     final images = ref.read(baselineFaceFramesProvider);
     final audio = await ref.read(audioRecorderProvider).stop();
@@ -187,8 +210,7 @@ class _BaselineMeasuringScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('녹음을 다시 시작하지 못했어요. 측정을 다시 진행해주세요.')),
     );
-    // 다시 측정은 안내 화면이 아니라 탄카츄와 따라 읽는 측정 화면으로 바로 간다.
-    context.pushReplacementNamed(AppRoute.baselineMeasuring);
+    context.pushReplacementNamed(AppRoute.baselineReady);
   }
 
   @override
@@ -197,8 +219,8 @@ class _BaselineMeasuringScreenState
     // 대화 대기 루프를 여기서 끊어준다.
     _nextSentence();
     _faceCaptureTimer?.cancel();
+    unawaited(_amplitudeSubscription?.cancel());
     _speech.dispose();
-    if (!_mascotReady.isCompleted) _mascotReady.complete();
     super.dispose();
   }
 
@@ -258,6 +280,7 @@ class _BaselineMeasuringScreenState
     });
     _nextSentence();
     _faceCaptureTimer?.cancel();
+    unawaited(_amplitudeSubscription?.cancel());
     await ref.read(ttsServiceProvider).stop();
 
     // 측정 중에는 1초마다 프레임을 수집하고 종료 직전에도 한 장을 촬영한다.
@@ -306,7 +329,7 @@ class _BaselineMeasuringScreenState
                 child: Column(
                   children: [
                     Text(
-                      '오또',
+                      '탄카츄',
                       style: AppTypography.subtitle.copyWith(
                         color: AppColors.callTextPrimary,
                       ),
@@ -316,37 +339,9 @@ class _BaselineMeasuringScreenState
                       liveRegion: true,
                       child: Text(
                         status,
-                        textAlign: TextAlign.center,
                         style: AppTypography.caption.copyWith(
                           color: AppColors.callTextSecondary,
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenH,
-                ),
-                child: Column(
-                  children: [
-                    LinearProgressIndicator(
-                      value: _advanced
-                          ? 1
-                          : _sentenceIndex /
-                                BaselineDummy.readingSentences.length,
-                      backgroundColor: AppColors.callSurface,
-                      color: AppColors.primarySoft,
-                      semanticsLabel:
-                          '${_advanced ? BaselineDummy.readingSentences.length : _sentenceIndex}/${BaselineDummy.readingSentences.length} 문장 완료',
-                    ),
-                    Gap.h8,
-                    Text(
-                      '안내가 끝나면 평소 목소리로 읽어주세요.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.callTextSecondary,
                       ),
                     ),
                   ],
@@ -358,13 +353,6 @@ class _BaselineMeasuringScreenState
                     children: [
                       Positioned.fill(
                         child: TankachuCallStage(
-                          use3d: true,
-                          onReady: () {
-                            if (!_mascotReady.isCompleted) {
-                              _mascotReady.complete();
-                            }
-                          },
-                          reaction: _sentenceIndex,
                           speech: _speech,
                           mood: listening
                               ? TankachuMood.listening
@@ -389,7 +377,7 @@ class _BaselineMeasuringScreenState
                           children: [
                             ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxHeight: box.maxHeight * 0.3,
+                                maxHeight: box.maxHeight * 0.65,
                               ),
                               child: SingleChildScrollView(
                                 child: Column(
@@ -402,6 +390,10 @@ class _BaselineMeasuringScreenState
                                           : _turn?.caption ??
                                                 '잠시만요, 녹음을 준비하고 있어요.',
                                     ),
+                                    if (_readingHint != null) ...[
+                                      Gap.h8,
+                                      SpeechBubble(text: _readingHint!),
+                                    ],
                                     if (listening && _cameraHint != null) ...[
                                       Gap.h8,
                                       SpeechBubble(text: _cameraHint!.caption),
@@ -417,7 +409,9 @@ class _BaselineMeasuringScreenState
                                 children: [
                                   IconButton.filled(
                                     tooltip: '다 읽었어요',
-                                    onPressed: listening ? _nextSentence : null,
+                                    onPressed: _recording && !_advanced
+                                        ? _finishSentence
+                                        : null,
                                     style: IconButton.styleFrom(
                                       fixedSize: const Size.square(
                                         AppSpacing.xxxl + AppSpacing.md,
@@ -442,9 +436,7 @@ class _BaselineMeasuringScreenState
                                   ),
                                   Gap.h8,
                                   Text(
-                                    _advanced
-                                        ? '마무리 중'
-                                        : '${_sentenceIndex + 1}/6 · 다 읽었어요',
+                                    _advanced ? '마무리 중' : '여섯 문장을 모두 읽었어요',
                                     style: AppTypography.caption.copyWith(
                                       color: AppColors.callTextPrimary,
                                     ),
